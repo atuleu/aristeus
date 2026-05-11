@@ -39,9 +39,9 @@
         "other_text_thickness": 0.15,
         "other_text_upright": false,
         "pads": {
-          "drill": 0.0,
-          "height": 1.0,
-          "width": 0.9
+          "drill": 0.3,
+          "height": 0.6,
+          "width": 0.6
         },
         "silk_line_width": 0.1,
         "silk_text_italic": false,
@@ -50,7 +50,7 @@
         "silk_text_thickness": 0.1,
         "silk_text_upright": false,
         "zones": {
-          "min_clearance": 0.2
+          "min_clearance": 0.15
         }
       },
       "diff_pair_dimensions": [
@@ -66,27 +66,11 @@
           ""
         ],
         [
-          "lib_footprint_mismatch|193500000|114090000|614ea692-3f25-4528-9acc-cb200def6d19|00000000-0000-0000-0000-000000000000",
+          "lib_footprint_mismatch|194600000|101600000|eb7e687c-f9aa-43e4-9adc-824cb1e44825|00000000-0000-0000-0000-000000000000",
           ""
         ],
         [
-          "lib_footprint_mismatch|194752500|103800000|eb7e687c-f9aa-43e4-9adc-824cb1e44825|00000000-0000-0000-0000-000000000000",
-          ""
-        ],
-        [
-          "text_height|190800000|111000000|6cf54875-5239-4e8e-8ff4-9cea4dda4134|00000000-0000-0000-0000-000000000000",
-          ""
-        ],
-        [
-          "text_height|194700000|111000000|3c3354ed-d372-4d6e-9d2e-11d0688e7d44|00000000-0000-0000-0000-000000000000",
-          ""
-        ],
-        [
-          "text_height|199600000|101400000|6176944a-4f7d-4a07-a598-89e7c8545ae5|00000000-0000-0000-0000-000000000000",
-          ""
-        ],
-        [
-          "text_height|199700000|104900000|f804cdb5-c92c-4b0e-8e95-2ec7dfa6a876|00000000-0000-0000-0000-000000000000",
+          "lib_footprint_mismatch|194900000|114090000|614ea692-3f25-4528-9acc-cb200def6d19|00000000-0000-0000-0000-000000000000",
           ""
         ],
         [
@@ -531,7 +515,9 @@
     "pinned_footprint_libs": [
       "custom"
     ],
-    "pinned_symbol_libs": []
+    "pinned_symbol_libs": [
+      "custom"
+    ]
   },
   "meta": {
     "filename": "USB_LED_Ring.kicad_pro",
@@ -554,7 +540,7 @@
         "schematic_color": "rgba(0, 0, 0, 0.000)",
         "track_width": 0.2,
         "tuning_profile": "",
-        "via_diameter": 0.7,
+        "via_diameter": 0.6,
         "via_drill": 0.3,
         "wire_width": 6
       },
@@ -566,7 +552,7 @@
         "schematic_color": "rgba(0, 0, 0, 0.000)",
         "track_width": 0.3,
         "tuning_profile": "",
-        "via_diameter": 0.7,
+        "via_diameter": 0.6,
         "via_drill": 0.3
       },
       {
@@ -577,7 +563,7 @@
         "schematic_color": "rgba(0, 0, 0, 0.000)",
         "track_width": 0.6,
         "tuning_profile": "",
-        "via_diameter": 0.7,
+        "via_diameter": 0.6,
         "via_drill": 0.3
       },
       {
@@ -812,7 +798,7 @@
         "uuid": "5ad4d729-d735-4832-a15b-0afb907c9d85"
       }
     ],
-    "used_designators": "",
+    "used_designators": "J4-5,L2,JP1",
     "variants": []
   },
   "sheets": [
