@@ -50,7 +50,7 @@
         "silk_text_thickness": 0.1,
         "silk_text_upright": false,
         "zones": {
-          "min_clearance": 0.15
+          "min_clearance": 0.2
         }
       },
       "diff_pair_dimensions": [
@@ -60,32 +60,7 @@
           "width": 0.0
         }
       ],
-      "drc_exclusions": [
-        [
-          "lib_footprint_mismatch|188232500|93000000|afbe0bf5-0f11-4516-9d49-93ec23973fe7|00000000-0000-0000-0000-000000000000",
-          ""
-        ],
-        [
-          "lib_footprint_mismatch|194600000|101600000|eb7e687c-f9aa-43e4-9adc-824cb1e44825|00000000-0000-0000-0000-000000000000",
-          ""
-        ],
-        [
-          "lib_footprint_mismatch|194900000|114090000|614ea692-3f25-4528-9acc-cb200def6d19|00000000-0000-0000-0000-000000000000",
-          ""
-        ],
-        [
-          "track_dangling|113792826|101200238|6dc1a4f8-10a5-4d18-b510-7ee33499c2c7|00000000-0000-0000-0000-000000000000",
-          ""
-        ],
-        [
-          "track_dangling|148600000|63800000|bfc96825-bcd8-4ab7-bdb2-b4aa298dea4b|00000000-0000-0000-0000-000000000000",
-          ""
-        ],
-        [
-          "track_dangling|151200000|136200000|dddbae66-73fe-4df6-b15e-1ebdc9745c32|00000000-0000-0000-0000-000000000000",
-          ""
-        ]
-      ],
+      "drc_exclusions": [],
       "meta": {
         "version": 2
       },
@@ -223,6 +198,7 @@
         0.15,
         0.2,
         0.3,
+        0.5,
         0.6,
         0.8,
         1.0
@@ -798,7 +774,7 @@
         "uuid": "5ad4d729-d735-4832-a15b-0afb907c9d85"
       }
     ],
-    "used_designators": "J4-5,L2,JP1",
+    "used_designators": "TP1-7,R1-6,U1-3,Q1,L1-2,J1-4,D1-24,C1-19,BTN1-2,Y1,FB1,#PWR1-51",
     "variants": []
   },
   "sheets": [
