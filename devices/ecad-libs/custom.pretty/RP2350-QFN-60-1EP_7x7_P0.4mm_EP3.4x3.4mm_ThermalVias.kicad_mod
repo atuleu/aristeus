@@ -853,7 +853,7 @@
 		(uuid "953dbaa7-cdda-472c-b7a7-034c5a68b7ce")
 	)
 	(embedded_fonts no)
-	(model "${KIPRJMOD}/../ecad-libs/custom.3dparts/RP2350_QFN60.step"
+	(model "${KIPRJMOD}/custom.3dparts/RP2350_QFN60.step"
 		(offset
 			(xyz 0 0 0)
 		)

@@ -108,7 +108,7 @@
 		(uuid "0b76b6b4-5913-4c64-97d7-e685593e48a2")
 	)
 	(embedded_fonts no)
-	(model "${KIPRJMOD}/../ecad-libs/custom.3dparts/RCUCTE.STEP"
+	(model "${KIPRJMOD}/custom.3dparts/RCUCTE.STEP"
 		(offset
 			(xyz -0.8 0.4 0)
 		)

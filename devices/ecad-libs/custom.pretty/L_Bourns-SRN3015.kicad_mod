@@ -184,7 +184,7 @@
 		(uuid "89e024e6-246b-4618-8c21-4e88fbc15ff6")
 	)
 	(embedded_fonts no)
-	(model "${KIPRJMOD}/../ecad-libs/custom.3dparts/srn3015.stp"
+	(model "${KIPRJMOD}/custom.3dparts/srn3015.stp"
 		(offset
 			(xyz 0 0 0)
 		)

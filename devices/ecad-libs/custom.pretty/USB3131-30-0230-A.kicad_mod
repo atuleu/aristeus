@@ -294,7 +294,7 @@
 		(uuid "2f2deb85-5927-43b8-9e38-284bf899d014")
 	)
 	(embedded_fonts no)
-	(model "${KIPRJMOD}/../ecad-libs/custom.3dparts/USB3131-30-0230-A.STEP"
+	(model "${KIPRJMOD}/custom.3dparts/USB3131-30-0230-A.STEP"
 		(offset
 			(xyz 0 0.25 -2.3)
 		)

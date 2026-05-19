@@ -405,7 +405,7 @@
 			(uuid "a643a79d-781b-4976-8cfc-9352b13e5045")
 		)
 		(embedded_fonts no)
-		(model "${KIPRJMOD}/../ecad-libs/custom.3dparts/WL-SWTP-3014_rev1.stp"
+		(model "${KIPRJMOD}/custom.3dparts/WL-SWTP-3014_rev1.stp"
 			(offset
 				(xyz 0 0 0)
 			)
@@ -1040,7 +1040,7 @@
 			(uuid "f2007bc6-75a2-405d-ad74-590a5c97eb8a")
 		)
 		(embedded_fonts no)
-		(model "${KIPRJMOD}/../ecad-libs/custom.3dparts/WL-SWTP-3014_rev1.stp"
+		(model "${KIPRJMOD}/custom.3dparts/WL-SWTP-3014_rev1.stp"
 			(offset
 				(xyz 0 0 0)
 			)
@@ -1727,7 +1727,7 @@
 			(uuid "f3cff173-0cc4-43ab-aba8-84659fc164bd")
 		)
 		(embedded_fonts no)
-		(model "${KIPRJMOD}/../ecad-libs/custom.3dparts/WL-SWTP-3014_rev1.stp"
+		(model "${KIPRJMOD}/custom.3dparts/WL-SWTP-3014_rev1.stp"
 			(offset
 				(xyz 0 0 0)
 			)
@@ -1924,7 +1924,7 @@
 			(uuid "3cd265d5-3343-461c-8e05-3f9a7c4c306a")
 		)
 		(embedded_fonts no)
-		(model "${KIPRJMOD}/../ecad-libs/custom.3dparts/WL-SWTP-3014_rev1.stp"
+		(model "${KIPRJMOD}/custom.3dparts/WL-SWTP-3014_rev1.stp"
 			(offset
 				(xyz 0 0 0)
 			)
@@ -2291,7 +2291,7 @@
 			(uuid "b81a00e6-4582-4727-8b4b-3a3591d18f0c")
 		)
 		(embedded_fonts no)
-		(model "${KIPRJMOD}/../ecad-libs/custom.3dparts/WL-SWTP-3014_rev1.stp"
+		(model "${KIPRJMOD}/custom.3dparts/WL-SWTP-3014_rev1.stp"
 			(offset
 				(xyz 0 0 0)
 			)
@@ -2578,7 +2578,7 @@
 			(uuid "6a86ec1f-3d90-48ea-b094-251638953948")
 		)
 		(embedded_fonts no)
-		(model "${KIPRJMOD}/../ecad-libs/custom.3dparts/WL-SWTP-3014_rev1.stp"
+		(model "${KIPRJMOD}/custom.3dparts/WL-SWTP-3014_rev1.stp"
 			(offset
 				(xyz 0 0 0)
 			)
@@ -2775,7 +2775,7 @@
 			(uuid "bbcb9db4-a4a4-4718-9a17-2b602efbd7f2")
 		)
 		(embedded_fonts no)
-		(model "${KIPRJMOD}/../ecad-libs/custom.3dparts/WL-SWTP-3014_rev1.stp"
+		(model "${KIPRJMOD}/custom.3dparts/WL-SWTP-3014_rev1.stp"
 			(offset
 				(xyz 0 0 0)
 			)
@@ -3100,7 +3100,7 @@
 			(uuid "01afebed-0497-4cec-b123-82183e12157a")
 		)
 		(embedded_fonts no)
-		(model "${KIPRJMOD}/../ecad-libs/custom.3dparts/KMS231GPLFS.stp"
+		(model "${KIPRJMOD}/custom.3dparts/KMS231GPLFS.stp"
 			(offset
 				(xyz 0 0 0)
 			)
@@ -3469,7 +3469,7 @@
 			(uuid "d0ae2501-99ea-4a57-ae2d-ea5481428606")
 		)
 		(embedded_fonts no)
-		(model "${KIPRJMOD}/../ecad-libs/custom.3dparts/WL-SWTP-3014_rev1.stp"
+		(model "${KIPRJMOD}/custom.3dparts/WL-SWTP-3014_rev1.stp"
 			(offset
 				(xyz 0 0 0)
 			)
@@ -4507,7 +4507,7 @@
 			(uuid "b4ca9c8f-5762-46b1-964d-d651ee38aea8")
 		)
 		(embedded_fonts no)
-		(model "${KIPRJMOD}/../ecad-libs/custom.3dparts/WL-SWTP-3014_rev1.stp"
+		(model "${KIPRJMOD}/custom.3dparts/WL-SWTP-3014_rev1.stp"
 			(offset
 				(xyz 0 0 0)
 			)
@@ -4704,7 +4704,7 @@
 			(uuid "5805d48b-15f7-4d26-bcfd-ce9a9442388e")
 		)
 		(embedded_fonts no)
-		(model "${KIPRJMOD}/../ecad-libs/custom.3dparts/WL-SWTP-3014_rev1.stp"
+		(model "${KIPRJMOD}/custom.3dparts/WL-SWTP-3014_rev1.stp"
 			(offset
 				(xyz 0 0 0)
 			)
@@ -5333,7 +5333,7 @@
 			(uuid "876dcd32-6e0f-4884-a8df-fac7a20d5737")
 		)
 		(embedded_fonts no)
-		(model "${KIPRJMOD}/../ecad-libs/custom.3dparts/1050170001.stp"
+		(model "${KIPRJMOD}/custom.3dparts/1050170001.stp"
 			(offset
 				(xyz 0 -1.05 1.15)
 			)
@@ -6401,7 +6401,7 @@
 			(uuid "a9f627d2-f4b2-4ea6-b2a9-2996efafa3ce")
 		)
 		(embedded_fonts no)
-		(model "${KIPRJMOD}/../ecad-libs/custom.3dparts/WL-SWTP-3014_rev1.stp"
+		(model "${KIPRJMOD}/custom.3dparts/WL-SWTP-3014_rev1.stp"
 			(offset
 				(xyz 0 0 0)
 			)
@@ -6596,7 +6596,7 @@
 			(uuid "427aab1b-1671-4106-bf48-7c752ce457b5")
 		)
 		(embedded_fonts no)
-		(model "${KIPRJMOD}/../ecad-libs/custom.3dparts/WL-SWTP-3014_rev1.stp"
+		(model "${KIPRJMOD}/custom.3dparts/WL-SWTP-3014_rev1.stp"
 			(offset
 				(xyz 0 0 0)
 			)
@@ -6793,7 +6793,7 @@
 			(uuid "c3072e29-e270-4609-86b9-b9e2717cf7dc")
 		)
 		(embedded_fonts no)
-		(model "${KIPRJMOD}/../ecad-libs/custom.3dparts/WL-SWTP-3014_rev1.stp"
+		(model "${KIPRJMOD}/custom.3dparts/WL-SWTP-3014_rev1.stp"
 			(offset
 				(xyz 0 0 0)
 			)
@@ -6990,7 +6990,7 @@
 			(uuid "e478ba4e-0080-4200-817b-0f866073411b")
 		)
 		(embedded_fonts no)
-		(model "${KIPRJMOD}/../ecad-libs/custom.3dparts/WL-SWTP-3014_rev1.stp"
+		(model "${KIPRJMOD}/custom.3dparts/WL-SWTP-3014_rev1.stp"
 			(offset
 				(xyz 0 0 0)
 			)
@@ -7531,7 +7531,7 @@
 			(uuid "0fa51a95-0960-4010-9824-f9017836c66d")
 		)
 		(embedded_fonts no)
-		(model "${KIPRJMOD}/../ecad-libs/custom.3dparts/WL-SWTP-3014_rev1.stp"
+		(model "${KIPRJMOD}/custom.3dparts/WL-SWTP-3014_rev1.stp"
 			(offset
 				(xyz 0 0 0)
 			)
@@ -7900,7 +7900,7 @@
 			(uuid "610e70fc-4181-4fe2-87d9-c71c41934974")
 		)
 		(embedded_fonts no)
-		(model "${KIPRJMOD}/../ecad-libs/custom.3dparts/WL-SWTP-3014_rev1.stp"
+		(model "${KIPRJMOD}/custom.3dparts/WL-SWTP-3014_rev1.stp"
 			(offset
 				(xyz 0 0 0)
 			)
@@ -8339,7 +8339,7 @@
 			(uuid "5371c089-4a13-45b8-a3c8-08f8898bf5e2")
 		)
 		(embedded_fonts no)
-		(model "${KIPRJMOD}/../ecad-libs/custom.3dparts/WL-SWTP-3014_rev1.stp"
+		(model "${KIPRJMOD}/custom.3dparts/WL-SWTP-3014_rev1.stp"
 			(offset
 				(xyz 0 0 0)
 			)
@@ -8744,7 +8744,7 @@
 			(uuid "fd4ee4a2-f0df-43c4-812a-37f31421b5a4")
 		)
 		(embedded_fonts no)
-		(model "${KIPRJMOD}/../ecad-libs/custom.3dparts/srn3015.stp"
+		(model "${KIPRJMOD}/custom.3dparts/srn3015.stp"
 			(offset
 				(xyz 0 0 0)
 			)
@@ -9274,7 +9274,7 @@
 			(uuid "296513ee-faf2-44da-b791-f33dfcc31336")
 		)
 		(embedded_fonts no)
-		(model "${KIPRJMOD}/../ecad-libs/custom.3dparts/WL-SWTP-3014_rev1.stp"
+		(model "${KIPRJMOD}/custom.3dparts/WL-SWTP-3014_rev1.stp"
 			(offset
 				(xyz 0 0 0)
 			)
@@ -9805,7 +9805,7 @@
 			(uuid "94137ead-bb6a-40fb-ba6a-acb16f243fe9")
 		)
 		(embedded_fonts no)
-		(model "${KIPRJMOD}/../ecad-libs/custom.3dparts/WL-SWTP-3014_rev1.stp"
+		(model "${KIPRJMOD}/custom.3dparts/WL-SWTP-3014_rev1.stp"
 			(offset
 				(xyz 0 0 0)
 			)
@@ -11178,7 +11178,7 @@
 			(uuid "62a0bd20-6a3f-4f64-9939-5ed898272d37")
 		)
 		(embedded_fonts no)
-		(model "${KIPRJMOD}/../ecad-libs/custom.3dparts/KMS231GPLFS.stp"
+		(model "${KIPRJMOD}/custom.3dparts/KMS231GPLFS.stp"
 			(offset
 				(xyz 0 0 0)
 			)
@@ -11482,7 +11482,7 @@
 			(uuid "f4bf0c40-cfd2-4a17-8a6c-6b24509d213b")
 		)
 		(embedded_fonts no)
-		(model "${KIPRJMOD}/../ecad-libs/custom.3dparts/WL-SWTP-3014_rev1.stp"
+		(model "${KIPRJMOD}/custom.3dparts/WL-SWTP-3014_rev1.stp"
 			(offset
 				(xyz 0 0 0)
 			)
@@ -11679,7 +11679,7 @@
 			(uuid "cc090eb2-37c4-422e-bceb-fac5fd8e84e5")
 		)
 		(embedded_fonts no)
-		(model "${KIPRJMOD}/../ecad-libs/custom.3dparts/WL-SWTP-3014_rev1.stp"
+		(model "${KIPRJMOD}/custom.3dparts/WL-SWTP-3014_rev1.stp"
 			(offset
 				(xyz 0 0 0)
 			)
@@ -12932,7 +12932,7 @@
 			(uuid "c64e8fe1-435c-42d7-b7a8-814f2eb103ab")
 		)
 		(embedded_fonts no)
-		(model "${KIPRJMOD}/../ecad-libs/custom.3dparts/WL-SWTP-3014_rev1.stp"
+		(model "${KIPRJMOD}/custom.3dparts/WL-SWTP-3014_rev1.stp"
 			(offset
 				(xyz 0 0 0)
 			)
@@ -13129,7 +13129,7 @@
 			(uuid "cc53dabc-2dfe-4b67-8a8b-1a42d039af70")
 		)
 		(embedded_fonts no)
-		(model "${KIPRJMOD}/../ecad-libs/custom.3dparts/WL-SWTP-3014_rev1.stp"
+		(model "${KIPRJMOD}/custom.3dparts/WL-SWTP-3014_rev1.stp"
 			(offset
 				(xyz 0 0 0)
 			)
@@ -14565,7 +14565,7 @@
 			(uuid "e245249b-2739-42fc-9a51-8f02a94c8278")
 		)
 		(embedded_fonts no)
-		(model "${KIPRJMOD}/../ecad-libs/custom.3dparts/RP2350_QFN60.step"
+		(model "${KIPRJMOD}/custom.3dparts/RP2350_QFN60.step"
 			(offset
 				(xyz 0 0 0)
 			)
@@ -14762,7 +14762,7 @@
 			(uuid "3bebfff9-78e7-432a-a85a-d655359c0f4c")
 		)
 		(embedded_fonts no)
-		(model "${KIPRJMOD}/../ecad-libs/custom.3dparts/WL-SWTP-3014_rev1.stp"
+		(model "${KIPRJMOD}/custom.3dparts/WL-SWTP-3014_rev1.stp"
 			(offset
 				(xyz 0 0 0)
 			)
