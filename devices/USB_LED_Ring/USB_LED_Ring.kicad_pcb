@@ -182,9 +182,9 @@
 		(duplicate_pad_numbers_are_jumpers no)
 		(fp_poly
 			(pts
-				(xy 0.654282 0.337641) (xy 0.672052 0.339257) (xy 0.689822 0.339258) (xy 0.803716 0.313409) (xy 0.878029 0.242326)
+				(xy 0.654283 0.337641) (xy 0.672052 0.339257) (xy 0.689822 0.339259) (xy 0.803716 0.313409) (xy 0.878029 0.242326)
 				(xy 0.918417 0.134895) (xy 0.927504 0.069669) (xy 0.930533 -0.001616) (xy 0.92084 -0.127625) (xy 0.886914 -0.235864)
-				(xy 0.820679 -0.310985) (xy 0.712439 -0.339257) (xy 0.68336 -0.338449) (xy 0.65428 -0.33441) (xy 0.654282 0.337641)
+				(xy 0.820679 -0.310985) (xy 0.712439 -0.339257) (xy 0.68336 -0.338449) (xy 0.654279 -0.33441) (xy 0.654283 0.337641)
 			)
 			(stroke
 				(width 0)
@@ -196,19 +196,19 @@
 		)
 		(fp_poly
 			(pts
-				(xy -1.132472 -0.619817) (xy -1.240172 -0.619817) (xy -1.240172 0.619817) (xy -1.132472 0.619818)
+				(xy -1.132472 -0.619817) (xy -1.240172 -0.619817) (xy -1.240172 0.619817) (xy -1.132472 0.619819)
 				(xy -0.504039 0.619817) (xy -0.504039 0.499192) (xy -1.132472 0.499192) (xy -1.132472 -0.500808)
 				(xy -0.932149 -0.500808) (xy -0.932149 0.33441) (xy -0.504039 0.33441) (xy -0.504039 0.499192) (xy -0.504039 0.619817)
 				(xy -0.337641 0.619817) (xy -0.337641 0.499192) (xy -0.337641 -0.500808) (xy 0.268174 -0.500808)
 				(xy 0.268174 -0.336026) (xy -0.138934 -0.336026) (xy -0.138934 -0.11147) (xy 0.214863 -0.11147)
 				(xy 0.214863 0.053312) (xy -0.138934 0.053312) (xy -0.138934 0.33441) (xy 0.303716 0.33441) (xy 0.303716 0.499192)
 				(xy -0.337641 0.499192) (xy -0.337641 0.619817) (xy 0.668821 0.619817) (xy 0.668821 0.512116) (xy 0.56462 0.506462)
-				(xy 0.455574 0.487884) (xy 0.455574 -0.487884) (xy 0.583199 -0.50727) (xy 0.694668 -0.512116) (xy 0.788974 -0.504847)
+				(xy 0.455574 0.487884) (xy 0.455574 -0.487884) (xy 0.583199 -0.50727) (xy 0.694667 -0.512116) (xy 0.788974 -0.504847)
 				(xy 0.874798 -0.483037) (xy 0.950121 -0.445679) (xy 1.012924 -0.391761) (xy 1.063207 -0.321082)
 				(xy 1.100969 -0.233441) (xy 1.124596 -0.127423) (xy 1.132472 -0.001616) (xy 1.123788 0.127019) (xy 1.097739 0.235057)
 				(xy 1.056341 0.323708) (xy 1.001616 0.394184) (xy 0.93437 0.447294) (xy 0.855412 0.483845) (xy 0.766357 0.505048)
 				(xy 0.668821 0.512116) (xy 0.668821 0.619817) (xy 1.132472 0.619817) (xy 1.240172 0.619817) (xy 1.240172 -0.619817)
-				(xy 1.132472 -0.619818) (xy -1.132472 -0.619817)
+				(xy 1.132472 -0.619819) (xy -1.132472 -0.619817)
 			)
 			(stroke
 				(width 0)
@@ -306,12 +306,6 @@
 		(path "/13d7325f-4658-4f74-9946-b9dad94e8ba1")
 		(sheetname "/")
 		(sheetfile "USB_LED_Ring.kicad_sch")
-		(units
-			(unit
-				(name "A")
-				(pins "1" "2")
-			)
-		)
 		(attr smd)
 		(duplicate_pad_numbers_are_jumpers no)
 		(fp_line
@@ -411,7 +405,7 @@
 			(uuid "a643a79d-781b-4976-8cfc-9352b13e5045")
 		)
 		(embedded_fonts no)
-		(model "${KIPRJMOD}/custom.3dparts/WL-SWTP-3014_rev1.stp"
+		(model "${KIPRJMOD}/../ecad-libs/custom.3dparts/WL-SWTP-3014_rev1.stp"
 			(offset
 				(xyz 0 0 0)
 			)
@@ -833,7 +827,7 @@
 				(xy -1.134087 -0.225363) (xy -1.094103 -0.315226) (xy -1.042003 -0.389336) (xy -0.978595 -0.447294)
 				(xy -0.904684 -0.488691) (xy -0.822698 -0.51353) (xy -0.735057 -0.521809) (xy -0.630856 -0.512925)
 				(xy -0.550889 -0.492729) (xy -0.495152 -0.468497) (xy -0.462036 -0.449111) (xy -0.513732 -0.290792)
-				(xy -0.600969 -0.331179) (xy -0.707593 -0.34895) (xy -0.827141 -0.323102) (xy -0.907108 -0.251212)
+				(xy -0.600969 -0.331179) (xy -0.707593 -0.34895) (xy -0.827141 -0.323103) (xy -0.907108 -0.251212)
 				(xy -0.952341 -0.141357) (xy -0.962641 -0.074111) (xy -0.966074 0) (xy -0.959792 0.109047) (xy -0.940944 0.197092)
 				(xy -0.909532 0.264136) (xy -0.839661 0.327747) (xy -0.743134 0.34895) (xy -0.704363 0.347334) (xy -0.66559 0.342488)
 				(xy -0.66559 -0.022617) (xy -0.466883 -0.022617) (xy -0.466881 0.476575) (xy -0.577545 0.505654)
@@ -844,7 +838,7 @@
 				(xy 0.008885 -0.179321) (xy 0.050081 -0.098142) (xy 0.088045 -0.019386) (xy 0.121769 0.053312) (xy 0.150242 0.116317)
 				(xy 0.150242 -0.499192) (xy 0.329564 -0.499192) (xy 0.329564 0.500808) (xy 0.169628 0.500809) (xy 0.169628 0.62951)
 				(xy 0.704362 0.62951) (xy 0.704363 0.513732) (xy 0.600162 0.508078) (xy 0.491116 0.489499) (xy 0.491116 -0.486268)
-				(xy 0.618741 -0.505655) (xy 0.730209 -0.510501) (xy 0.824515 -0.503232) (xy 0.910339 -0.481422)
+				(xy 0.618741 -0.505655) (xy 0.730208 -0.510501) (xy 0.824515 -0.503232) (xy 0.910339 -0.481422)
 				(xy 0.985662 -0.444063) (xy 1.048465 -0.390144) (xy 1.098747 -0.319466) (xy 1.136512 -0.231826)
 				(xy 1.160137 -0.125808) (xy 1.168011 0) (xy 1.15933 0.128635) (xy 1.133279 0.236672) (xy 1.091882 0.325323)
 				(xy 1.037157 0.395801) (xy 0.969911 0.44891) (xy 0.890953 0.48546) (xy 0.801898 0.506665) (xy 0.704363 0.513732)
@@ -947,12 +941,6 @@
 		(path "/8fb52bf0-5caa-4628-96f2-f575267a20b0")
 		(sheetname "/")
 		(sheetfile "USB_LED_Ring.kicad_sch")
-		(units
-			(unit
-				(name "A")
-				(pins "1" "2")
-			)
-		)
 		(attr smd)
 		(duplicate_pad_numbers_are_jumpers no)
 		(fp_line
@@ -1052,7 +1040,7 @@
 			(uuid "f2007bc6-75a2-405d-ad74-590a5c97eb8a")
 		)
 		(embedded_fonts no)
-		(model "${KIPRJMOD}/custom.3dparts/WL-SWTP-3014_rev1.stp"
+		(model "${KIPRJMOD}/../ecad-libs/custom.3dparts/WL-SWTP-3014_rev1.stp"
 			(offset
 				(xyz 0 0 0)
 			)
@@ -1640,12 +1628,6 @@
 		(path "/40141b9c-f4ef-4964-b269-36ba3941b41d")
 		(sheetname "/")
 		(sheetfile "USB_LED_Ring.kicad_sch")
-		(units
-			(unit
-				(name "A")
-				(pins "1" "2")
-			)
-		)
 		(attr smd)
 		(duplicate_pad_numbers_are_jumpers no)
 		(fp_line
@@ -1745,7 +1727,7 @@
 			(uuid "f3cff173-0cc4-43ab-aba8-84659fc164bd")
 		)
 		(embedded_fonts no)
-		(model "${KIPRJMOD}/custom.3dparts/WL-SWTP-3014_rev1.stp"
+		(model "${KIPRJMOD}/../ecad-libs/custom.3dparts/WL-SWTP-3014_rev1.stp"
 			(offset
 				(xyz 0 0 0)
 			)
@@ -1843,12 +1825,6 @@
 		(path "/5491d4d3-a53a-4621-a9f4-cc6c55b9132a")
 		(sheetname "/")
 		(sheetfile "USB_LED_Ring.kicad_sch")
-		(units
-			(unit
-				(name "A")
-				(pins "1" "2")
-			)
-		)
 		(attr smd)
 		(duplicate_pad_numbers_are_jumpers no)
 		(fp_line
@@ -1948,7 +1924,7 @@
 			(uuid "3cd265d5-3343-461c-8e05-3f9a7c4c306a")
 		)
 		(embedded_fonts no)
-		(model "${KIPRJMOD}/custom.3dparts/WL-SWTP-3014_rev1.stp"
+		(model "${KIPRJMOD}/../ecad-libs/custom.3dparts/WL-SWTP-3014_rev1.stp"
 			(offset
 				(xyz 0 0 0)
 			)
@@ -2218,12 +2194,6 @@
 		(path "/54bd3c51-945e-4d19-a10a-89d29dfd279e")
 		(sheetname "/")
 		(sheetfile "USB_LED_Ring.kicad_sch")
-		(units
-			(unit
-				(name "A")
-				(pins "1" "2")
-			)
-		)
 		(attr smd)
 		(duplicate_pad_numbers_are_jumpers no)
 		(fp_line
@@ -2321,7 +2291,7 @@
 			(uuid "b81a00e6-4582-4727-8b4b-3a3591d18f0c")
 		)
 		(embedded_fonts no)
-		(model "${KIPRJMOD}/custom.3dparts/WL-SWTP-3014_rev1.stp"
+		(model "${KIPRJMOD}/../ecad-libs/custom.3dparts/WL-SWTP-3014_rev1.stp"
 			(offset
 				(xyz 0 0 0)
 			)
@@ -2509,12 +2479,6 @@
 		(path "/f1aef73a-0b78-4582-be8b-12b8c021be90")
 		(sheetname "/")
 		(sheetfile "USB_LED_Ring.kicad_sch")
-		(units
-			(unit
-				(name "A")
-				(pins "1" "2")
-			)
-		)
 		(attr smd)
 		(duplicate_pad_numbers_are_jumpers no)
 		(fp_line
@@ -2614,7 +2578,7 @@
 			(uuid "6a86ec1f-3d90-48ea-b094-251638953948")
 		)
 		(embedded_fonts no)
-		(model "${KIPRJMOD}/custom.3dparts/WL-SWTP-3014_rev1.stp"
+		(model "${KIPRJMOD}/../ecad-libs/custom.3dparts/WL-SWTP-3014_rev1.stp"
 			(offset
 				(xyz 0 0 0)
 			)
@@ -2712,12 +2676,6 @@
 		(path "/e79178c4-51cd-47f9-ab7b-08e2d7522587")
 		(sheetname "/")
 		(sheetfile "USB_LED_Ring.kicad_sch")
-		(units
-			(unit
-				(name "A")
-				(pins "1" "2")
-			)
-		)
 		(attr smd)
 		(duplicate_pad_numbers_are_jumpers no)
 		(fp_line
@@ -2817,7 +2775,7 @@
 			(uuid "bbcb9db4-a4a4-4718-9a17-2b602efbd7f2")
 		)
 		(embedded_fonts no)
-		(model "${KIPRJMOD}/custom.3dparts/WL-SWTP-3014_rev1.stp"
+		(model "${KIPRJMOD}/../ecad-libs/custom.3dparts/WL-SWTP-3014_rev1.stp"
 			(offset
 				(xyz 0 0 0)
 			)
@@ -2914,12 +2872,6 @@
 		(path "/5632a546-d7d0-4be3-a458-16a125b178f5")
 		(sheetname "/")
 		(sheetfile "USB_LED_Ring.kicad_sch")
-		(units
-			(unit
-				(name "A")
-				(pins "1" "SH" "2")
-			)
-		)
 		(attr smd)
 		(duplicate_pad_numbers_are_jumpers no)
 		(fp_line
@@ -3148,7 +3100,7 @@
 			(uuid "01afebed-0497-4cec-b123-82183e12157a")
 		)
 		(embedded_fonts no)
-		(model "${KIPRJMOD}/custom.3dparts/KMS231GPLFS.stp"
+		(model "${KIPRJMOD}/../ecad-libs/custom.3dparts/KMS231GPLFS.stp"
 			(offset
 				(xyz 0 0 0)
 			)
@@ -3418,12 +3370,6 @@
 		(path "/8c6896c3-c472-451d-bae9-7a3611b2b094")
 		(sheetname "/")
 		(sheetfile "USB_LED_Ring.kicad_sch")
-		(units
-			(unit
-				(name "A")
-				(pins "1" "2")
-			)
-		)
 		(attr smd)
 		(duplicate_pad_numbers_are_jumpers no)
 		(fp_line
@@ -3523,7 +3469,7 @@
 			(uuid "d0ae2501-99ea-4a57-ae2d-ea5481428606")
 		)
 		(embedded_fonts no)
-		(model "${KIPRJMOD}/custom.3dparts/WL-SWTP-3014_rev1.stp"
+		(model "${KIPRJMOD}/../ecad-libs/custom.3dparts/WL-SWTP-3014_rev1.stp"
 			(offset
 				(xyz 0 0 0)
 			)
@@ -4462,12 +4408,6 @@
 		(path "/5adcf1be-5dea-4120-a2a0-849cdbc8640f")
 		(sheetname "/")
 		(sheetfile "USB_LED_Ring.kicad_sch")
-		(units
-			(unit
-				(name "A")
-				(pins "1" "2")
-			)
-		)
 		(attr smd)
 		(duplicate_pad_numbers_are_jumpers no)
 		(fp_line
@@ -4567,7 +4507,7 @@
 			(uuid "b4ca9c8f-5762-46b1-964d-d651ee38aea8")
 		)
 		(embedded_fonts no)
-		(model "${KIPRJMOD}/custom.3dparts/WL-SWTP-3014_rev1.stp"
+		(model "${KIPRJMOD}/../ecad-libs/custom.3dparts/WL-SWTP-3014_rev1.stp"
 			(offset
 				(xyz 0 0 0)
 			)
@@ -4665,12 +4605,6 @@
 		(path "/a3d8aa6a-ae40-4851-8a8e-17321163b021")
 		(sheetname "/")
 		(sheetfile "USB_LED_Ring.kicad_sch")
-		(units
-			(unit
-				(name "A")
-				(pins "1" "2")
-			)
-		)
 		(attr smd)
 		(duplicate_pad_numbers_are_jumpers no)
 		(fp_line
@@ -4770,7 +4704,7 @@
 			(uuid "5805d48b-15f7-4d26-bcfd-ce9a9442388e")
 		)
 		(embedded_fonts no)
-		(model "${KIPRJMOD}/custom.3dparts/WL-SWTP-3014_rev1.stp"
+		(model "${KIPRJMOD}/../ecad-libs/custom.3dparts/WL-SWTP-3014_rev1.stp"
 			(offset
 				(xyz 0 0 0)
 			)
@@ -4963,7 +4897,7 @@
 		(property "Reference" "J2"
 			(at 5 1.5 0)
 			(layer "F.SilkS")
-			(uuid "52d194c2-ae88-4d34-a829-dcaffaa6ca3c")
+			(uuid "cb32f4d7-a88b-45d5-a310-20f212f21377")
 			(effects
 				(font
 					(size 0.8 0.8)
@@ -4974,7 +4908,7 @@
 		(property "Value" "USB_B_Micro"
 			(at 0.3 4.3375 0)
 			(layer "F.Fab")
-			(uuid "bfa0e885-fab7-4b4f-acfe-c0420e0cf021")
+			(uuid "05dc34fa-be8f-4125-a441-5f7ef37c9339")
 			(effects
 				(font
 					(size 1 1)
@@ -4987,7 +4921,7 @@
 			(unlocked yes)
 			(layer "F.Fab")
 			(hide yes)
-			(uuid "c1daca35-15de-4c5d-9a3d-fed4237280e0")
+			(uuid "4ac56b29-ad87-4a4e-b3b1-8cb83aab7dce")
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -5000,7 +4934,7 @@
 			(unlocked yes)
 			(layer "F.Fab")
 			(hide yes)
-			(uuid "18f61897-a4bc-4624-bf01-c1eafa8c0fb4")
+			(uuid "ef5ac3e4-308c-4ad4-8548-3ef5040e03e8")
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -5038,12 +4972,6 @@
 		(path "/e5284bc5-4446-400b-8da2-c9993f4c3fe0")
 		(sheetname "/")
 		(sheetfile "USB_LED_Ring.kicad_sch")
-		(units
-			(unit
-				(name "A")
-				(pins "SH" "5" "1" "3" "2" "4")
-			)
-		)
 		(attr smd)
 		(duplicate_pad_numbers_are_jumpers no)
 		(fp_line
@@ -5405,7 +5333,7 @@
 			(uuid "876dcd32-6e0f-4884-a8df-fac7a20d5737")
 		)
 		(embedded_fonts no)
-		(model "${KIPRJMOD}/custom.3dparts/1050170001.stp"
+		(model "${KIPRJMOD}/../ecad-libs/custom.3dparts/1050170001.stp"
 			(offset
 				(xyz 0 -1.05 1.15)
 			)
@@ -6374,12 +6302,6 @@
 		(path "/51740850-3bcf-410f-83be-4d00079afdbe")
 		(sheetname "/")
 		(sheetfile "USB_LED_Ring.kicad_sch")
-		(units
-			(unit
-				(name "A")
-				(pins "1" "2")
-			)
-		)
 		(attr smd)
 		(duplicate_pad_numbers_are_jumpers no)
 		(fp_line
@@ -6479,7 +6401,7 @@
 			(uuid "a9f627d2-f4b2-4ea6-b2a9-2996efafa3ce")
 		)
 		(embedded_fonts no)
-		(model "${KIPRJMOD}/custom.3dparts/WL-SWTP-3014_rev1.stp"
+		(model "${KIPRJMOD}/../ecad-libs/custom.3dparts/WL-SWTP-3014_rev1.stp"
 			(offset
 				(xyz 0 0 0)
 			)
@@ -6577,12 +6499,6 @@
 		(path "/7d2e595c-68c5-4a0f-aa80-2bdb01f41a80")
 		(sheetname "/")
 		(sheetfile "USB_LED_Ring.kicad_sch")
-		(units
-			(unit
-				(name "A")
-				(pins "1" "2")
-			)
-		)
 		(attr smd)
 		(duplicate_pad_numbers_are_jumpers no)
 		(fp_line
@@ -6680,7 +6596,7 @@
 			(uuid "427aab1b-1671-4106-bf48-7c752ce457b5")
 		)
 		(embedded_fonts no)
-		(model "${KIPRJMOD}/custom.3dparts/WL-SWTP-3014_rev1.stp"
+		(model "${KIPRJMOD}/../ecad-libs/custom.3dparts/WL-SWTP-3014_rev1.stp"
 			(offset
 				(xyz 0 0 0)
 			)
@@ -6778,12 +6694,6 @@
 		(path "/d4b09a2e-6966-4957-bd9a-2e983ebcef4f")
 		(sheetname "/")
 		(sheetfile "USB_LED_Ring.kicad_sch")
-		(units
-			(unit
-				(name "A")
-				(pins "1" "2")
-			)
-		)
 		(attr smd)
 		(duplicate_pad_numbers_are_jumpers no)
 		(fp_line
@@ -6883,7 +6793,7 @@
 			(uuid "c3072e29-e270-4609-86b9-b9e2717cf7dc")
 		)
 		(embedded_fonts no)
-		(model "${KIPRJMOD}/custom.3dparts/WL-SWTP-3014_rev1.stp"
+		(model "${KIPRJMOD}/../ecad-libs/custom.3dparts/WL-SWTP-3014_rev1.stp"
 			(offset
 				(xyz 0 0 0)
 			)
@@ -6981,12 +6891,6 @@
 		(path "/9dbde347-b1ad-4a2c-959f-c4a1b8a1ce86")
 		(sheetname "/")
 		(sheetfile "USB_LED_Ring.kicad_sch")
-		(units
-			(unit
-				(name "A")
-				(pins "1" "2")
-			)
-		)
 		(attr smd)
 		(duplicate_pad_numbers_are_jumpers no)
 		(fp_line
@@ -7086,7 +6990,7 @@
 			(uuid "e478ba4e-0080-4200-817b-0f866073411b")
 		)
 		(embedded_fonts no)
-		(model "${KIPRJMOD}/custom.3dparts/WL-SWTP-3014_rev1.stp"
+		(model "${KIPRJMOD}/../ecad-libs/custom.3dparts/WL-SWTP-3014_rev1.stp"
 			(offset
 				(xyz 0 0 0)
 			)
@@ -7528,12 +7432,6 @@
 		(path "/1fcaaff7-5a5e-4282-9124-d2b40b1b96ad")
 		(sheetname "/")
 		(sheetfile "USB_LED_Ring.kicad_sch")
-		(units
-			(unit
-				(name "A")
-				(pins "1" "2")
-			)
-		)
 		(attr smd)
 		(duplicate_pad_numbers_are_jumpers no)
 		(fp_line
@@ -7633,7 +7531,7 @@
 			(uuid "0fa51a95-0960-4010-9824-f9017836c66d")
 		)
 		(embedded_fonts no)
-		(model "${KIPRJMOD}/custom.3dparts/WL-SWTP-3014_rev1.stp"
+		(model "${KIPRJMOD}/../ecad-libs/custom.3dparts/WL-SWTP-3014_rev1.stp"
 			(offset
 				(xyz 0 0 0)
 			)
@@ -7903,12 +7801,6 @@
 		(path "/da9ae4b4-a994-44dc-95ec-71105b833c45")
 		(sheetname "/")
 		(sheetfile "USB_LED_Ring.kicad_sch")
-		(units
-			(unit
-				(name "A")
-				(pins "1" "2")
-			)
-		)
 		(attr smd)
 		(duplicate_pad_numbers_are_jumpers no)
 		(fp_line
@@ -8008,7 +7900,7 @@
 			(uuid "610e70fc-4181-4fe2-87d9-c71c41934974")
 		)
 		(embedded_fonts no)
-		(model "${KIPRJMOD}/custom.3dparts/WL-SWTP-3014_rev1.stp"
+		(model "${KIPRJMOD}/../ecad-libs/custom.3dparts/WL-SWTP-3014_rev1.stp"
 			(offset
 				(xyz 0 0 0)
 			)
@@ -8350,12 +8242,6 @@
 		(path "/527a0283-853d-4a3e-bdb2-816381bbf931")
 		(sheetname "/")
 		(sheetfile "USB_LED_Ring.kicad_sch")
-		(units
-			(unit
-				(name "A")
-				(pins "1" "2")
-			)
-		)
 		(attr smd)
 		(duplicate_pad_numbers_are_jumpers no)
 		(fp_line
@@ -8453,7 +8339,7 @@
 			(uuid "5371c089-4a13-45b8-a3c8-08f8898bf5e2")
 		)
 		(embedded_fonts no)
-		(model "${KIPRJMOD}/custom.3dparts/WL-SWTP-3014_rev1.stp"
+		(model "${KIPRJMOD}/../ecad-libs/custom.3dparts/WL-SWTP-3014_rev1.stp"
 			(offset
 				(xyz 0 0 0)
 			)
@@ -8645,7 +8531,7 @@
 			(at -1.79 2.45 0)
 			(unlocked yes)
 			(layer "F.SilkS")
-			(uuid "7452c369-f0c9-492c-b4fd-d595f4a4a8c4")
+			(uuid "775e3f83-7c1f-4897-8725-872f58329be2")
 			(effects
 				(font
 					(size 0.8 0.8)
@@ -8657,7 +8543,7 @@
 			(at 0 2.5 270)
 			(unlocked yes)
 			(layer "F.Fab")
-			(uuid "18f51ed0-9ee5-4ba2-9a81-00e4755809cf")
+			(uuid "88f81a3f-a846-443f-a695-7e27dd440307")
 			(effects
 				(font
 					(size 1 1)
@@ -8670,7 +8556,7 @@
 			(unlocked yes)
 			(layer "F.Fab")
 			(hide yes)
-			(uuid "3c5a8c44-7029-421e-95d4-362f3f680769")
+			(uuid "55d0c932-5585-4560-86c3-b324c26e8993")
 			(effects
 				(font
 					(size 1 1)
@@ -8683,7 +8569,7 @@
 			(unlocked yes)
 			(layer "F.Fab")
 			(hide yes)
-			(uuid "58d1ff9d-fd5f-45aa-9029-8d20009974ae")
+			(uuid "f095c6af-d59c-4516-a4a7-45ee47d999a9")
 			(effects
 				(font
 					(size 1 1)
@@ -8721,12 +8607,6 @@
 		(path "/1a76c605-d2c2-4623-89ba-ef112bcd69f3")
 		(sheetname "/")
 		(sheetfile "USB_LED_Ring.kicad_sch")
-		(units
-			(unit
-				(name "A")
-				(pins "1" "2")
-			)
-		)
 		(attr smd)
 		(duplicate_pad_numbers_are_jumpers no)
 		(fp_line
@@ -8864,7 +8744,7 @@
 			(uuid "fd4ee4a2-f0df-43c4-812a-37f31421b5a4")
 		)
 		(embedded_fonts no)
-		(model "${KIPRJMOD}/custom.3dparts/srn3015.stp"
+		(model "${KIPRJMOD}/../ecad-libs/custom.3dparts/srn3015.stp"
 			(offset
 				(xyz 0 0 0)
 			)
@@ -9295,12 +9175,6 @@
 		(path "/57747a94-ffa5-4b1e-9dd3-c94ce63118e4")
 		(sheetname "/")
 		(sheetfile "USB_LED_Ring.kicad_sch")
-		(units
-			(unit
-				(name "A")
-				(pins "1" "2")
-			)
-		)
 		(attr smd)
 		(duplicate_pad_numbers_are_jumpers no)
 		(fp_line
@@ -9400,7 +9274,7 @@
 			(uuid "296513ee-faf2-44da-b791-f33dfcc31336")
 		)
 		(embedded_fonts no)
-		(model "${KIPRJMOD}/custom.3dparts/WL-SWTP-3014_rev1.stp"
+		(model "${KIPRJMOD}/../ecad-libs/custom.3dparts/WL-SWTP-3014_rev1.stp"
 			(offset
 				(xyz 0 0 0)
 			)
@@ -9834,12 +9708,6 @@
 		(path "/8f598ef0-82f8-46df-9cf5-b6dbcad9700a")
 		(sheetname "/")
 		(sheetfile "USB_LED_Ring.kicad_sch")
-		(units
-			(unit
-				(name "A")
-				(pins "1" "2")
-			)
-		)
 		(attr smd)
 		(duplicate_pad_numbers_are_jumpers no)
 		(fp_line
@@ -9937,7 +9805,7 @@
 			(uuid "94137ead-bb6a-40fb-ba6a-acb16f243fe9")
 		)
 		(embedded_fonts no)
-		(model "${KIPRJMOD}/custom.3dparts/WL-SWTP-3014_rev1.stp"
+		(model "${KIPRJMOD}/../ecad-libs/custom.3dparts/WL-SWTP-3014_rev1.stp"
 			(offset
 				(xyz 0 0 0)
 			)
@@ -11007,7 +10875,7 @@
 			(at 3.4 0.025 180)
 			(layer "F.SilkS")
 			(hide yes)
-			(uuid "9256c66e-1a51-4225-bf25-142a73d958ce")
+			(uuid "88441960-c9e5-494c-af9c-f2c55eee13d5")
 			(effects
 				(font
 					(size 0.8 0.8)
@@ -11018,7 +10886,7 @@
 		(property "Value" "CK_KMS2xxG"
 			(at 0 3.2 90)
 			(layer "F.Fab")
-			(uuid "664755ee-3285-4bb8-bf9f-7fc2ff57d85d")
+			(uuid "67087db2-9cca-41ed-b021-4c9ff50d87e5")
 			(effects
 				(font
 					(size 1 1)
@@ -11031,7 +10899,7 @@
 			(unlocked yes)
 			(layer "F.Fab")
 			(hide yes)
-			(uuid "06330370-55a6-4f72-ba9d-9185bceaa476")
+			(uuid "56e7f4ca-cf29-4682-b0aa-4c9093a1b7d5")
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -11044,7 +10912,7 @@
 			(unlocked yes)
 			(layer "F.Fab")
 			(hide yes)
-			(uuid "759dc445-e576-4712-b76a-798d246b1260")
+			(uuid "a1b46868-5937-4f17-a6bb-7c6456d73979")
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -11082,12 +10950,6 @@
 		(path "/b2458f4a-a8bf-44c7-8027-5724bad933d7")
 		(sheetname "/")
 		(sheetfile "USB_LED_Ring.kicad_sch")
-		(units
-			(unit
-				(name "A")
-				(pins "1" "SH" "2")
-			)
-		)
 		(attr smd)
 		(duplicate_pad_numbers_are_jumpers no)
 		(fp_line
@@ -11316,7 +11178,7 @@
 			(uuid "62a0bd20-6a3f-4f64-9939-5ed898272d37")
 		)
 		(embedded_fonts no)
-		(model "${KIPRJMOD}/custom.3dparts/KMS231GPLFS.stp"
+		(model "${KIPRJMOD}/../ecad-libs/custom.3dparts/KMS231GPLFS.stp"
 			(offset
 				(xyz 0 0 0)
 			)
@@ -11521,12 +11383,6 @@
 		(path "/a2293244-bede-492c-a3e9-988e83987fa9")
 		(sheetname "/")
 		(sheetfile "USB_LED_Ring.kicad_sch")
-		(units
-			(unit
-				(name "A")
-				(pins "1" "2")
-			)
-		)
 		(attr smd)
 		(duplicate_pad_numbers_are_jumpers no)
 		(fp_line
@@ -11626,7 +11482,7 @@
 			(uuid "f4bf0c40-cfd2-4a17-8a6c-6b24509d213b")
 		)
 		(embedded_fonts no)
-		(model "${KIPRJMOD}/custom.3dparts/WL-SWTP-3014_rev1.stp"
+		(model "${KIPRJMOD}/../ecad-libs/custom.3dparts/WL-SWTP-3014_rev1.stp"
 			(offset
 				(xyz 0 0 0)
 			)
@@ -11724,12 +11580,6 @@
 		(path "/404d5137-56e5-4d65-895b-c88ca9af1521")
 		(sheetname "/")
 		(sheetfile "USB_LED_Ring.kicad_sch")
-		(units
-			(unit
-				(name "A")
-				(pins "1" "2")
-			)
-		)
 		(attr smd)
 		(duplicate_pad_numbers_are_jumpers no)
 		(fp_line
@@ -11829,7 +11679,7 @@
 			(uuid "cc090eb2-37c4-422e-bceb-fac5fd8e84e5")
 		)
 		(embedded_fonts no)
-		(model "${KIPRJMOD}/custom.3dparts/WL-SWTP-3014_rev1.stp"
+		(model "${KIPRJMOD}/../ecad-libs/custom.3dparts/WL-SWTP-3014_rev1.stp"
 			(offset
 				(xyz 0 0 0)
 			)
@@ -12529,7 +12379,7 @@
 		(fp_poly
 			(pts
 				(xy 0.260097 0.061388) (xy 0.260097 0.332794) (xy 0.306139 0.33764) (xy 0.355412 0.339257) (xy 0.421648 0.333604)
-				(xy 0.478998 0.312601) (xy 0.520194 0.268982) (xy 0.536349 0.197092) (xy 0.490306 0.092891) (xy 0.366721 0.061389)
+				(xy 0.478998 0.312601) (xy 0.520194 0.268982) (xy 0.536349 0.197092) (xy 0.490305 0.092891) (xy 0.366721 0.061389)
 				(xy 0.260097 0.061388)
 			)
 			(stroke
@@ -12544,12 +12394,12 @@
 			(pts
 				(xy -0.731826 -0.619817) (xy -0.839526 -0.619816) (xy -0.839526 0.619817) (xy -0.731826 0.619817)
 				(xy -0.731825 0.499192) (xy -0.731827 -0.500808) (xy -0.119548 -0.500807) (xy -0.119547 -0.336025)
-				(xy -0.533118 -0.336026) (xy -0.533117 -0.0937) (xy -0.171244 -0.0937) (xy -0.171244 0.071082) (xy -0.533118 0.071082)
+				(xy -0.533118 -0.336026) (xy -0.533117 -0.0937) (xy -0.171244 -0.0937) (xy -0.171244 0.071082) (xy -0.533118 0.071081)
 				(xy -0.533117 0.499192) (xy -0.731825 0.499192) (xy -0.731826 0.619817) (xy 0.339257 0.619816) (xy 0.339257 0.512116)
 				(xy 0.271809 0.510298) (xy 0.201939 0.504847) (xy 0.13126 0.49576) (xy 0.061389 0.483037) (xy 0.061389 -0.487884)
 				(xy 0.185784 -0.504847) (xy 0.319871 -0.512116) (xy 0.422456 -0.506259) (xy 0.504039 -0.48869) (xy 0.615508 -0.427301)
 				(xy 0.670436 -0.342488) (xy 0.684976 -0.248788) (xy 0.676293 -0.181745) (xy 0.650242 -0.122778)
-				(xy 0.557352 -0.035541) (xy 0.64277 0.008077) (xy 0.695477 0.064619) (xy 0.722738 0.129241) (xy 0.731827 0.197092)
+				(xy 0.557353 -0.035541) (xy 0.64277 0.008077) (xy 0.695477 0.064619) (xy 0.722738 0.129241) (xy 0.731827 0.197092)
 				(xy 0.724152 0.280089) (xy 0.70113 0.348142) (xy 0.617932 0.445073) (xy 0.560582 0.476172) (xy 0.493538 0.496769)
 				(xy 0.419023 0.508279) (xy 0.339257 0.512116) (xy 0.339257 0.619816) (xy 0.731826 0.619817) (xy 0.839526 0.619816)
 				(xy 0.839526 -0.619817) (xy 0.731826 -0.619817) (xy -0.731826 -0.619817)
@@ -12983,12 +12833,6 @@
 		(path "/e9d2a695-9f88-4fc7-b2a5-48f4bfcf6e9e")
 		(sheetname "/")
 		(sheetfile "USB_LED_Ring.kicad_sch")
-		(units
-			(unit
-				(name "A")
-				(pins "1" "2")
-			)
-		)
 		(attr smd)
 		(duplicate_pad_numbers_are_jumpers no)
 		(fp_line
@@ -13088,7 +12932,7 @@
 			(uuid "c64e8fe1-435c-42d7-b7a8-814f2eb103ab")
 		)
 		(embedded_fonts no)
-		(model "${KIPRJMOD}/custom.3dparts/WL-SWTP-3014_rev1.stp"
+		(model "${KIPRJMOD}/../ecad-libs/custom.3dparts/WL-SWTP-3014_rev1.stp"
 			(offset
 				(xyz 0 0 0)
 			)
@@ -13186,12 +13030,6 @@
 		(path "/308256da-0552-4cbb-829e-8aa046103d02")
 		(sheetname "/")
 		(sheetfile "USB_LED_Ring.kicad_sch")
-		(units
-			(unit
-				(name "A")
-				(pins "1" "2")
-			)
-		)
 		(attr smd)
 		(duplicate_pad_numbers_are_jumpers no)
 		(fp_line
@@ -13291,7 +13129,7 @@
 			(uuid "cc53dabc-2dfe-4b67-8a8b-1a42d039af70")
 		)
 		(embedded_fonts no)
-		(model "${KIPRJMOD}/custom.3dparts/WL-SWTP-3014_rev1.stp"
+		(model "${KIPRJMOD}/../ecad-libs/custom.3dparts/WL-SWTP-3014_rev1.stp"
 			(offset
 				(xyz 0 0 0)
 			)
@@ -13656,7 +13494,7 @@
 		(property "Reference" "U3"
 			(at -3.4 -4.7 180)
 			(layer "F.SilkS")
-			(uuid "99f29520-f873-4a3d-bf2f-b9f7f1f4b739")
+			(uuid "62325e78-9999-408f-b544-9442d1cf22bd")
 			(effects
 				(font
 					(size 0.8 0.8)
@@ -13667,7 +13505,7 @@
 		(property "Value" "RP2354A"
 			(at 0 4.82 180)
 			(layer "F.Fab")
-			(uuid "8afe4e41-b2bb-4f33-b989-776354a610fc")
+			(uuid "38130cf4-06f7-48a9-855d-0aec4869b6fe")
 			(effects
 				(font
 					(size 1 1)
@@ -13679,7 +13517,7 @@
 			(at 0 0 180)
 			(layer "F.Fab")
 			(hide yes)
-			(uuid "71cbe7eb-0317-4e34-b63e-555842c61c54")
+			(uuid "65ba45c5-70ed-45f1-94df-038417a0dcaf")
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -13690,7 +13528,7 @@
 			(at 0 0 180)
 			(layer "F.Fab")
 			(hide yes)
-			(uuid "1435d9dc-34a7-4ff3-b48f-9663edf1025b")
+			(uuid "7813fd3f-4c41-4543-af40-81dd677727f1")
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -13713,17 +13551,6 @@
 		(path "/12fd9214-6560-4ed6-acfa-e703891494bd")
 		(sheetname "/")
 		(sheetfile "USB_LED_Ring.kicad_sch")
-		(units
-			(unit
-				(name "A")
-				(pins "46" "49" "50" "48" "47" "60" "57" "59" "58" "55" "56" "21" "22"
-					"26" "24" "25" "39" "23" "6" "54" "45" "38" "61" "30" "20" "11" "1"
-					"53" "44" "52" "51" "2" "3" "4" "5" "7" "8" "9" "10" "12" "13" "14"
-					"15" "16" "17" "18" "19" "27" "28" "29" "31" "32" "33" "34" "35" "36"
-					"37" "40" "41" "42" "43"
-				)
-			)
-		)
 		(zone_connect 2)
 		(attr smd)
 		(duplicate_pad_numbers_are_jumpers no)
@@ -14621,7 +14448,7 @@
 		(pad "61" thru_hole circle
 			(at -1.375 -1.375 180)
 			(size 0.6 0.6)
-			(drill 0.3)
+			(drill 0.25)
 			(layers "*.Cu")
 			(remove_unused_layers no)
 			(net "GND")
@@ -14633,7 +14460,7 @@
 		(pad "61" thru_hole circle
 			(at -1.375 0 180)
 			(size 0.6 0.6)
-			(drill 0.3)
+			(drill 0.25)
 			(layers "*.Cu")
 			(remove_unused_layers no)
 			(net "GND")
@@ -14645,7 +14472,7 @@
 		(pad "61" thru_hole circle
 			(at -1.375 1.375 180)
 			(size 0.6 0.6)
-			(drill 0.3)
+			(drill 0.25)
 			(layers "*.Cu")
 			(remove_unused_layers no)
 			(net "GND")
@@ -14657,7 +14484,7 @@
 		(pad "61" thru_hole circle
 			(at 0 -1.375 180)
 			(size 0.6 0.6)
-			(drill 0.3)
+			(drill 0.25)
 			(layers "*.Cu")
 			(remove_unused_layers no)
 			(net "GND")
@@ -14669,7 +14496,7 @@
 		(pad "61" thru_hole circle
 			(at 0 0 180)
 			(size 0.6 0.6)
-			(drill 0.3)
+			(drill 0.25)
 			(layers "*.Cu")
 			(remove_unused_layers no)
 			(net "GND")
@@ -14692,7 +14519,7 @@
 		(pad "61" thru_hole circle
 			(at 0 1.375 180)
 			(size 0.6 0.6)
-			(drill 0.3)
+			(drill 0.25)
 			(layers "*.Cu")
 			(remove_unused_layers no)
 			(net "GND")
@@ -14704,7 +14531,7 @@
 		(pad "61" thru_hole circle
 			(at 1.375 -1.375 180)
 			(size 0.6 0.6)
-			(drill 0.3)
+			(drill 0.25)
 			(layers "*.Cu")
 			(remove_unused_layers no)
 			(net "GND")
@@ -14716,7 +14543,7 @@
 		(pad "61" thru_hole circle
 			(at 1.375 0 180)
 			(size 0.6 0.6)
-			(drill 0.3)
+			(drill 0.25)
 			(layers "*.Cu")
 			(remove_unused_layers no)
 			(net "GND")
@@ -14728,7 +14555,7 @@
 		(pad "61" thru_hole circle
 			(at 1.375 1.375 180)
 			(size 0.6 0.6)
-			(drill 0.3)
+			(drill 0.25)
 			(layers "*.Cu")
 			(remove_unused_layers no)
 			(net "GND")
@@ -14738,7 +14565,7 @@
 			(uuid "e245249b-2739-42fc-9a51-8f02a94c8278")
 		)
 		(embedded_fonts no)
-		(model "${KIPRJMOD}/custom.3dparts/RP2350_QFN60.step"
+		(model "${KIPRJMOD}/../ecad-libs/custom.3dparts/RP2350_QFN60.step"
 			(offset
 				(xyz 0 0 0)
 			)
@@ -14836,12 +14663,6 @@
 		(path "/028fb033-e990-479d-8551-b5c4ebf60b4d")
 		(sheetname "/")
 		(sheetfile "USB_LED_Ring.kicad_sch")
-		(units
-			(unit
-				(name "A")
-				(pins "1" "2")
-			)
-		)
 		(attr smd)
 		(duplicate_pad_numbers_are_jumpers no)
 		(fp_line
@@ -14941,7 +14762,7 @@
 			(uuid "3bebfff9-78e7-432a-a85a-d655359c0f4c")
 		)
 		(embedded_fonts no)
-		(model "${KIPRJMOD}/custom.3dparts/WL-SWTP-3014_rev1.stp"
+		(model "${KIPRJMOD}/../ecad-libs/custom.3dparts/WL-SWTP-3014_rev1.stp"
 			(offset
 				(xyz 0 0 0)
 			)
