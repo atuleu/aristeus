@@ -7,7 +7,7 @@
 		(at 0 -1.2 0)
 		(unlocked yes)
 		(layer "F.SilkS")
-		(uuid "849f720f-4d65-4c5a-9b9b-cd0d641f7b04")
+		(uuid "f89d9c22-9fed-44bf-a855-2d306dc231b4")
 		(effects
 			(font
 				(size 1 1)
@@ -19,7 +19,7 @@
 		(at 3.1 0 0)
 		(unlocked yes)
 		(layer "F.Fab")
-		(uuid "2e2afc00-381e-4dae-bc97-210692946406")
+		(uuid "e762d033-d49b-413f-ab15-69116be6b74d")
 		(effects
 			(font
 				(size 0.8 0.8)
@@ -32,7 +32,7 @@
 		(unlocked yes)
 		(layer "F.Fab")
 		(hide yes)
-		(uuid "1e929e74-df13-4c26-b4a6-41ba825e0339")
+		(uuid "608a62fe-5f22-47cb-be5c-d5e65b479880")
 		(effects
 			(font
 				(size 1 1)
@@ -45,7 +45,7 @@
 		(unlocked yes)
 		(layer "F.Fab")
 		(hide yes)
-		(uuid "401959b4-ba6d-45e8-9420-1248ab125e88")
+		(uuid "de4f02de-ba1a-45fc-b242-ebfb6cb5821d")
 		(effects
 			(font
 				(size 1 1)
@@ -64,7 +64,7 @@
 		)
 		(fill no)
 		(layer "F.SilkS")
-		(uuid "0b5be39e-54cb-4830-b504-6b36d827244f")
+		(uuid "8d892a13-9fef-4918-8151-955c8802cf89")
 	)
 	(fp_rect
 		(start -1 -0.6)
@@ -75,7 +75,7 @@
 		)
 		(fill no)
 		(layer "F.CrtYd")
-		(uuid "5c36a4f6-66c7-408e-a404-49f5d241a6b7")
+		(uuid "fa86bf27-1b32-4dc4-94e6-b6f820bdad1d")
 	)
 	(fp_rect
 		(start -0.8 -0.4)
@@ -86,13 +86,13 @@
 		)
 		(fill no)
 		(layer "F.Fab")
-		(uuid "cdca8d0f-e94c-4489-99d1-738ef2ab9083")
+		(uuid "68940c4e-f57b-4dda-999e-33f9621d460c")
 	)
 	(fp_text user "${REFERENCE}"
 		(at 0 1.2 0)
 		(unlocked yes)
 		(layer "F.Fab")
-		(uuid "e3122718-6456-490c-89de-2a3b2c56d172")
+		(uuid "23e0c760-182a-45c8-91a6-e40031edf509")
 		(effects
 			(font
 				(size 1 1)
@@ -105,10 +105,10 @@
 		(size 1.6 0.8)
 		(layers "F.Cu" "F.Mask" "F.Paste")
 		(roundrect_rratio 0.05)
-		(uuid "536633df-3060-4e1f-92ef-a0e0a8488d45")
+		(uuid "0b76b6b4-5913-4c64-97d7-e685593e48a2")
 	)
 	(embedded_fonts no)
-	(model "${KIPRJMOD}/custom.3dparts/RCUCTE.STEP"
+	(model "${KIPRJMOD}/../ecad-libs/custom.3dparts/RCUCTE.STEP"
 		(offset
 			(xyz -0.8 0.4 0)
 		)
