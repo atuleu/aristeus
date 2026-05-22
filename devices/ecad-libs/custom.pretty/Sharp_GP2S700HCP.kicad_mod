@@ -1,0 +1,281 @@
+(footprint "Sharp_GP2S700HCP"
+	(version 20260206)
+	(generator "pcbnew")
+	(generator_version "10.0")
+	(layer "F.Cu")
+	(descr "Sharp GP2S700HCP, light-direction upwards, see: https://www.sharpsde.com/fileadmin/products/Optoelectronics/Isolation%20Devices/Specs_Photointerrupter/GP2S700HCP_03Oct05_DS_D3-A02201FEN.pdf")
+	(tags "refective opto couple photo coupler")
+	(property "Reference" "U1"
+		(at -2.8 -0.8 270)
+		(layer "F.SilkS")
+		(uuid "7b71cb32-5c60-4e59-bf59-b202a443b694")
+		(effects
+			(font
+				(size 0.8 0.8)
+				(thickness 0.12)
+			)
+		)
+	)
+	(property "Value" "GP2S700HCP"
+		(at -3.205 0 90)
+		(unlocked yes)
+		(layer "F.Fab")
+		(uuid "2e0ebc92-e135-4b6d-896f-a53e5f1f1478")
+		(effects
+			(font
+				(size 1 1)
+				(thickness 0.15)
+			)
+		)
+	)
+	(property "Datasheet" "https://www.sharpsde.com/fileadmin/products/Optoelectronics/Isolation%20Devices/Specs_Photointerrupter/GP2S700HCP_03Oct05_DS_D3-A02201FEN.pdf"
+		(at 0 0 0)
+		(unlocked yes)
+		(layer "F.Fab")
+		(hide yes)
+		(uuid "904b0e45-14e6-4650-bb99-01f4d1736724")
+		(effects
+			(font
+				(size 1.27 1.27)
+				(thickness 0.15)
+			)
+		)
+	)
+	(property "Description" "Reflective Optical Sensor 0.217\" (5.5mm) 4-SMD"
+		(at 0 0 0)
+		(unlocked yes)
+		(layer "F.Fab")
+		(hide yes)
+		(uuid "cca20435-8161-46ea-889b-df67970b3a82")
+		(effects
+			(font
+				(size 1.27 1.27)
+				(thickness 0.15)
+			)
+		)
+	)
+	(property ki_fp_filters "Sharp*GP2S700HCP*")
+	(sheetname "/")
+	(sheetfile "tunnel-IR-barrier.kicad_sch")
+	(attr smd)
+	(duplicate_pad_numbers_are_jumpers no)
+	(fp_line
+		(start -2.1 -0.39)
+		(end -2.1 0.39)
+		(stroke
+			(width 0.12)
+			(type default)
+		)
+		(layer "F.SilkS")
+		(uuid "d1aa81fc-8067-477f-bdd7-744cb1b5aa77")
+	)
+	(fp_line
+		(start -1.11 -2.01)
+		(end -2.19 -2.01)
+		(stroke
+			(width 0.12)
+			(type default)
+		)
+		(layer "F.SilkS")
+		(uuid "1e4394f9-a758-404b-9b96-5e130e7eed72")
+	)
+	(fp_line
+		(start -0.75 -1.6)
+		(end 0.75 -1.6)
+		(stroke
+			(width 0.12)
+			(type default)
+		)
+		(layer "F.SilkS")
+		(uuid "5a5d0c8b-401a-4656-9bb8-04a50fe3b3dd")
+	)
+	(fp_line
+		(start -0.75 1.6)
+		(end 0.75 1.6)
+		(stroke
+			(width 0.12)
+			(type default)
+		)
+		(layer "F.SilkS")
+		(uuid "4edc0506-f101-44e6-b57e-82bf9317db57")
+	)
+	(fp_poly
+		(pts
+			(xy -2.52 -1.69) (xy -2.8 -1.69) (xy -2.52 -1.97) (xy -2.52 -1.69)
+		)
+		(stroke
+			(width 0.12)
+			(type solid)
+		)
+		(fill yes)
+		(layer "F.SilkS")
+		(uuid "31354358-b6d8-4b7e-a0f4-a1eba8a1f73d")
+	)
+	(fp_line
+		(start -2.5 -2)
+		(end 2.5 -2)
+		(stroke
+			(width 0.05)
+			(type default)
+		)
+		(layer "F.CrtYd")
+		(uuid "7c06741f-749b-4b23-aaef-82a7456d0a3a")
+	)
+	(fp_line
+		(start -2.5 2)
+		(end -2.5 -2)
+		(stroke
+			(width 0.05)
+			(type default)
+		)
+		(layer "F.CrtYd")
+		(uuid "e837c48c-d39f-4b88-bc8b-fd63f20a6ea0")
+	)
+	(fp_line
+		(start -2.5 2)
+		(end 2.5 2)
+		(stroke
+			(width 0.05)
+			(type default)
+		)
+		(layer "F.CrtYd")
+		(uuid "e6963dea-e20c-4708-b50c-4dd3eead5157")
+	)
+	(fp_line
+		(start 2.5 -2)
+		(end 2.5 2)
+		(stroke
+			(width 0.05)
+			(type default)
+		)
+		(layer "F.CrtYd")
+		(uuid "04af8418-b440-44d6-bdb4-7b654d3bc783")
+	)
+	(fp_line
+		(start -2 -1.5)
+		(end 2 -1.5)
+		(stroke
+			(width 0.1)
+			(type default)
+		)
+		(layer "F.Fab")
+		(uuid "9794345c-a7e6-4c26-b05c-211b97c70d1c")
+	)
+	(fp_line
+		(start -2 1.5)
+		(end -2 -1.5)
+		(stroke
+			(width 0.1)
+			(type default)
+		)
+		(layer "F.Fab")
+		(uuid "c81da50f-055b-4460-9ced-35250089c7d6")
+	)
+	(fp_line
+		(start -2 1.5)
+		(end 2 1.5)
+		(stroke
+			(width 0.1)
+			(type default)
+		)
+		(layer "F.Fab")
+		(uuid "1375b505-96a6-4c2a-ae12-0977e68831d7")
+	)
+	(fp_line
+		(start 2 -1.5)
+		(end 2 1.5)
+		(stroke
+			(width 0.1)
+			(type default)
+		)
+		(layer "F.Fab")
+		(uuid "ab745d6e-d4cb-4dc1-b05f-df1b506a7a8e")
+	)
+	(fp_text user "${REFERENCE}"
+		(at 0 0 0)
+		(layer "F.Fab")
+		(uuid "ff8def63-4f66-4d9e-a20a-8f3b8225a66c")
+		(effects
+			(font
+				(size 0.75 0.75)
+				(thickness 0.15)
+			)
+		)
+	)
+	(pad "1" smd roundrect
+		(at -1.65 -1.2)
+		(size 1.2 1.1)
+		(layers "F.Cu" "F.Mask" "F.Paste")
+		(roundrect_rratio 0.1363636364)
+		(thermal_bridge_angle 45)
+		(uuid "08f27c0a-d119-4403-998b-5729518952e6")
+	)
+	(pad "2" smd roundrect
+		(at -1.65 1.2)
+		(size 1.2 1.1)
+		(layers "F.Cu" "F.Mask" "F.Paste")
+		(roundrect_rratio 0.1363636364)
+		(thermal_bridge_angle 45)
+		(uuid "ada11de1-0835-473b-9855-f1b1bf3b10be")
+	)
+	(pad "3" smd roundrect
+		(at 1.65 1.2)
+		(size 1.2 1.1)
+		(layers "F.Cu" "F.Mask" "F.Paste")
+		(roundrect_rratio 0.1363636364)
+		(thermal_bridge_angle 45)
+		(uuid "80fafb10-b8d3-48db-8bf6-0bd59e5f4ec0")
+	)
+	(pad "4" smd roundrect
+		(at 1.65 -1.2)
+		(size 1.2 1.1)
+		(layers "F.Cu" "F.Mask" "F.Paste")
+		(roundrect_rratio 0.1363636364)
+		(thermal_bridge_angle 45)
+		(uuid "3433076c-6a51-4377-9484-a80e6cc667a4")
+	)
+	(zone
+		(layer "F.Cu")
+		(uuid "6c6d47b1-568e-44f2-a6cf-272b72f751b9")
+		(name "keepout to avoid short circuit")
+		(hatch edge 0.5)
+		(connect_pads
+			(clearance 0)
+		)
+		(min_thickness 0.25)
+		(keepout
+			(tracks not_allowed)
+			(vias not_allowed)
+			(pads not_allowed)
+			(copperpour not_allowed)
+			(footprints not_allowed)
+		)
+		(placement
+			(enabled no)
+			(sheetname "")
+		)
+		(fill
+			(thermal_gap 0.5)
+			(thermal_bridge_width 0.5)
+			(island_removal_mode 0)
+		)
+		(polygon
+			(pts
+				(xy -2.25 -0.65) (xy -1.05 -0.65) (xy -1.05 -1.75) (xy 1.05 -1.75) (xy 1.05 -0.65) (xy 2.25 -0.65)
+				(xy 2.25 0.65) (xy 1.05 0.65) (xy 1.05 1.75) (xy -1.05 1.75) (xy -1.05 0.65) (xy -2.25 0.65)
+			)
+		)
+	)
+	(embedded_fonts no)
+	(model "${KIPRJMOD}/custom.3dparts/Sharp_GP2S700HCP.STEP"
+		(offset
+			(xyz 0 0 0)
+		)
+		(scale
+			(xyz 1 1 1)
+		)
+		(rotate
+			(xyz -90 -0 -0)
+		)
+	)
+)
