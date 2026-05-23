@@ -5116,6 +5116,16 @@
 		)
 		(uuid "f219ca20-1d52-4a56-9026-785ae4ff81e9")
 	)
+	(text "Current Sense"
+		(exclude_from_sim no)
+		(at 146.304 42.418 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+		)
+		(uuid "000e12fb-c806-4cbb-a048-e5488cb24355")
+	)
 	(text "NO Analog, so non filtered AVDD"
 		(exclude_from_sim no)
 		(at 256.286 42.418 0)
@@ -5174,6 +5184,16 @@
 			)
 		)
 		(uuid "a3ee7f75-82ba-47eb-8bdd-6c1105ed6b2d")
+	)
+	(text "L=220n R=140m"
+		(exclude_from_sim no)
+		(at 167.386 42.672 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+		)
+		(uuid "a9a8bf63-1a78-4294-95ae-4d70eb31a264")
 	)
 	(text "SWD"
 		(exclude_from_sim no)
@@ -9753,7 +9773,7 @@
 				)
 			)
 		)
-		(property "Value" "MPZ1608S601A"
+		(property "Value" "MLZ2012DR22DT000"
 			(at 167.6908 33.02 90)
 			(show_name no)
 			(do_not_autoplace no)
@@ -9763,7 +9783,7 @@
 				)
 			)
 		)
-		(property "Footprint" "Inductor_SMD:L_0603_1608Metric"
+		(property "Footprint" "Inductor_SMD:L_0805_2012Metric"
 			(at 167.64 36.322 90)
 			(hide yes)
 			(show_name no)
