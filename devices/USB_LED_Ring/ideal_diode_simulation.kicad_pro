@@ -256,7 +256,7 @@
     "pinned_symbol_libs": []
   },
   "meta": {
-    "filename": "input_filter_simulation.kicad_pro",
+    "filename": "ideal_diode_simulation.kicad_pro",
     "version": 3
   },
   "net_settings": {
@@ -410,7 +410,7 @@
         "version": 0
       },
       "model_mode": 4,
-      "workbook_filename": "input_filter_simulation.wbk"
+      "workbook_filename": "ideal_diode_simulation.wbk"
     },
     "page_layout_descr_file": "",
     "plot_directory": "",
@@ -419,18 +419,18 @@
     "subpart_id_separator": 0,
     "top_level_sheets": [
       {
-        "filename": "input_filter_simulation.kicad_sch",
-        "name": "",
-        "uuid": "4449dab3-9e16-4466-962d-1d8f8ba01676"
+        "filename": "ideal_diode_simulation.kicad_sch",
+        "name": "ideal_diode_simulation",
+        "uuid": "5743b234-b666-4d37-a8ef-d1ba467b6b69"
       }
     ],
-    "used_designators": "V1-2,L1-2,#PWR1-2,R1-10,C1-6,I1-2",
+    "used_designators": "#PWR1,V1-2,R1-3,Q1-5",
     "variants": []
   },
   "sheets": [
     [
-      "4449dab3-9e16-4466-962d-1d8f8ba01676",
-      ""
+      "5743b234-b666-4d37-a8ef-d1ba467b6b69",
+      "ideal_diode_simulation"
     ]
   ],
   "text_variables": {},
