@@ -3,44 +3,9 @@
   "last_sch_text_sim_command": "",
   "tabs": [
     {
-      "analysis": "TRAN",
-      "commands": [
-        ".tran 1n 30u 0",
-        ".kicad adjustpaths",
-        ".save all",
-        ".probe alli",
-        ".probe allp"
-      ],
-      "dottedSecondary": true,
-      "fixedY2scale": {
-        "max": 0.0054,
-        "min": 0.0
-      },
-      "margins": {
-        "bottom": 45,
-        "left": 70,
-        "right": 160,
-        "top": 30
-      },
-      "measurements": [],
-      "showGrid": true,
-      "traces": [
-        {
-          "color": "rgb(141, 160, 203)",
-          "signal": "I(R3)",
-          "trace_type": 258
-        },
-        {
-          "color": "rgb(55, 126, 184)",
-          "signal": "V(Net-_R1-Pad2_)",
-          "trace_type": 257
-        }
-      ]
-    },
-    {
       "analysis": "AC",
       "commands": [
-        ".ac dec 100 1 10G",
+        ".ac dec 200 1 10G",
         ".kicad adjustpaths",
         ".save all",
         ".probe alli",
@@ -57,23 +22,68 @@
       "showGrid": true,
       "traces": [
         {
-          "color": "rgb(228, 26, 28)",
-          "signal": "V(Net-_C6-Pad1_) (phase)",
+          "color": "rgb(55, 126, 184)",
+          "signal": "V(/VOUT) (phase)",
           "trace_type": 517
         },
         {
-          "color": "rgb(228, 26, 28)",
+          "color": "rgb(55, 126, 184)",
           "cursor1": {
-            "position": 2167426.1029069303,
-            "x_format": "3~s",
-            "y_format": "3~V"
+            "position": 38763.86370118682,
+            "x_format": "3~Hz",
+            "y_format": "3~dB"
           },
           "cursorD": {
-            "x_format": "3~s",
-            "y_format": "3~A"
+            "x_format": "3~Hz",
+            "y_format": "3~dB"
           },
-          "signal": "V(Net-_C6-Pad1_) (gain)",
+          "signal": "V(/VOUT) (gain)",
           "trace_type": 521
+        }
+      ]
+    },
+    {
+      "analysis": "TRAN",
+      "commands": [
+        ".tran 2n 50u 0 100n",
+        ".kicad adjustpaths",
+        ".save all",
+        ".probe alli",
+        ".probe allp"
+      ],
+      "dottedSecondary": true,
+      "margins": {
+        "bottom": 45,
+        "left": 70,
+        "right": 160,
+        "top": 30
+      },
+      "measurements": [],
+      "showGrid": true,
+      "traces": [
+        {
+          "color": "rgb(228, 26, 28)",
+          "signal": "V(/VIN)",
+          "trace_type": 257
+        },
+        {
+          "color": "rgb(77, 175, 74)",
+          "cursor1": {
+            "position": 2.4494283201407213e-05,
+            "x_format": "3~Hz",
+            "y_format": "3~dB"
+          },
+          "cursorD": {
+            "x_format": "3~Hz",
+            "y_format": "3~dB"
+          },
+          "signal": "V(/VOUT)",
+          "trace_type": 257
+        },
+        {
+          "color": "rgb(55, 126, 184)",
+          "signal": "V(Net-_C2-Pad1_)",
+          "trace_type": 257
         }
       ]
     }
