@@ -2051,24 +2051,6 @@
 				)
 			)
 			(pin bidirectional line
-				(at -21.59 16.51 0)
-				(length 2.54)
-				(name "PC04/PTI_DATA"
-					(effects
-						(font
-							(size 1.27 1.27)
-						)
-					)
-				)
-				(number "26"
-					(effects
-						(font
-							(size 1.27 1.27)
-						)
-					)
-				)
-			)
-			(pin bidirectional line
 				(at -21.59 7.62 0)
 				(length 2.54)
 				(name "PD01/XTAL1"
@@ -2079,24 +2061,6 @@
 					)
 				)
 				(number "26"
-					(effects
-						(font
-							(size 1.27 1.27)
-						)
-					)
-				)
-			)
-			(pin bidirectional line
-				(at -21.59 19.05 0)
-				(length 2.54)
-				(name "PC05/PTI_FRAME"
-					(effects
-						(font
-							(size 1.27 1.27)
-						)
-					)
-				)
-				(number "27"
 					(effects
 						(font
 							(size 1.27 1.27)
@@ -2195,6 +2159,24 @@
 				)
 			)
 			(pin bidirectional line
+				(at -21.59 16.51 0)
+				(length 2.54)
+				(name "PC04/PTI_DATA"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+				(number "32"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+			)
+			(pin bidirectional line
 				(at 21.59 -16.51 180)
 				(length 2.54)
 				(name "PC04"
@@ -2205,6 +2187,24 @@
 					)
 				)
 				(number "32"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+			)
+			(pin bidirectional line
+				(at -21.59 19.05 0)
+				(length 2.54)
+				(name "PC05/PTI_FRAME"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+				(number "33"
 					(effects
 						(font
 							(size 1.27 1.27)

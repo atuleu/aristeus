@@ -2700,24 +2700,6 @@
 					)
 				)
 				(pin bidirectional line
-					(at -21.59 16.51 0)
-					(length 2.54)
-					(name "PC04/PTI_DATA"
-						(effects
-							(font
-								(size 1.27 1.27)
-							)
-						)
-					)
-					(number "26"
-						(effects
-							(font
-								(size 1.27 1.27)
-							)
-						)
-					)
-				)
-				(pin bidirectional line
 					(at -21.59 7.62 0)
 					(length 2.54)
 					(name "PD01/XTAL1"
@@ -2728,24 +2710,6 @@
 						)
 					)
 					(number "26"
-						(effects
-							(font
-								(size 1.27 1.27)
-							)
-						)
-					)
-				)
-				(pin bidirectional line
-					(at -21.59 19.05 0)
-					(length 2.54)
-					(name "PC05/PTI_FRAME"
-						(effects
-							(font
-								(size 1.27 1.27)
-							)
-						)
-					)
-					(number "27"
 						(effects
 							(font
 								(size 1.27 1.27)
@@ -2844,6 +2808,24 @@
 					)
 				)
 				(pin bidirectional line
+					(at -21.59 16.51 0)
+					(length 2.54)
+					(name "PC04/PTI_DATA"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "32"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin bidirectional line
 					(at 21.59 -16.51 180)
 					(length 2.54)
 					(name "PC04"
@@ -2854,6 +2836,24 @@
 						)
 					)
 					(number "32"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin bidirectional line
+					(at -21.59 19.05 0)
+					(length 2.54)
+					(name "PC05/PTI_FRAME"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "33"
 						(effects
 							(font
 								(size 1.27 1.27)
@@ -5338,7 +5338,7 @@
 		(pin "37"
 			(uuid "aff37b5d-56d3-409b-8e84-b2644b159723")
 		)
-		(pin "26"
+		(pin "32"
 			(uuid "6670fe14-7e68-4b70-8c2d-0fa3b8d08ba5")
 		)
 		(pin "26"
@@ -5368,7 +5368,7 @@
 		(pin "25"
 			(uuid "36464141-d89d-47ac-b3fa-18244c57b782")
 		)
-		(pin "27"
+		(pin "33"
 			(uuid "467175ee-f56b-4d7b-b430-2757faee6b1d")
 		)
 		(pin "39"
@@ -7563,7 +7563,7 @@
 				(justify left)
 			)
 		)
-		(property "Footprint" "Battery:BatteryHolder_Multicomp_BC-2001_1x2032"
+		(property "Footprint" "custom:BatteryHolder_MPD_BK-912"
 			(at 185.42 27.686 90)
 			(hide yes)
 			(show_name no)
