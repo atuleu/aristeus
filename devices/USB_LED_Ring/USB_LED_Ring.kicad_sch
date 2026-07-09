@@ -8130,6 +8130,17 @@
 				)
 			)
 		)
+		(property "MPN" "RCUCTE"
+			(at 177.8 156.21 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
 		(pin "1"
 			(uuid "e377f387-ac4e-47d8-86c7-c3a95e50a631")
 		)
@@ -8231,6 +8242,17 @@
 				)
 			)
 		)
+		(property "MPN" "158301250"
+			(at 228.6 195.58 90)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
 		(pin "2"
 			(uuid "a9550a7b-789b-49d7-9179-8f09cfda9e37")
 		)
@@ -8313,7 +8335,7 @@
 				)
 			)
 		)
-		(property "MPN" "CL10B225KP8NNNC"
+		(property "MPN" "GRM21BZ71H475ME15"
 			(at 50.8 184.15 0)
 			(hide yes)
 			(show_name no)
@@ -8698,6 +8720,17 @@
 				)
 			)
 		)
+		(property "MPN" "RCUCTE"
+			(at 78.74 185.42 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
 		(pin "1"
 			(uuid "da2945de-918e-4e5d-aab8-4d8a816b1810")
 		)
@@ -8912,6 +8945,17 @@
 			)
 		)
 		(property "Description" "Resistor"
+			(at 162.56 45.72 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "MPN" "RC0402FR-0747KL"
 			(at 162.56 45.72 0)
 			(hide yes)
 			(show_name no)
@@ -9404,6 +9448,17 @@
 				)
 			)
 		)
+		(property "MPN" "158301250"
+			(at 193.04 195.58 90)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
 		(pin "2"
 			(uuid "60abce0a-6522-454f-94c6-57f0fe4ad231")
 		)
@@ -9756,6 +9811,17 @@
 			)
 		)
 		(property "Var" ""
+			(at 228.6 172.72 90)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "MPN" "158301250"
 			(at 228.6 172.72 90)
 			(hide yes)
 			(show_name no)
@@ -10193,6 +10259,17 @@
 				)
 			)
 		)
+		(property "MPN" "158301250"
+			(at 205.74 195.58 90)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
 		(pin "2"
 			(uuid "0b430306-cf2a-4f0d-a98d-7275ecb92fc7")
 		)
@@ -10589,6 +10666,17 @@
 				)
 			)
 		)
+		(property "MPN" "RC0402FR-07430KL"
+			(at 105.41 45.72 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
 		(pin "2"
 			(uuid "4b308357-19ec-47cb-a325-8e1d027ba8ae")
 		)
@@ -10599,6 +10687,110 @@
 			(project "USB_LED_Ring"
 				(path "/5ad4d729-d735-4832-a15b-0afb907c9d85"
 					(reference "R8")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "Device:C")
+		(at 182.88 165.1 0)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "3dd15490-0f8e-4c50-aabb-da0110277dfe")
+		(property "Reference" "C4"
+			(at 186.69 163.8299 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Value" "2u2"
+			(at 186.69 166.3699 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Footprint" "Capacitor_SMD:C_0805_2012Metric"
+			(at 183.8452 168.91 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 182.88 165.1 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" "Unpolarized capacitor"
+			(at 182.88 165.1 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "MPN" "CL21B225KBYNNWE"
+			(at 182.88 165.1 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Var" ""
+			(at 182.88 165.1 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(pin "2"
+			(uuid "aef3872f-c21e-4489-bf7b-06399268d49e")
+		)
+		(pin "1"
+			(uuid "0d5fbf2b-21d4-4c15-a658-93067585bb93")
+		)
+		(instances
+			(project "USB_LED_Ring"
+				(path "/5ad4d729-d735-4832-a15b-0afb907c9d85"
+					(reference "C4")
 					(unit 1)
 				)
 			)
@@ -10873,6 +11065,17 @@
 				)
 			)
 		)
+		(property "MPN" "158301250"
+			(at 193.04 203.2 90)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
 		(pin "2"
 			(uuid "522e420d-20e4-4a22-aafb-51fe3ffd8980")
 		)
@@ -10977,6 +11180,17 @@
 				)
 			)
 		)
+		(property "MPN" "158301250"
+			(at 217.17 187.96 90)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
 		(pin "2"
 			(uuid "195efa7b-2c68-4e65-9fe0-f8d8bb77b8ba")
 		)
@@ -11059,7 +11273,7 @@
 				)
 			)
 		)
-		(property "MPN" "CL05B104KP5NNNC"
+		(property "MPN" "CL05B104KO5NNN"
 			(at 397.51 166.37 0)
 			(hide yes)
 			(show_name no)
@@ -11340,6 +11554,17 @@
 				)
 			)
 		)
+		(property "MPN" "158301250"
+			(at 217.17 203.2 90)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
 		(pin "2"
 			(uuid "f1c2e633-e1ba-41ba-b89d-88ff511d944e")
 		)
@@ -11434,6 +11659,17 @@
 			)
 		)
 		(property "Var" ""
+			(at 193.04 165.1 90)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "MPN" "158301250"
 			(at 193.04 165.1 90)
 			(hide yes)
 			(show_name no)
@@ -11548,6 +11784,17 @@
 				)
 			)
 		)
+		(property "MPN" "158301250"
+			(at 217.17 180.34 90)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
 		(pin "2"
 			(uuid "9ff4d2e9-ae48-49e5-a0e6-302996c8d30c")
 		)
@@ -11642,6 +11889,17 @@
 			)
 		)
 		(property "Var" ""
+			(at 228.6 165.1 90)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "MPN" "158301250"
 			(at 228.6 165.1 90)
 			(hide yes)
 			(show_name no)
@@ -12095,6 +12353,17 @@
 				)
 			)
 		)
+		(property "MPN" "158301250"
+			(at 205.74 172.72 90)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
 		(pin "2"
 			(uuid "7f9dc93c-f4bb-48ae-b57f-5b836e05047c")
 		)
@@ -12189,6 +12458,17 @@
 			)
 		)
 		(property "Var" ""
+			(at 205.74 203.2 90)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "MPN" "158301250"
 			(at 205.74 203.2 90)
 			(hide yes)
 			(show_name no)
@@ -12324,108 +12604,6 @@
 			(project "USB_LED_Ring"
 				(path "/5ad4d729-d735-4832-a15b-0afb907c9d85"
 					(reference "U4")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(symbol
-		(lib_id "Device:C")
-		(at 182.88 165.1 0)
-		(unit 1)
-		(body_style 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(in_pos_files yes)
-		(dnp no)
-		(uuid "6137d757-5d9c-4152-8e84-bb8ffb6c1f8d")
-		(property "Reference" "C4"
-			(at 186.69 163.8299 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify left)
-			)
-		)
-		(property "Value" "1u"
-			(at 186.69 166.3699 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify left)
-			)
-		)
-		(property "Footprint" "Capacitor_SMD:C_0603_1608Metric"
-			(at 183.8452 168.91 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Datasheet" ""
-			(at 182.88 165.1 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Description" "Unpolarized capacitor"
-			(at 182.88 165.1 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Voltage Rating" "25V"
-			(at 188.468 168.656 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Var" ""
-			(at 182.88 165.1 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(pin "1"
-			(uuid "0e168871-9eed-48ea-8a57-f271ba1b6651")
-		)
-		(pin "2"
-			(uuid "47c48fa7-523b-4ea5-a4b7-ecc67d1a2837")
-		)
-		(instances
-			(project "USB_LED_Ring"
-				(path "/5ad4d729-d735-4832-a15b-0afb907c9d85"
-					(reference "C4")
 					(unit 1)
 				)
 			)
@@ -12652,7 +12830,7 @@
 				)
 			)
 		)
-		(property "MPN" "CL05B104KP5NNNC"
+		(property "MPN" "CL05B104KO5NNN"
 			(at 107.95 168.91 0)
 			(hide yes)
 			(show_name no)
@@ -12755,7 +12933,7 @@
 				)
 			)
 		)
-		(property "MPN" "CL05B104KP5NNNC"
+		(property "MPN" "CL05B104KO5NNN"
 			(at 261.62 165.1 0)
 			(hide yes)
 			(show_name no)
@@ -13093,7 +13271,7 @@
 				)
 			)
 		)
-		(property "MPN" "CL10B225KP8NNNC"
+		(property "MPN" "CL21B225KBYNNWE"
 			(at 185.42 50.8 0)
 			(hide yes)
 			(show_name no)
@@ -13197,7 +13375,7 @@
 				)
 			)
 		)
-		(property "MPN" "CL05B104KP5NNNC"
+		(property "MPN" "GRM1555C1H102JA01D"
 			(at 121.92 64.77 0)
 			(hide yes)
 			(show_name no)
@@ -13301,7 +13479,7 @@
 				)
 			)
 		)
-		(property "MPN" "GRM155Z71A225KE01D"
+		(property "MPN" "GRM188Z71A475ME15D"
 			(at 285.75 165.1 0)
 			(hide yes)
 			(show_name no)
@@ -13817,6 +13995,17 @@
 				)
 			)
 		)
+		(property "MPN" "158301250"
+			(at 205.74 165.1 90)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
 		(pin "2"
 			(uuid "8efd25a0-d521-4bb5-8b6d-d6363f8c6d05")
 		)
@@ -13999,6 +14188,17 @@
 				)
 			)
 		)
+		(property "MPN" "RCUCTE"
+			(at 30.48 165.1 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
 		(pin "1"
 			(uuid "02629fb6-d34b-454d-9230-3109dafa0d74")
 		)
@@ -14157,6 +14357,17 @@
 			)
 		)
 		(property "Var" ""
+			(at 200.66 217.17 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "MPN" "CPF0603B2R55E1"
 			(at 200.66 217.17 0)
 			(hide yes)
 			(show_name no)
@@ -14327,7 +14538,7 @@
 				)
 			)
 		)
-		(property "MPN" "CL05B104KP5NNNC"
+		(property "MPN" "CL05B104KO5NNN"
 			(at 334.01 166.37 0)
 			(hide yes)
 			(show_name no)
@@ -14453,6 +14664,17 @@
 				)
 			)
 		)
+		(property "MPN" "RCUCTE"
+			(at 48.26 165.1 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
 		(pin "1"
 			(uuid "b33c9fda-6e6f-467e-bd07-d18aac344e4e")
 		)
@@ -14544,6 +14766,17 @@
 			)
 		)
 		(property "Var" ""
+			(at 217.17 195.58 90)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "MPN" "158301250"
 			(at 217.17 195.58 90)
 			(hide yes)
 			(show_name no)
@@ -14736,6 +14969,17 @@
 				)
 			)
 		)
+		(property "MPN" "158301250"
+			(at 217.17 165.1 90)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
 		(pin "2"
 			(uuid "16a66dc6-f200-4683-ada1-ce0b88cd58bc")
 		)
@@ -14830,6 +15074,17 @@
 			)
 		)
 		(property "Var" ""
+			(at 228.6 180.34 90)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "MPN" "158301250"
 			(at 228.6 180.34 90)
 			(hide yes)
 			(show_name no)
@@ -15093,6 +15348,17 @@
 			)
 		)
 		(property "Description" "Resistor"
+			(at 105.41 55.88 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "MPN" "RC0402FR-0747KL"
 			(at 105.41 55.88 0)
 			(hide yes)
 			(show_name no)
@@ -15519,6 +15785,17 @@
 				)
 			)
 		)
+		(property "MPN" "158301250"
+			(at 228.6 203.2 90)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
 		(pin "2"
 			(uuid "05a9330d-37c6-4847-ba9d-da632ae84b68")
 		)
@@ -15613,6 +15890,17 @@
 			)
 		)
 		(property "Var" ""
+			(at 139.7 153.67 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "MPN" "RCUCTE"
 			(at 139.7 153.67 0)
 			(hide yes)
 			(show_name no)
@@ -15936,6 +16224,17 @@
 				)
 			)
 		)
+		(property "MPN" "RC0402FR-07130KL"
+			(at 105.41 66.04 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
 		(pin "2"
 			(uuid "bc75ba56-05aa-4811-be9e-12cac7d38f04")
 		)
@@ -16030,6 +16329,17 @@
 			)
 		)
 		(property "Var" ""
+			(at 193.04 180.34 90)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "MPN" "158301250"
 			(at 193.04 180.34 90)
 			(hide yes)
 			(show_name no)
@@ -16301,6 +16611,17 @@
 				)
 			)
 		)
+		(property "MPN" "158301250"
+			(at 205.74 180.34 90)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
 		(pin "2"
 			(uuid "df502004-c707-4d46-a808-59bec3588e63")
 		)
@@ -16461,7 +16782,7 @@
 				)
 			)
 		)
-		(property "MPN" "CL05B104KP5NNNC"
+		(property "MPN" "CL05B104KO5NNN"
 			(at 274.32 165.1 0)
 			(hide yes)
 			(show_name no)
@@ -16575,6 +16896,17 @@
 			)
 		)
 		(property "Var" ""
+			(at 96.52 168.91 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "MPN" "GRM21BZ71H475ME15"
 			(at 96.52 168.91 0)
 			(hide yes)
 			(show_name no)
@@ -16772,7 +17104,7 @@
 				)
 			)
 		)
-		(property "MPN" "CL05B104KP5NNNC"
+		(property "MPN" "CL05B104KO5NNN"
 			(at 384.81 166.37 0)
 			(hide yes)
 			(show_name no)
@@ -16945,6 +17277,17 @@
 			)
 		)
 		(property "Description" "Generic connectable mounting pin connector, single row, 01x03, script generated (kicad-library-utils/schlib/autogen/connector/)"
+			(at 153.67 96.52 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "MPN" "BM03B-SRSS-TB"
 			(at 153.67 96.52 0)
 			(hide yes)
 			(show_name no)
@@ -17136,6 +17479,17 @@
 			)
 		)
 		(property "Description" "Resistor"
+			(at 156.21 64.77 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "MPN" "RC0402FR-076K8L"
 			(at 156.21 64.77 0)
 			(hide yes)
 			(show_name no)
@@ -17484,6 +17838,17 @@
 				)
 			)
 		)
+		(property "MPN" "KDV06FR100ET"
+			(at 40.64 175.26 90)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
 		(pin "2"
 			(uuid "81d5f9cc-3e20-4943-8493-743146b80ea0")
 		)
@@ -17644,7 +18009,7 @@
 				)
 			)
 		)
-		(property "MPN" "GRM155Z71A225KE01D"
+		(property "MPN" "GRM188Z71A475ME15D"
 			(at 309.88 166.37 0)
 			(hide yes)
 			(show_name no)
@@ -17748,7 +18113,7 @@
 				)
 			)
 		)
-		(property "MPN" "CL05B104KP5NNNC"
+		(property "MPN" "CL05B104KO5NNN"
 			(at 372.11 166.37 0)
 			(hide yes)
 			(show_name no)
@@ -17864,6 +18229,17 @@
 			)
 		)
 		(property "Var" ""
+			(at 217.17 172.72 90)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "MPN" "158301250"
 			(at 217.17 172.72 90)
 			(hide yes)
 			(show_name no)
@@ -18055,6 +18431,17 @@
 				)
 			)
 		)
+		(property "MPN" "158301250"
+			(at 193.04 187.96 90)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
 		(pin "2"
 			(uuid "c45a1245-de32-4680-9d68-23c7d5f99161")
 		)
@@ -18137,7 +18524,7 @@
 				)
 			)
 		)
-		(property "MPN" "GRM155Z71A225KE01D"
+		(property "MPN" "GRM188Z71A475ME15D"
 			(at 278.13 59.69 0)
 			(hide yes)
 			(show_name no)
@@ -18241,7 +18628,7 @@
 				)
 			)
 		)
-		(property "MPN" "CL10B225KP8NNNC"
+		(property "MPN" "CL21B225KBYNNWE"
 			(at 220.98 50.8 0)
 			(hide yes)
 			(show_name no)
@@ -18424,7 +18811,7 @@
 				)
 			)
 		)
-		(property "MPN" "CL05B104KP5NNNC"
+		(property "MPN" "CL05B104KO5NNN"
 			(at 359.41 166.37 0)
 			(hide yes)
 			(show_name no)
@@ -18977,7 +19364,7 @@
 				)
 			)
 		)
-		(property "MPN" "CL05B104KP5NNNC"
+		(property "MPN" "CL05B104KO5NNN"
 			(at 346.71 166.37 0)
 			(hide yes)
 			(show_name no)
@@ -19103,6 +19490,17 @@
 				)
 			)
 		)
+		(property "MPN" "158301250"
+			(at 205.74 187.96 90)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
 		(pin "2"
 			(uuid "4cca5722-f226-4dc8-b590-94d70a48c722")
 		)
@@ -19197,6 +19595,17 @@
 			)
 		)
 		(property "Var" ""
+			(at 193.04 172.72 90)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "MPN" "158301250"
 			(at 193.04 172.72 90)
 			(hide yes)
 			(show_name no)
@@ -19443,6 +19852,17 @@
 				)
 			)
 		)
+		(property "MPN" "AOTA-B252010S3R3MT"
+			(at 295.91 62.23 90)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
 		(pin "1"
 			(uuid "8623d695-a08b-41da-ac9d-f8076d6ae235")
 		)
@@ -19641,6 +20061,17 @@
 				)
 			)
 		)
+		(property "MPN" "158301250"
+			(at 228.6 187.96 90)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
 		(pin "2"
 			(uuid "4d8921c8-63e6-4944-93c9-f228244ee084")
 		)
@@ -19745,6 +20176,17 @@
 				)
 			)
 		)
+		(property "MPN" "RCUCTE"
+			(at 182.88 207.01 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
 		(pin "1"
 			(uuid "787f0a2a-9628-4990-b71c-57ca3134afed")
 		)
@@ -19814,6 +20256,17 @@
 			)
 		)
 		(property "Description" "Generic connectable mounting pin connector, single row, 01x03, script generated (kicad-library-utils/schlib/autogen/connector/)"
+			(at 191.77 96.52 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "MPN" "BM03B-SRSS-TB"
 			(at 191.77 96.52 0)
 			(hide yes)
 			(show_name no)
@@ -19912,7 +20365,7 @@
 				)
 			)
 		)
-		(property "MPN" "CL05B104KP5NNNC"
+		(property "MPN" "CL05B104KO5NNN"
 			(at 321.31 166.37 0)
 			(hide yes)
 			(show_name no)
@@ -20015,6 +20468,17 @@
 			)
 		)
 		(property "Var" ""
+			(at 154.94 165.1 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "MPN" "TPS923610DRLR"
 			(at 154.94 165.1 0)
 			(hide yes)
 			(show_name no)

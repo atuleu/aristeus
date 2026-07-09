@@ -690,6 +690,18 @@
           "label": "Description",
           "name": "Description",
           "show": false
+        },
+        {
+          "group_by": false,
+          "label": "Sim.Pins",
+          "name": "Sim.Pins",
+          "show": false
+        },
+        {
+          "group_by": false,
+          "label": "Sim.Device",
+          "name": "Sim.Device",
+          "show": false
         }
       ],
       "filter_string": "",
@@ -738,7 +750,7 @@
       "meta": {
         "version": 0
       },
-      "model_mode": 0,
+      "model_mode": 4,
       "workbook_filename": ""
     },
     "page_layout_descr_file": "",
@@ -762,7 +774,11 @@
       }
     ],
     "used_designators": "",
-    "variants": []
+    "variants": [
+      {
+        "name": "Simple"
+      }
+    ]
   },
   "sheets": [
     [

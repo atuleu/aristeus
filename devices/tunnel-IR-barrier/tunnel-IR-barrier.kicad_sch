@@ -2533,12 +2533,6 @@
 		(uuid "3c368bd5-9bf2-4e69-b5c5-bded022c505d")
 	)
 	(junction
-		(at 224.79 134.62)
-		(diameter 0)
-		(color 0 0 0 0)
-		(uuid "69a51d21-6d56-49cb-ba14-601a41a0f12f")
-	)
-	(junction
 		(at 224.79 38.1)
 		(diameter 0)
 		(color 0 0 0 0)
@@ -2570,6 +2564,10 @@
 		(at 148.59 55.88)
 		(uuid "1b40b9c8-f3dc-4424-bbe3-fdfb7b3d32da")
 	)
+	(no_connect
+		(at 231.14 142.24)
+		(uuid "4e6ad73a-4ac3-4312-83d2-a208945b6cf3")
+	)
 	(wire
 		(pts
 			(xy 72.39 39.37) (xy 72.39 86.36)
@@ -2579,16 +2577,6 @@
 			(type default)
 		)
 		(uuid "03dbd166-5fbf-4e12-9a4c-f25eb0249204")
-	)
-	(wire
-		(pts
-			(xy 224.79 144.78) (xy 231.14 144.78)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "04e76fdd-629b-45f4-877e-2dd0836729e5")
 	)
 	(wire
 		(pts
@@ -2962,16 +2950,6 @@
 	)
 	(wire
 		(pts
-			(xy 231.14 144.78) (xy 231.14 142.24)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "885507f6-6b9e-48d7-873d-52dc317a19f6")
-	)
-	(wire
-		(pts
 			(xy 224.79 125.73) (xy 224.79 132.08)
 		)
 		(stroke
@@ -3172,16 +3150,6 @@
 	)
 	(wire
 		(pts
-			(xy 226.06 134.62) (xy 224.79 134.62)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "c007951c-feba-4934-8229-51e8a6b800ed")
-	)
-	(wire
-		(pts
 			(xy 26.67 99.06) (xy 29.21 99.06)
 		)
 		(stroke
@@ -3262,7 +3230,7 @@
 	)
 	(wire
 		(pts
-			(xy 224.79 134.62) (xy 222.25 134.62)
+			(xy 222.25 134.62) (xy 226.06 134.62)
 		)
 		(stroke
 			(width 0)
@@ -3299,16 +3267,6 @@
 			(type default)
 		)
 		(uuid "e7cebe23-33ed-4e01-aa85-de246928b400")
-	)
-	(wire
-		(pts
-			(xy 224.79 134.62) (xy 224.79 144.78)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "ef3213a8-4ea0-4c23-8843-6e3edb21ada7")
 	)
 	(wire
 		(pts
@@ -3762,7 +3720,7 @@
 				(justify left)
 			)
 		)
-		(property "Footprint" "Package_TO_SOT_SMD:SOT-416"
+		(property "Footprint" "custom:SOT-416"
 			(at 39.37 49.53 0)
 			(hide yes)
 			(show_name no)
@@ -4029,7 +3987,7 @@
 				(justify left)
 			)
 		)
-		(property "Footprint" "Package_TO_SOT_SMD:SOT-416"
+		(property "Footprint" "custom:SOT-416"
 			(at 39.37 96.52 0)
 			(hide yes)
 			(show_name no)
@@ -4498,7 +4456,7 @@
 				(justify left)
 			)
 		)
-		(property "Footprint" "Connector_JST:JST_SH_BM03B-SRSS-TB_1x03-1MP_P1.00mm_Vertical"
+		(property "Footprint" "Connector_JST:JST_SH_SM03B-SRSS-TB_1x03-1MP_P1.00mm_Horizontal"
 			(at 231.14 134.62 0)
 			(hide yes)
 			(show_name no)
@@ -6220,7 +6178,7 @@
 				)
 			)
 		)
-		(property "Footprint" "Package_TO_SOT_SMD:SOT-416"
+		(property "Footprint" "custom:SOT-416"
 			(at 77.47 36.83 0)
 			(hide yes)
 			(show_name no)
@@ -6491,7 +6449,7 @@
 				(justify left)
 			)
 		)
-		(property "Footprint" "Package_TO_SOT_SMD:SOT-416"
+		(property "Footprint" "custom:SOT-416"
 			(at 39.37 148.59 0)
 			(hide yes)
 			(show_name no)
