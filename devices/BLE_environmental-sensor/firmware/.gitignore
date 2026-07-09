@@ -1,2 +1,7 @@
 .projectlinkstore
 simplicity_sdk_2026.6.0/
+cmake_iar/
+cmake_llvm/
+.uceditor/
+build/
+.cache/

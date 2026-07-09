@@ -42,6 +42,9 @@ component:
   id: app_assert
 - package: simplicity_sdk
   vendor: silabs
+  id: app_log
+- package: simplicity_sdk
+  vendor: silabs
   id: app_os_helper
 - package: simplicity_sdk
   vendor: silabs
@@ -82,6 +85,17 @@ component:
 - package: simplicity_sdk
   vendor: silabs
   id: gatt_service_device_information_override
+- package: simplicity_sdk
+  instance:
+  - vcom
+  vendor: silabs
+  id: iostream_eusart
+- package: simplicity_sdk
+  vendor: silabs
+  id: iostream_retarget_stdio
+- package: simplicity_sdk
+  vendor: silabs
+  id: iostream_stdlib_config
 - package: simplicity_sdk
   vendor: silabs
   id: mpu
@@ -223,6 +237,21 @@ autoselected_components:
   id: device_peripheral_hal
 - package: simplicity_sdk
   vendor: silabs
+  id: dma_channel
+- package: simplicity_sdk
+  vendor: silabs
+  id: dma_descriptor_allocator
+- package: simplicity_sdk
+  vendor: silabs
+  id: dma_manager
+- package: simplicity_sdk
+  vendor: silabs
+  id: dma_manager_hal_ldma
+- package: simplicity_sdk
+  vendor: silabs
+  id: dma_manager_init
+- package: simplicity_sdk
+  vendor: silabs
   id: ecode
 - package: simplicity_sdk
   vendor: silabs
@@ -242,6 +271,9 @@ autoselected_components:
 - package: simplicity_sdk
   vendor: silabs
   id: emlib_emu
+- package: simplicity_sdk
+  vendor: silabs
+  id: emlib_eusart
 - package: simplicity_sdk
   vendor: silabs
   id: emlib_gpio
@@ -286,6 +318,9 @@ autoselected_components:
   id: hal_common
 - package: simplicity_sdk
   vendor: silabs
+  id: hal_eusart
+- package: simplicity_sdk
+  vendor: silabs
   id: hal_gpio
 - package: simplicity_sdk
   vendor: silabs
@@ -314,6 +349,15 @@ autoselected_components:
 - package: simplicity_sdk
   vendor: silabs
   id: interrupt_manager_cortexm
+- package: simplicity_sdk
+  vendor: silabs
+  id: iostream
+- package: simplicity_sdk
+  vendor: silabs
+  id: iostream_eusart_core
+- package: simplicity_sdk
+  vendor: silabs
+  id: iostream_uart_common
 - package: simplicity_sdk
   vendor: silabs
   id: libcryptosoc
@@ -518,6 +562,9 @@ autoselected_components:
 - package: simplicity_sdk
   vendor: silabs
   id: sl_rail_util_pti
+- package: simplicity_sdk
+  vendor: silabs
+  id: sl_string
 - package: simplicity_sdk
   vendor: silabs
   id: sleeptimer

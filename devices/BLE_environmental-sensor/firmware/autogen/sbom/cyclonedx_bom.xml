@@ -10,7 +10,7 @@ referenced in this SBOM.)
 -->
 <bom xmlns="http://cyclonedx.org/schema/bom/1.6" version="1">
   <metadata>
-    <timestamp>2026-07-09T14:48:45Z</timestamp>
+    <timestamp>2026-07-09T15:01:20Z</timestamp>
     <authors>
       <author>
         <name>Silicon Laboratories, Inc.</name>
@@ -1621,6 +1621,156 @@ referenced in this SBOM.)
         </component>
         <component bom-ref="silabs.simplicity_sdk:2026.6.0:udelay_cortexm" type="library">
           <name>Microsecond Delay Cortex-M</name>
+          <version>2026.6.0</version>
+	      <supplier>
+	        <name>Silicon Laboratories, Inc.</name>
+	      </supplier>
+          <licenses>
+            <expression>Zlib</expression>
+          </licenses>
+        </component>
+        <component bom-ref="silabs.simplicity_sdk:2026.6.0:iostream_eusart" type="library">
+          <name>IO Stream: EUSART</name>
+          <version>2026.6.0</version>
+	      <supplier>
+	        <name>Silicon Laboratories, Inc.</name>
+	      </supplier>
+          <licenses>
+            <expression>Zlib</expression>
+          </licenses>
+        </component>
+        <component bom-ref="silabs.simplicity_sdk:2026.6.0:emlib_eusart" type="library">
+          <name>EUSART</name>
+          <version>2026.6.0</version>
+	      <supplier>
+	        <name>Silicon Laboratories, Inc.</name>
+	      </supplier>
+          <licenses>
+            <expression>Zlib</expression>
+          </licenses>
+        </component>
+        <component bom-ref="silabs.simplicity_sdk:2026.6.0:iostream" type="library">
+          <name>IO Stream</name>
+          <version>2026.6.0</version>
+	      <supplier>
+	        <name>Silicon Laboratories, Inc.</name>
+	      </supplier>
+          <licenses>
+            <expression>Zlib</expression>
+          </licenses>
+        </component>
+        <component bom-ref="silabs.simplicity_sdk:2026.6.0:dma_manager_hal_ldma" type="library">
+          <name>DMA Manager HAL LDMA</name>
+          <version>2026.6.0</version>
+	      <supplier>
+	        <name>Silicon Laboratories, Inc.</name>
+	      </supplier>
+          <licenses>
+            <expression>Zlib</expression>
+          </licenses>
+        </component>
+        <component bom-ref="silabs.simplicity_sdk:2026.6.0:dma_descriptor_allocator" type="library">
+          <name>DMA Descriptor Allocator</name>
+          <version>2026.6.0</version>
+	      <supplier>
+	        <name>Silicon Laboratories, Inc.</name>
+	      </supplier>
+          <licenses>
+            <expression>Zlib</expression>
+          </licenses>
+        </component>
+        <component bom-ref="silabs.simplicity_sdk:2026.6.0:iostream_uart_common" type="library">
+          <name>IO Stream: Common code for UART-type streams</name>
+          <version>2026.6.0</version>
+	      <supplier>
+	        <name>Silicon Laboratories, Inc.</name>
+	      </supplier>
+          <licenses>
+            <expression>Zlib</expression>
+          </licenses>
+        </component>
+        <component bom-ref="silabs.simplicity_sdk:2026.6.0:dma_manager_init" type="library">
+          <name>DMA Manager Init</name>
+          <version>2026.6.0</version>
+	      <supplier>
+	        <name>Silicon Laboratories, Inc.</name>
+	      </supplier>
+          <licenses>
+            <expression>Zlib</expression>
+          </licenses>
+        </component>
+        <component bom-ref="silabs.simplicity_sdk:2026.6.0:dma_manager" type="library">
+          <name>DMA Manager</name>
+          <version>2026.6.0</version>
+	      <supplier>
+	        <name>Silicon Laboratories, Inc.</name>
+	      </supplier>
+          <licenses>
+            <expression>Zlib</expression>
+          </licenses>
+        </component>
+        <component bom-ref="silabs.simplicity_sdk:2026.6.0:dma_channel" type="library">
+          <name>DMA Channel Driver</name>
+          <version>2026.6.0</version>
+	      <supplier>
+	        <name>Silicon Laboratories, Inc.</name>
+	      </supplier>
+          <licenses>
+            <expression>Zlib</expression>
+          </licenses>
+        </component>
+        <component bom-ref="silabs.simplicity_sdk:2026.6.0:sl_string" type="library">
+          <name>String Functions</name>
+          <version>2026.6.0</version>
+	      <supplier>
+	        <name>Silicon Laboratories, Inc.</name>
+	      </supplier>
+          <licenses>
+            <expression>Zlib</expression>
+          </licenses>
+        </component>
+        <component bom-ref="silabs.simplicity_sdk:2026.6.0:hal_eusart" type="library">
+          <name>EUSART</name>
+          <version>2026.6.0</version>
+	      <supplier>
+	        <name>Silicon Laboratories, Inc.</name>
+	      </supplier>
+          <licenses>
+            <expression>Zlib</expression>
+          </licenses>
+        </component>
+        <component bom-ref="silabs.simplicity_sdk:2026.6.0:iostream_eusart_core" type="library">
+          <name>IO Stream: EUSART Core</name>
+          <version>2026.6.0</version>
+	      <supplier>
+	        <name>Silicon Laboratories, Inc.</name>
+	      </supplier>
+          <licenses>
+            <expression>Zlib</expression>
+          </licenses>
+        </component>
+        <component bom-ref="silabs.simplicity_sdk:2026.6.0:iostream_retarget_stdio" type="library">
+          <name>IO Stream: Retarget STDIO</name>
+          <version>2026.6.0</version>
+	      <supplier>
+	        <name>Silicon Laboratories, Inc.</name>
+	      </supplier>
+          <licenses>
+            <expression>Zlib</expression>
+          </licenses>
+        </component>
+        <component bom-ref="silabs.simplicity_sdk:2026.6.0:iostream_stdlib_config" type="library">
+          <name>IO Stream: STDLIB Configuration</name>
+          <version>2026.6.0</version>
+	      <supplier>
+	        <name>Silicon Laboratories, Inc.</name>
+	      </supplier>
+          <licenses>
+            <expression>Zlib</expression>
+          </licenses>
+        </component>
+        <component bom-ref="silabs.simplicity_sdk:2026.6.0:app_log" type="library">
+          <name>Log</name>
           <version>2026.6.0</version>
 	      <supplier>
 	        <name>Silicon Laboratories, Inc.</name>

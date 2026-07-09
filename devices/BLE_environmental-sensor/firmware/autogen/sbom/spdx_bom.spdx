@@ -13,7 +13,7 @@ DocumentNamespace: https://silabs.com
 
 ## Creation Information
 Creator: Organization: Silicon Laboratories, Inc.
-Created: 2026-07-09T14:48:45Z
+Created: 2026-07-09T15:01:20Z
 ## Relationships
 Relationship: SPDXRef-DOCUMENT DESCRIBES SPDXRef-silabs.simplicity_sdk-2026.6.0
 
@@ -182,6 +182,21 @@ Relationship: SPDXRef-silabs.simplicity_sdk-2026.6.0 CONTAINS SPDXRef-silabs.sim
 Relationship: SPDXRef-silabs.simplicity_sdk-2026.6.0 CONTAINS SPDXRef-silabs.simplicity_sdk-2026.6.0-trustzone_unaware
 Relationship: SPDXRef-silabs.simplicity_sdk-2026.6.0 CONTAINS SPDXRef-silabs.simplicity_sdk-2026.6.0-udelay
 Relationship: SPDXRef-silabs.simplicity_sdk-2026.6.0 CONTAINS SPDXRef-silabs.simplicity_sdk-2026.6.0-udelay_cortexm
+Relationship: SPDXRef-silabs.simplicity_sdk-2026.6.0 CONTAINS SPDXRef-silabs.simplicity_sdk-2026.6.0-iostream_eusart
+Relationship: SPDXRef-silabs.simplicity_sdk-2026.6.0 CONTAINS SPDXRef-silabs.simplicity_sdk-2026.6.0-emlib_eusart
+Relationship: SPDXRef-silabs.simplicity_sdk-2026.6.0 CONTAINS SPDXRef-silabs.simplicity_sdk-2026.6.0-iostream
+Relationship: SPDXRef-silabs.simplicity_sdk-2026.6.0 CONTAINS SPDXRef-silabs.simplicity_sdk-2026.6.0-dma_manager_hal_ldma
+Relationship: SPDXRef-silabs.simplicity_sdk-2026.6.0 CONTAINS SPDXRef-silabs.simplicity_sdk-2026.6.0-dma_descriptor_allocator
+Relationship: SPDXRef-silabs.simplicity_sdk-2026.6.0 CONTAINS SPDXRef-silabs.simplicity_sdk-2026.6.0-iostream_uart_common
+Relationship: SPDXRef-silabs.simplicity_sdk-2026.6.0 CONTAINS SPDXRef-silabs.simplicity_sdk-2026.6.0-dma_manager_init
+Relationship: SPDXRef-silabs.simplicity_sdk-2026.6.0 CONTAINS SPDXRef-silabs.simplicity_sdk-2026.6.0-dma_manager
+Relationship: SPDXRef-silabs.simplicity_sdk-2026.6.0 CONTAINS SPDXRef-silabs.simplicity_sdk-2026.6.0-dma_channel
+Relationship: SPDXRef-silabs.simplicity_sdk-2026.6.0 CONTAINS SPDXRef-silabs.simplicity_sdk-2026.6.0-sl_string
+Relationship: SPDXRef-silabs.simplicity_sdk-2026.6.0 CONTAINS SPDXRef-silabs.simplicity_sdk-2026.6.0-hal_eusart
+Relationship: SPDXRef-silabs.simplicity_sdk-2026.6.0 CONTAINS SPDXRef-silabs.simplicity_sdk-2026.6.0-iostream_eusart_core
+Relationship: SPDXRef-silabs.simplicity_sdk-2026.6.0 CONTAINS SPDXRef-silabs.simplicity_sdk-2026.6.0-iostream_retarget_stdio
+Relationship: SPDXRef-silabs.simplicity_sdk-2026.6.0 CONTAINS SPDXRef-silabs.simplicity_sdk-2026.6.0-iostream_stdlib_config
+Relationship: SPDXRef-silabs.simplicity_sdk-2026.6.0 CONTAINS SPDXRef-silabs.simplicity_sdk-2026.6.0-app_log
 
 ## Package Information
 PackageName: BGM220PC22HNA
@@ -1937,3 +1952,168 @@ PackageSupplier: Organization: Silicon Laboratories, Inc.
 PackageLicenseConcluded: Zlib
 ## Relationships
 Relationship: SPDXRef-silabs.simplicity_sdk-2026.6.0-udelay_cortexm CONTAINED_BY SPDXRef-silabs.simplicity_sdk-2026.6.0
+
+## Package Information
+PackageName: IO Stream: EUSART
+SPDXID: SPDXRef-silabs.simplicity_sdk-2026.6.0-iostream_eusart
+PackageVersion: 2026.6.0
+PrimaryPackagePurpose: LIBRARY
+PackageDownloadLocation: NOASSERTION
+PackageSupplier: Organization: Silicon Laboratories, Inc.
+PackageLicenseConcluded: Zlib
+## Relationships
+Relationship: SPDXRef-silabs.simplicity_sdk-2026.6.0-iostream_eusart CONTAINED_BY SPDXRef-silabs.simplicity_sdk-2026.6.0
+
+## Package Information
+PackageName: EUSART
+SPDXID: SPDXRef-silabs.simplicity_sdk-2026.6.0-emlib_eusart
+PackageVersion: 2026.6.0
+PrimaryPackagePurpose: LIBRARY
+PackageDownloadLocation: NOASSERTION
+PackageSupplier: Organization: Silicon Laboratories, Inc.
+PackageLicenseConcluded: Zlib
+## Relationships
+Relationship: SPDXRef-silabs.simplicity_sdk-2026.6.0-emlib_eusart CONTAINED_BY SPDXRef-silabs.simplicity_sdk-2026.6.0
+
+## Package Information
+PackageName: IO Stream
+SPDXID: SPDXRef-silabs.simplicity_sdk-2026.6.0-iostream
+PackageVersion: 2026.6.0
+PrimaryPackagePurpose: LIBRARY
+PackageDownloadLocation: NOASSERTION
+PackageSupplier: Organization: Silicon Laboratories, Inc.
+PackageLicenseConcluded: Zlib
+## Relationships
+Relationship: SPDXRef-silabs.simplicity_sdk-2026.6.0-iostream CONTAINED_BY SPDXRef-silabs.simplicity_sdk-2026.6.0
+
+## Package Information
+PackageName: DMA Manager HAL LDMA
+SPDXID: SPDXRef-silabs.simplicity_sdk-2026.6.0-dma_manager_hal_ldma
+PackageVersion: 2026.6.0
+PrimaryPackagePurpose: LIBRARY
+PackageDownloadLocation: NOASSERTION
+PackageSupplier: Organization: Silicon Laboratories, Inc.
+PackageLicenseConcluded: Zlib
+## Relationships
+Relationship: SPDXRef-silabs.simplicity_sdk-2026.6.0-dma_manager_hal_ldma CONTAINED_BY SPDXRef-silabs.simplicity_sdk-2026.6.0
+
+## Package Information
+PackageName: DMA Descriptor Allocator
+SPDXID: SPDXRef-silabs.simplicity_sdk-2026.6.0-dma_descriptor_allocator
+PackageVersion: 2026.6.0
+PrimaryPackagePurpose: LIBRARY
+PackageDownloadLocation: NOASSERTION
+PackageSupplier: Organization: Silicon Laboratories, Inc.
+PackageLicenseConcluded: Zlib
+## Relationships
+Relationship: SPDXRef-silabs.simplicity_sdk-2026.6.0-dma_descriptor_allocator CONTAINED_BY SPDXRef-silabs.simplicity_sdk-2026.6.0
+
+## Package Information
+PackageName: IO Stream: Common code for UART-type streams
+SPDXID: SPDXRef-silabs.simplicity_sdk-2026.6.0-iostream_uart_common
+PackageVersion: 2026.6.0
+PrimaryPackagePurpose: LIBRARY
+PackageDownloadLocation: NOASSERTION
+PackageSupplier: Organization: Silicon Laboratories, Inc.
+PackageLicenseConcluded: Zlib
+## Relationships
+Relationship: SPDXRef-silabs.simplicity_sdk-2026.6.0-iostream_uart_common CONTAINED_BY SPDXRef-silabs.simplicity_sdk-2026.6.0
+
+## Package Information
+PackageName: DMA Manager Init
+SPDXID: SPDXRef-silabs.simplicity_sdk-2026.6.0-dma_manager_init
+PackageVersion: 2026.6.0
+PrimaryPackagePurpose: LIBRARY
+PackageDownloadLocation: NOASSERTION
+PackageSupplier: Organization: Silicon Laboratories, Inc.
+PackageLicenseConcluded: Zlib
+## Relationships
+Relationship: SPDXRef-silabs.simplicity_sdk-2026.6.0-dma_manager_init CONTAINED_BY SPDXRef-silabs.simplicity_sdk-2026.6.0
+
+## Package Information
+PackageName: DMA Manager
+SPDXID: SPDXRef-silabs.simplicity_sdk-2026.6.0-dma_manager
+PackageVersion: 2026.6.0
+PrimaryPackagePurpose: LIBRARY
+PackageDownloadLocation: NOASSERTION
+PackageSupplier: Organization: Silicon Laboratories, Inc.
+PackageLicenseConcluded: Zlib
+## Relationships
+Relationship: SPDXRef-silabs.simplicity_sdk-2026.6.0-dma_manager CONTAINED_BY SPDXRef-silabs.simplicity_sdk-2026.6.0
+
+## Package Information
+PackageName: DMA Channel Driver
+SPDXID: SPDXRef-silabs.simplicity_sdk-2026.6.0-dma_channel
+PackageVersion: 2026.6.0
+PrimaryPackagePurpose: LIBRARY
+PackageDownloadLocation: NOASSERTION
+PackageSupplier: Organization: Silicon Laboratories, Inc.
+PackageLicenseConcluded: Zlib
+## Relationships
+Relationship: SPDXRef-silabs.simplicity_sdk-2026.6.0-dma_channel CONTAINED_BY SPDXRef-silabs.simplicity_sdk-2026.6.0
+
+## Package Information
+PackageName: String Functions
+SPDXID: SPDXRef-silabs.simplicity_sdk-2026.6.0-sl_string
+PackageVersion: 2026.6.0
+PrimaryPackagePurpose: LIBRARY
+PackageDownloadLocation: NOASSERTION
+PackageSupplier: Organization: Silicon Laboratories, Inc.
+PackageLicenseConcluded: Zlib
+## Relationships
+Relationship: SPDXRef-silabs.simplicity_sdk-2026.6.0-sl_string CONTAINED_BY SPDXRef-silabs.simplicity_sdk-2026.6.0
+
+## Package Information
+PackageName: EUSART
+SPDXID: SPDXRef-silabs.simplicity_sdk-2026.6.0-hal_eusart
+PackageVersion: 2026.6.0
+PrimaryPackagePurpose: LIBRARY
+PackageDownloadLocation: NOASSERTION
+PackageSupplier: Organization: Silicon Laboratories, Inc.
+PackageLicenseConcluded: Zlib
+## Relationships
+Relationship: SPDXRef-silabs.simplicity_sdk-2026.6.0-hal_eusart CONTAINED_BY SPDXRef-silabs.simplicity_sdk-2026.6.0
+
+## Package Information
+PackageName: IO Stream: EUSART Core
+SPDXID: SPDXRef-silabs.simplicity_sdk-2026.6.0-iostream_eusart_core
+PackageVersion: 2026.6.0
+PrimaryPackagePurpose: LIBRARY
+PackageDownloadLocation: NOASSERTION
+PackageSupplier: Organization: Silicon Laboratories, Inc.
+PackageLicenseConcluded: Zlib
+## Relationships
+Relationship: SPDXRef-silabs.simplicity_sdk-2026.6.0-iostream_eusart_core CONTAINED_BY SPDXRef-silabs.simplicity_sdk-2026.6.0
+
+## Package Information
+PackageName: IO Stream: Retarget STDIO
+SPDXID: SPDXRef-silabs.simplicity_sdk-2026.6.0-iostream_retarget_stdio
+PackageVersion: 2026.6.0
+PrimaryPackagePurpose: LIBRARY
+PackageDownloadLocation: NOASSERTION
+PackageSupplier: Organization: Silicon Laboratories, Inc.
+PackageLicenseConcluded: Zlib
+## Relationships
+Relationship: SPDXRef-silabs.simplicity_sdk-2026.6.0-iostream_retarget_stdio CONTAINED_BY SPDXRef-silabs.simplicity_sdk-2026.6.0
+
+## Package Information
+PackageName: IO Stream: STDLIB Configuration
+SPDXID: SPDXRef-silabs.simplicity_sdk-2026.6.0-iostream_stdlib_config
+PackageVersion: 2026.6.0
+PrimaryPackagePurpose: LIBRARY
+PackageDownloadLocation: NOASSERTION
+PackageSupplier: Organization: Silicon Laboratories, Inc.
+PackageLicenseConcluded: Zlib
+## Relationships
+Relationship: SPDXRef-silabs.simplicity_sdk-2026.6.0-iostream_stdlib_config CONTAINED_BY SPDXRef-silabs.simplicity_sdk-2026.6.0
+
+## Package Information
+PackageName: Log
+SPDXID: SPDXRef-silabs.simplicity_sdk-2026.6.0-app_log
+PackageVersion: 2026.6.0
+PrimaryPackagePurpose: LIBRARY
+PackageDownloadLocation: NOASSERTION
+PackageSupplier: Organization: Silicon Laboratories, Inc.
+PackageLicenseConcluded: Zlib
+## Relationships
+Relationship: SPDXRef-silabs.simplicity_sdk-2026.6.0-app_log CONTAINED_BY SPDXRef-silabs.simplicity_sdk-2026.6.0

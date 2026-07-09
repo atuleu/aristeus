@@ -1,5 +1,6 @@
 #CRC Codes for initially generated config files -- do not modify!
 app_assert_config.h=2088525855
+app_log_config.h=2056933365
 btconf/gatt_configuration.btconf=881151263
 nvm3_default_config.h=2103899018
 psa_crypto_config.h=-561758290
@@ -15,6 +16,7 @@ sl_clock_manager_tree_config.h=294461626
 sl_core_config.h=-1854422791
 sl_device_init_dcdc_config.h=1406119698
 sl_fem_util_config.h=-1184379229
+sl_iostream_eusart_vcom_config.h=1925467828
 sl_mbedtls_config.h=-3899725
 sl_mbedtls_device_config.h=-287029762
 sl_memory_manager_config.h=-346698454

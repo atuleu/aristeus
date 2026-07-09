@@ -15,5 +15,7 @@ void sli_platform_process_action(void);
 void sli_service_process_action(void);
 void sli_stack_process_action(void);
 void sli_internal_app_process_action(void);
+void sl_iostream_init_instances_stage_1(void);
+void sl_iostream_init_instances_stage_2(void);
 
 #endif // SL_EVENT_HANDLER_H

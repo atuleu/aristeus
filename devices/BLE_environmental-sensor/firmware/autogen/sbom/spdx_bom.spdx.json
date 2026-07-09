@@ -5,7 +5,7 @@
   "name" : "Silicon-Laboratories",
   "documentNamespace" : "https://silabs.com",
   "creationInfo" : {
-    "created" : "2026-07-09T14:48:45Z",
+    "created" : "2026-07-09T15:01:20Z",
     "creators" : [ "Tool: Silicon Labs Configuration Tooling" ]
   },
   "comment" : "TERMS OF USE - SILICON LABORATORIES INC.\n(With respect to Silicon Labs software components, this Software Bill of Materials (SBOM) is based upon Silicon Labs'\nreview and analysis of the code version when released.  It is provided \"AS IS\" and does not modify, change or alter\nthe terms or conditions of your use of Silicon Labs' software and/or SDKs based upon license terms and/or agreements\nassociated with this software or SDKs when distributed to you, received by you, or installed by you.  Further, no\nwarranties or obligations are created by this SBOM.  It is your obligation to comply with the terms of licenses\nreferenced in this SBOM.)",
@@ -1297,6 +1297,126 @@
     "downloadLocation" : "NOASSERTION",
     "supplier" : "Organization: Silicon Laboratories, Inc.",
     "licenseConcluded" : "Zlib"
+  }, {
+    "SPDXID" : "SPDXRef-silabs.simplicity_sdk-2026.6.0-iostream_eusart",
+    "name" : "IO Stream: EUSART",
+    "versionInfo" : "2026.6.0",
+    "primaryPackagePurpose" : "LIBRARY",
+    "downloadLocation" : "NOASSERTION",
+    "supplier" : "Organization: Silicon Laboratories, Inc.",
+    "licenseConcluded" : "Zlib"
+  }, {
+    "SPDXID" : "SPDXRef-silabs.simplicity_sdk-2026.6.0-emlib_eusart",
+    "name" : "EUSART",
+    "versionInfo" : "2026.6.0",
+    "primaryPackagePurpose" : "LIBRARY",
+    "downloadLocation" : "NOASSERTION",
+    "supplier" : "Organization: Silicon Laboratories, Inc.",
+    "licenseConcluded" : "Zlib"
+  }, {
+    "SPDXID" : "SPDXRef-silabs.simplicity_sdk-2026.6.0-iostream",
+    "name" : "IO Stream",
+    "versionInfo" : "2026.6.0",
+    "primaryPackagePurpose" : "LIBRARY",
+    "downloadLocation" : "NOASSERTION",
+    "supplier" : "Organization: Silicon Laboratories, Inc.",
+    "licenseConcluded" : "Zlib"
+  }, {
+    "SPDXID" : "SPDXRef-silabs.simplicity_sdk-2026.6.0-dma_manager_hal_ldma",
+    "name" : "DMA Manager HAL LDMA",
+    "versionInfo" : "2026.6.0",
+    "primaryPackagePurpose" : "LIBRARY",
+    "downloadLocation" : "NOASSERTION",
+    "supplier" : "Organization: Silicon Laboratories, Inc.",
+    "licenseConcluded" : "Zlib"
+  }, {
+    "SPDXID" : "SPDXRef-silabs.simplicity_sdk-2026.6.0-dma_descriptor_allocator",
+    "name" : "DMA Descriptor Allocator",
+    "versionInfo" : "2026.6.0",
+    "primaryPackagePurpose" : "LIBRARY",
+    "downloadLocation" : "NOASSERTION",
+    "supplier" : "Organization: Silicon Laboratories, Inc.",
+    "licenseConcluded" : "Zlib"
+  }, {
+    "SPDXID" : "SPDXRef-silabs.simplicity_sdk-2026.6.0-iostream_uart_common",
+    "name" : "IO Stream: Common code for UART-type streams",
+    "versionInfo" : "2026.6.0",
+    "primaryPackagePurpose" : "LIBRARY",
+    "downloadLocation" : "NOASSERTION",
+    "supplier" : "Organization: Silicon Laboratories, Inc.",
+    "licenseConcluded" : "Zlib"
+  }, {
+    "SPDXID" : "SPDXRef-silabs.simplicity_sdk-2026.6.0-dma_manager_init",
+    "name" : "DMA Manager Init",
+    "versionInfo" : "2026.6.0",
+    "primaryPackagePurpose" : "LIBRARY",
+    "downloadLocation" : "NOASSERTION",
+    "supplier" : "Organization: Silicon Laboratories, Inc.",
+    "licenseConcluded" : "Zlib"
+  }, {
+    "SPDXID" : "SPDXRef-silabs.simplicity_sdk-2026.6.0-dma_manager",
+    "name" : "DMA Manager",
+    "versionInfo" : "2026.6.0",
+    "primaryPackagePurpose" : "LIBRARY",
+    "downloadLocation" : "NOASSERTION",
+    "supplier" : "Organization: Silicon Laboratories, Inc.",
+    "licenseConcluded" : "Zlib"
+  }, {
+    "SPDXID" : "SPDXRef-silabs.simplicity_sdk-2026.6.0-dma_channel",
+    "name" : "DMA Channel Driver",
+    "versionInfo" : "2026.6.0",
+    "primaryPackagePurpose" : "LIBRARY",
+    "downloadLocation" : "NOASSERTION",
+    "supplier" : "Organization: Silicon Laboratories, Inc.",
+    "licenseConcluded" : "Zlib"
+  }, {
+    "SPDXID" : "SPDXRef-silabs.simplicity_sdk-2026.6.0-sl_string",
+    "name" : "String Functions",
+    "versionInfo" : "2026.6.0",
+    "primaryPackagePurpose" : "LIBRARY",
+    "downloadLocation" : "NOASSERTION",
+    "supplier" : "Organization: Silicon Laboratories, Inc.",
+    "licenseConcluded" : "Zlib"
+  }, {
+    "SPDXID" : "SPDXRef-silabs.simplicity_sdk-2026.6.0-hal_eusart",
+    "name" : "EUSART",
+    "versionInfo" : "2026.6.0",
+    "primaryPackagePurpose" : "LIBRARY",
+    "downloadLocation" : "NOASSERTION",
+    "supplier" : "Organization: Silicon Laboratories, Inc.",
+    "licenseConcluded" : "Zlib"
+  }, {
+    "SPDXID" : "SPDXRef-silabs.simplicity_sdk-2026.6.0-iostream_eusart_core",
+    "name" : "IO Stream: EUSART Core",
+    "versionInfo" : "2026.6.0",
+    "primaryPackagePurpose" : "LIBRARY",
+    "downloadLocation" : "NOASSERTION",
+    "supplier" : "Organization: Silicon Laboratories, Inc.",
+    "licenseConcluded" : "Zlib"
+  }, {
+    "SPDXID" : "SPDXRef-silabs.simplicity_sdk-2026.6.0-iostream_retarget_stdio",
+    "name" : "IO Stream: Retarget STDIO",
+    "versionInfo" : "2026.6.0",
+    "primaryPackagePurpose" : "LIBRARY",
+    "downloadLocation" : "NOASSERTION",
+    "supplier" : "Organization: Silicon Laboratories, Inc.",
+    "licenseConcluded" : "Zlib"
+  }, {
+    "SPDXID" : "SPDXRef-silabs.simplicity_sdk-2026.6.0-iostream_stdlib_config",
+    "name" : "IO Stream: STDLIB Configuration",
+    "versionInfo" : "2026.6.0",
+    "primaryPackagePurpose" : "LIBRARY",
+    "downloadLocation" : "NOASSERTION",
+    "supplier" : "Organization: Silicon Laboratories, Inc.",
+    "licenseConcluded" : "Zlib"
+  }, {
+    "SPDXID" : "SPDXRef-silabs.simplicity_sdk-2026.6.0-app_log",
+    "name" : "Log",
+    "versionInfo" : "2026.6.0",
+    "primaryPackagePurpose" : "LIBRARY",
+    "downloadLocation" : "NOASSERTION",
+    "supplier" : "Organization: Silicon Laboratories, Inc.",
+    "licenseConcluded" : "Zlib"
   } ],
   "relationships" : [ {
     "spdxElementId" : "SPDXRef-DOCUMENT",
@@ -1937,6 +2057,66 @@
   }, {
     "spdxElementId" : "SPDXRef-silabs.simplicity_sdk-2026.6.0",
     "relatedSpdxElement" : "SPDXRef-silabs.simplicity_sdk-2026.6.0-udelay_cortexm",
+    "relationshipType" : "CONTAINS"
+  }, {
+    "spdxElementId" : "SPDXRef-silabs.simplicity_sdk-2026.6.0",
+    "relatedSpdxElement" : "SPDXRef-silabs.simplicity_sdk-2026.6.0-iostream_eusart",
+    "relationshipType" : "CONTAINS"
+  }, {
+    "spdxElementId" : "SPDXRef-silabs.simplicity_sdk-2026.6.0",
+    "relatedSpdxElement" : "SPDXRef-silabs.simplicity_sdk-2026.6.0-emlib_eusart",
+    "relationshipType" : "CONTAINS"
+  }, {
+    "spdxElementId" : "SPDXRef-silabs.simplicity_sdk-2026.6.0",
+    "relatedSpdxElement" : "SPDXRef-silabs.simplicity_sdk-2026.6.0-iostream",
+    "relationshipType" : "CONTAINS"
+  }, {
+    "spdxElementId" : "SPDXRef-silabs.simplicity_sdk-2026.6.0",
+    "relatedSpdxElement" : "SPDXRef-silabs.simplicity_sdk-2026.6.0-dma_manager_hal_ldma",
+    "relationshipType" : "CONTAINS"
+  }, {
+    "spdxElementId" : "SPDXRef-silabs.simplicity_sdk-2026.6.0",
+    "relatedSpdxElement" : "SPDXRef-silabs.simplicity_sdk-2026.6.0-dma_descriptor_allocator",
+    "relationshipType" : "CONTAINS"
+  }, {
+    "spdxElementId" : "SPDXRef-silabs.simplicity_sdk-2026.6.0",
+    "relatedSpdxElement" : "SPDXRef-silabs.simplicity_sdk-2026.6.0-iostream_uart_common",
+    "relationshipType" : "CONTAINS"
+  }, {
+    "spdxElementId" : "SPDXRef-silabs.simplicity_sdk-2026.6.0",
+    "relatedSpdxElement" : "SPDXRef-silabs.simplicity_sdk-2026.6.0-dma_manager_init",
+    "relationshipType" : "CONTAINS"
+  }, {
+    "spdxElementId" : "SPDXRef-silabs.simplicity_sdk-2026.6.0",
+    "relatedSpdxElement" : "SPDXRef-silabs.simplicity_sdk-2026.6.0-dma_manager",
+    "relationshipType" : "CONTAINS"
+  }, {
+    "spdxElementId" : "SPDXRef-silabs.simplicity_sdk-2026.6.0",
+    "relatedSpdxElement" : "SPDXRef-silabs.simplicity_sdk-2026.6.0-dma_channel",
+    "relationshipType" : "CONTAINS"
+  }, {
+    "spdxElementId" : "SPDXRef-silabs.simplicity_sdk-2026.6.0",
+    "relatedSpdxElement" : "SPDXRef-silabs.simplicity_sdk-2026.6.0-sl_string",
+    "relationshipType" : "CONTAINS"
+  }, {
+    "spdxElementId" : "SPDXRef-silabs.simplicity_sdk-2026.6.0",
+    "relatedSpdxElement" : "SPDXRef-silabs.simplicity_sdk-2026.6.0-hal_eusart",
+    "relationshipType" : "CONTAINS"
+  }, {
+    "spdxElementId" : "SPDXRef-silabs.simplicity_sdk-2026.6.0",
+    "relatedSpdxElement" : "SPDXRef-silabs.simplicity_sdk-2026.6.0-iostream_eusart_core",
+    "relationshipType" : "CONTAINS"
+  }, {
+    "spdxElementId" : "SPDXRef-silabs.simplicity_sdk-2026.6.0",
+    "relatedSpdxElement" : "SPDXRef-silabs.simplicity_sdk-2026.6.0-iostream_retarget_stdio",
+    "relationshipType" : "CONTAINS"
+  }, {
+    "spdxElementId" : "SPDXRef-silabs.simplicity_sdk-2026.6.0",
+    "relatedSpdxElement" : "SPDXRef-silabs.simplicity_sdk-2026.6.0-iostream_stdlib_config",
+    "relationshipType" : "CONTAINS"
+  }, {
+    "spdxElementId" : "SPDXRef-silabs.simplicity_sdk-2026.6.0",
+    "relatedSpdxElement" : "SPDXRef-silabs.simplicity_sdk-2026.6.0-app_log",
     "relationshipType" : "CONTAINS"
   } ]
 }

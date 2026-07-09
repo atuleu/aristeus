@@ -30,11 +30,19 @@
 #include "sl_bt_api.h"
 #include "sl_main_init.h"
 #include "app_assert.h"
+#include "sl_sleeptimer.h"
 #include "app.h"
+#include "app_log.h"
 
 // The advertising set handle allocated from Bluetooth stack.
 static uint8_t advertising_set_handle = 0xff;
+static sl_sleeptimer_timer_handle_t alive_timer;
 
+void great_callback(sl_sleeptimer_timer_handle_t *handle, void *udata) {
+  (void)handle;
+  (void)udata;
+  app_log_info("alive" APP_LOG_NL);
+}
 // Application Init.
 void app_init(void)
 {
@@ -42,6 +50,7 @@ void app_init(void)
   // Put your additional application init code here!                         //
   // This is called once during start-up.                                    //
   /////////////////////////////////////////////////////////////////////////////
+	sl_sleeptimer_start_periodic_timer_ms(&alive_timer, 1000, &great_callback, (void*)NULL,0,0);
 }
 
 // Application Process Action.
