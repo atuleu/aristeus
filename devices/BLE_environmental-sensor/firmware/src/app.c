@@ -1,4 +1,4 @@
-/***************************************************************************//**
+/*******************************************************************************
  * @file
  * @brief Core application logic.
  *******************************************************************************
@@ -27,108 +27,122 @@
  * 3. This notice may not be removed or altered from any source distribution.
  *
  ******************************************************************************/
+#include "app.h"
+#include "app_assert.h"
+#include "app_log.h"
 #include "sl_bt_api.h"
 #include "sl_main_init.h"
-#include "app_assert.h"
 #include "sl_sleeptimer.h"
-#include "app.h"
-#include "app_log.h"
 
 // The advertising set handle allocated from Bluetooth stack.
-static uint8_t advertising_set_handle = 0xff;
+static uint8_t                      advertising_set_handle = 0xff;
 static sl_sleeptimer_timer_handle_t alive_timer;
 
 void great_callback(sl_sleeptimer_timer_handle_t *handle, void *udata) {
-  (void)handle;
-  (void)udata;
-  app_log_info("alive" APP_LOG_NL);
+	(void)handle;
+	(void)udata;
+	app_log_info("alive" APP_LOG_NL);
 }
+
 // Application Init.
-void app_init(void)
-{
-  /////////////////////////////////////////////////////////////////////////////
-  // Put your additional application init code here!                         //
-  // This is called once during start-up.                                    //
-  /////////////////////////////////////////////////////////////////////////////
-	sl_sleeptimer_start_periodic_timer_ms(&alive_timer, 1000, &great_callback, (void*)NULL,0,0);
+void app_init(void) {
+	/////////////////////////////////////////////////////////////////////////////
+	// Put your additional application init code here! // This is called once
+	// during start-up.                                    //
+	/////////////////////////////////////////////////////////////////////////////
+	sl_sleeptimer_start_periodic_timer_ms(
+	    &alive_timer,
+	    1000,
+	    &great_callback,
+	    (void *)NULL,
+	    0,
+	    0
+	);
 }
 
 // Application Process Action.
-void app_process_action(void)
-{
-  if (app_is_process_required()) {
-    /////////////////////////////////////////////////////////////////////////////
-    // Put your additional application code here!                              //
-    // This is will run each time app_proceed() is called.                     //
-    // Do not call blocking functions from here!                               //
-    /////////////////////////////////////////////////////////////////////////////
-  }
+void app_process_action(void) {
+	if (app_is_process_required()) {
+		/////////////////////////////////////////////////////////////////////////////
+		// Put your additional application code here! // This is will run each
+		// time app_proceed() is called.                     // Do not call
+		// blocking functions from here!                               //
+		/////////////////////////////////////////////////////////////////////////////
+	}
 }
 
-/**************************************************************************//**
+/****************************************************************************
  * Bluetooth stack event handler.
  * This overrides the default weak implementation.
  *
  * @param[in] evt Event coming from the Bluetooth stack.
  *****************************************************************************/
-void sl_bt_on_event(sl_bt_msg_t *evt)
-{
-  sl_status_t sc;
+void sl_bt_on_event(sl_bt_msg_t *evt) {
+	sl_status_t sc;
 
-  switch (SL_BT_MSG_ID(evt->header)) {
-    // -------------------------------
-    // This event indicates the device has started and the radio is ready.
-    // Do not call any stack command before receiving this boot event!
-    case sl_bt_evt_system_boot_id:
-      // Create an advertising set.
-      sc = sl_bt_advertiser_create_set(&advertising_set_handle);
-      app_assert_status(sc);
+	switch (SL_BT_MSG_ID(evt->header)) {
+	// -------------------------------
+	// This event indicates the device has started and the radio is ready.
+	// Do not call any stack command before receiving this boot event!
+	case sl_bt_evt_system_boot_id:
+		// Create an advertising set.
+		sc = sl_bt_advertiser_create_set(&advertising_set_handle);
+		app_assert_status(sc);
 
-      // Generate data for advertising
-      sc = sl_bt_legacy_advertiser_generate_data(advertising_set_handle,
-                                                 sl_bt_advertiser_general_discoverable);
-      app_assert_status(sc);
+		// Generate data for advertising
+		sc = sl_bt_legacy_advertiser_generate_data(
+		    advertising_set_handle,
+		    sl_bt_advertiser_general_discoverable
+		);
+		app_assert_status(sc);
 
-      // Set advertising interval to 100ms.
-      sc = sl_bt_advertiser_set_timing(
-        advertising_set_handle,
-        160, // min. adv. interval (milliseconds * 1.6)
-        160, // max. adv. interval (milliseconds * 1.6)
-        0,   // adv. duration
-        0);  // max. num. adv. events
-      app_assert_status(sc);
-      // Start advertising and enable connections.
-      sc = sl_bt_legacy_advertiser_start(advertising_set_handle,
-                                         sl_bt_legacy_advertiser_connectable);
-      app_assert_status(sc);
-      break;
+		// Set advertising interval to 100ms.
+		sc = sl_bt_advertiser_set_timing(
+		    advertising_set_handle,
+		    160, // min. adv. interval (milliseconds * 1.6)
+		    160, // max. adv. interval (milliseconds * 1.6)
+		    0,   // adv. duration
+		    0
+		); // max. num. adv. events
+		app_assert_status(sc);
+		// Start advertising and enable connections.
+		sc = sl_bt_legacy_advertiser_start(
+		    advertising_set_handle,
+		    sl_bt_legacy_advertiser_connectable
+		);
+		app_assert_status(sc);
+		break;
 
-    // -------------------------------
-    // This event indicates that a new connection was opened.
-    case sl_bt_evt_connection_opened_id:
-      break;
+	// -------------------------------
+	// This event indicates that a new connection was opened.
+	case sl_bt_evt_connection_opened_id:
+		break;
 
-    // -------------------------------
-    // This event indicates that a connection was closed.
-    case sl_bt_evt_connection_closed_id:
-      // Generate data for advertising
-      sc = sl_bt_legacy_advertiser_generate_data(advertising_set_handle,
-                                                 sl_bt_advertiser_general_discoverable);
-      app_assert_status(sc);
+	// -------------------------------
+	// This event indicates that a connection was closed.
+	case sl_bt_evt_connection_closed_id:
+		// Generate data for advertising
+		sc = sl_bt_legacy_advertiser_generate_data(
+		    advertising_set_handle,
+		    sl_bt_advertiser_general_discoverable
+		);
+		app_assert_status(sc);
 
-      // Restart advertising after client has disconnected.
-      sc = sl_bt_legacy_advertiser_start(advertising_set_handle,
-                                         sl_bt_legacy_advertiser_connectable);
-      app_assert_status(sc);
-      break;
+		// Restart advertising after client has disconnected.
+		sc = sl_bt_legacy_advertiser_start(
+		    advertising_set_handle,
+		    sl_bt_legacy_advertiser_connectable
+		);
+		app_assert_status(sc);
+		break;
 
-    ///////////////////////////////////////////////////////////////////////////
-    // Add additional event handlers here as your application requires!      //
-    ///////////////////////////////////////////////////////////////////////////
+	///////////////////////////////////////////////////////////////////////////
+	// Add additional event handlers here as your application requires!      //
+	///////////////////////////////////////////////////////////////////////////
 
-    // -------------------------------
-    // Default event handler.
-    default:
-      break;
-  }
+	// -------------------------------
+	// Default event handler.
+	default:
+		break;
+	}
 }
