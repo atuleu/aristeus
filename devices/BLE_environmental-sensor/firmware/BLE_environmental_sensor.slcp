@@ -3,28 +3,16 @@ project_name: BLE_environmental_sensor
 label: BLE_environmental_sensor
 description: |
   A minimal project structure, that serves as a starting point for custom Bluetooth applications. The application starts advertising after boot and restarts advertising after a connection is closed.
-category: Bluetooth Examples
-filter:
-- name: Device Type
-  value:
-  - SoC
-- name: Project Difficulty
-  value:
-  - Beginner
-- name: Wireless Technology
-  value:
-  - Bluetooth
-package: bluetooth_le_app
 quality: production
 readme:
 - path: readme.md
 source:
-- path: app.c
+- path: src/app.c
 tag:
 - hwfilter:device:device_supports_bluetooth
 - hwfilter:device:device_series_2
 include:
-- path: .
+- path: src
   file_list:
   - path: app.h
 sdk:
@@ -601,12 +589,6 @@ autoselected_components:
 - package: simplicity_sdk
   vendor: silabs
   id: udelay_cortexm
-other_file:
-- path: image/readme_img0.png
-- path: image/readme_img1.png
-- path: image/readme_img2.png
-- path: image/readme_img3.png
-- path: image/readme_img4.png
 configuration:
 - name: SL_STACK_SIZE
   value: '2752'
