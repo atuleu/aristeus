@@ -1,0 +1,6 @@
+{
+  "sdkRoot" : "/home/atuleu/.silabs/slt/installs/conan/p/simpl508ee6c1a6569/p/",
+  "apackRoot" : "/home/atuleu/.silabs/slt/installs/conan/p/simpl508ee6c1a6569/p/bluetooth_bgbuild",
+  "partOpn" : "bgm220pc22hna",
+  "boards" : "none"
+}

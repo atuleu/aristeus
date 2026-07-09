@@ -1,0 +1,38 @@
+{
+    "version": 6,
+    "cmakeMinimumRequired": {
+      "major": 3,
+      "minor": 25,
+      "patch": 0
+    },
+    "configurePresets": [
+      {
+        "name": "project",
+        "displayName": "Configure BLE_environmental_sensor",
+        "generator": "Ninja Multi-Config",
+        "binaryDir": "${sourceDir}/build",
+        "toolchainFile": "${sourceDir}/toolchain.cmake",
+        "cacheVariables": {
+          "CMAKE_CONFIGURATION_TYPES": "base"
+        }
+      }
+    ],
+    "buildPresets": [
+      {
+        "name": "default_config",
+        "displayName": "Build BLE_environmental_sensor",
+        "configurePreset": "project",
+        "configuration": "base",
+        "targets": ["BLE_environmental_sensor"]
+      }
+    ],
+    "workflowPresets": [
+      {
+        "name": "project",
+        "steps": [
+          {"type": "configure", "name": "project"},
+          {"type": "build", "name": "default_config"}
+        ]
+      }
+    ]
+  }
