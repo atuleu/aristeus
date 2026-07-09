@@ -22,7 +22,7 @@ extern const sli_bt_gattdb_t gattdb;
 #define gattdb_system_id                      24
 #define gattdb_record_access_control_point_0  27
 #define gattdb_stream_data                    30
-#define gattdb_current_time                   33
+#define gattdb_current_time_epoch             33
 
 #define gattdb_generic_attribute_len          2
 #define gattdb_service_changed_char_len       4
@@ -37,7 +37,6 @@ extern const sli_bt_gattdb_t gattdb;
 #define gattdb_system_id_len                  8
 #define gattdb_record_access_control_point_0_len 2
 #define gattdb_stream_data_len                14
-#define gattdb_current_time_len               4
 
 
 #endif // __GATT_DB_H

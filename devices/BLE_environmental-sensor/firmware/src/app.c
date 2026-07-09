@@ -30,10 +30,11 @@
 #include "app.h"
 #include "app_assert.h"
 #include "app_log.h"
+#include "gatt_db.h"
 #include "sl_bt_api.h"
 #include "sl_main_init.h"
 #include "sl_sleeptimer.h"
-
+#include <stdint.h>
 // The advertising set handle allocated from Bluetooth stack.
 static uint8_t                      advertising_set_handle = 0xff;
 static sl_sleeptimer_timer_handle_t alive_timer;
@@ -143,6 +144,45 @@ void sl_bt_on_event(sl_bt_msg_t *evt) {
 	///////////////////////////////////////////////////////////////////////////
 	// Add additional event handlers here as your application requires!      //
 	///////////////////////////////////////////////////////////////////////////
+	case sl_bt_evt_gatt_server_user_read_request_id: {
+		sl_bt_evt_gatt_server_user_read_request_t *req =
+		    &evt->data.evt_gatt_server_user_read_request;
+		switch (req->characteristic) {
+		case gattdb_current_time_epoch: {
+			uint32_t time = sl_sleeptimer_get_time();
+			sc            = sl_bt_gatt_server_send_user_read_response(
+                req->connection,
+                req->characteristic,
+                0,
+                sizeof(time),
+                (const uint8_t *)&time,
+                0
+            );
+			app_assert_status(sc);
+			break;
+		}
+		default:
+			app_log_error("unknown characteristic read request");
+		}
+		break;
+	}
+	case sl_bt_evt_gatt_server_user_write_request_id: {
+		sl_bt_evt_gatt_server_user_write_request_t *req =
+		    &evt->data.evt_gatt_server_user_write_request;
+		switch (req->characteristic) {
+		case gattdb_current_time_epoch: {
+			sl_bt_gatt_server_send_user_write_response(
+			    req->connection,
+			    req->characteristic,
+			    0 // TODO: use success enum.
+			);
+			break;
+		}
+		default:
+			app_log_error("unknown characteristic write request");
+		}
+		break;
+	}
 
 	// -------------------------------
 	// Default event handler.

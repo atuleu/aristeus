@@ -97,9 +97,9 @@ Summary: This control point is used with a service to provide basic management f
       </properties>
     </characteristic>
 
-    <!--Current Time-->
-    <characteristic const="false" id="current_time" name="Current Time" sourceId="" uuid="386dcd19-e901-4615-b872-b35189ae1754">
-      <value length="4" type="hex" variable_length="false">00000000</value>
+    <!--EPOCH-->
+    <characteristic const="false" id="current_time_epoch" name="EPOCH" sourceId="" uuid="386dcd19-e901-4615-b872-b35189ae1754">
+      <value length="4" type="user" variable_length="false">00000000</value>
       <properties>
         <read authenticated="false" bonded="false" encrypted="false"/>
         <write authenticated="false" bonded="false" encrypted="false"/>
