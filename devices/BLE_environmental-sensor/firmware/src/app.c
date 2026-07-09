@@ -62,13 +62,15 @@ void app_init(void) {
 
 // Application Process Action.
 void app_process_action(void) {
-	if (app_is_process_required()) {
-		/////////////////////////////////////////////////////////////////////////////
-		// Put your additional application code here! // This is will run each
-		// time app_proceed() is called.                     // Do not call
-		// blocking functions from here!                               //
-		/////////////////////////////////////////////////////////////////////////////
+	if (app_is_process_required() == false) {
+		return;
 	}
+	/////////////////////////////////////////////////////////////////////////////
+	// Put your additional application code here! This is will run each time
+	// app_proceed() is called.
+	//
+	// Do not call blocking functions from here!
+	/////////////////////////////////////////////////////////////////////////////
 }
 
 /****************************************************************************
@@ -99,8 +101,8 @@ void sl_bt_on_event(sl_bt_msg_t *evt) {
 		// Set advertising interval to 100ms.
 		sc = sl_bt_advertiser_set_timing(
 		    advertising_set_handle,
-		    160, // min. adv. interval (milliseconds * 1.6)
-		    160, // max. adv. interval (milliseconds * 1.6)
+		    160, // min. adv. interval (milliseconds / 1.6)
+		    160, // max. adv. interval (milliseconds / 1.6)
 		    0,   // adv. duration
 		    0
 		); // max. num. adv. events
@@ -116,11 +118,13 @@ void sl_bt_on_event(sl_bt_msg_t *evt) {
 	// -------------------------------
 	// This event indicates that a new connection was opened.
 	case sl_bt_evt_connection_opened_id:
+		app_log_info("connected");
 		break;
 
 	// -------------------------------
 	// This event indicates that a connection was closed.
 	case sl_bt_evt_connection_closed_id:
+		app_log_info("disconnected");
 		// Generate data for advertising
 		sc = sl_bt_legacy_advertiser_generate_data(
 		    advertising_set_handle,
