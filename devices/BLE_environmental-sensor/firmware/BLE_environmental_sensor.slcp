@@ -15,6 +15,7 @@ include:
 - path: src
   file_list:
   - path: app.h
+  - path: types.h
 sdk:
   vendor: silabs
   id: simplicity_sdk
@@ -601,4 +602,3 @@ ui_hints:
   - path: config/btconf/gatt_configuration.btconf
   - path: readme.md
     focus: true
-

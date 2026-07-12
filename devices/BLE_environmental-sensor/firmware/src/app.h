@@ -28,11 +28,10 @@
  *
  ******************************************************************************/
 
-#ifndef APP_H
-#define APP_H
+#pragma once
 
+#include "types.h"
 #include <stdbool.h>
-
 /******************************************************************************
  * Proceed with execution. (Indicate that it is required to run the application
  * process action.)
@@ -75,5 +74,3 @@ void app_mutex_release(void);
  * @note Must not be used from ISR context.
  *****************************************************************************/
 void app_init_bt(void);
-
-#endif // APP_H
