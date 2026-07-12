@@ -5,3 +5,4 @@ cmake_llvm/
 .uceditor/
 build/
 .cache/
+autogen
