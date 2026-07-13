@@ -78,6 +78,11 @@ component:
   id: gatt_service_device_information_override
 - package: simplicity_sdk
   instance:
+  - i2c0
+  vendor: silabs
+  id: i2c
+- package: simplicity_sdk
+  instance:
   - vcom
   vendor: silabs
   id: iostream_eusart
@@ -315,6 +320,9 @@ autoselected_components:
   id: hal_gpio
 - package: simplicity_sdk
   vendor: silabs
+  id: hal_i2c
+- package: simplicity_sdk
+  vendor: silabs
   id: hal_ldma
 - package: simplicity_sdk
   vendor: silabs
@@ -334,6 +342,9 @@ autoselected_components:
 - package: simplicity_sdk
   vendor: silabs
   id: hal_system_impl
+- package: simplicity_sdk
+  vendor: silabs
+  id: i2c_core
 - package: simplicity_sdk
   vendor: silabs
   id: interrupt_manager

@@ -1,22 +1,19 @@
 #pragma once
 
+#include "sl_i2c.h"
+#include "sl_sleeptimer.h"
 #include "sl_status.h"
 #include "types.h"
+#include <stdint.h>
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-/// forward declaration
-typedef struct sl_i2c sl_i2c_t;
+typedef struct app_sht4x_handle app_sht4x_handle_t;
 
 /// Base address for SHT4x devices.
 #define SHT4X_BASE_ADDR 0x44
-
-/// A callback for all kinds of command for SHT4X devices. Could be internal.
-typedef void (*app_sht4x_send_command_callback_t)(
-    uint16_t dataA, uint16_t dataB
-);
 
 /// List of commands for SHT4X.
 typedef enum app_sht4x_command {
@@ -30,12 +27,8 @@ typedef enum app_sht4x_command {
 } app_sht4x_command_e;
 
 /// Inits the SHT4X readouts.
-sl_status_t app_sht4x_init(sl_i2c_t *i2c, uint8_t addr);
-
-/// Sends a command to the SHT4X device.
-sl_status_t app_sht4x_send_command(
-    app_sht4x_command_e command, app_sht4x_send_command_callback_t callback
-);
+sl_status_t
+app_sht4x_init(app_sht4x_handle_t *self, sl_i2c_handle_t *i2c, uint8_t addr);
 
 /// A callback for reading out the serial number.
 typedef void (*app_sht4x_read_serial_number_callback_t)(
@@ -43,18 +36,29 @@ typedef void (*app_sht4x_read_serial_number_callback_t)(
 );
 
 /// Asynchronously read the serial number of the chip.
-sl_status_t
-app_sht4x_read_serial_number(app_sht4x_read_serial_number_callback_t o);
+sl_status_t app_sht4x_read_serial_number(
+    app_sht4x_handle_t *self, app_sht4x_read_serial_number_callback_t cb
+);
 
 /// read temperature and humidity callback.
-typedef void (*app_sht4x_read_temperature_callback_t)(
+typedef void (*app_sht4x_read_data_callback_t)(
     sl_status_t status, temperature_t temperature, humidity_t humidity
 );
 
 /// Asynchronously read temperature.
-sl_status_t app_sht4x_read_temperature(
-    app_sht4x_command_e type, app_sht4x_read_temperature_callback_t callback
+sl_status_t app_sht4x_read_data(
+    app_sht4x_handle_t            *self,
+    app_sht4x_command_e            type,
+    app_sht4x_read_data_callback_t callback
 );
+
+typedef void (*app_sht4x_soft_reset_callback_t)(sl_status_t);
+
+sl_status_t app_sht4x_soft_reset(
+    app_sht4x_handle_t *inst, app_sht4x_soft_reset_callback_t cb
+);
+
+sl_status_t app_sht4x_soft_reset_blocking(app_sht4x_handle_t *inst);
 
 /// Result for synchronous polling call.
 typedef struct {
@@ -68,19 +72,41 @@ typedef struct {
 			humidity_t    humidity;
 		} th_readout;
 
-		struct __attribute__((packed)) {
-			uint16_t dataA;
-			uint16_t dataB;
-		} data;
 	} data;
 } app_sht4x_blocking_result_t;
 
+app_sht4x_blocking_result_t app_sht4x_send_command_blocking(
+    app_sht4x_handle_t *instance,
+    app_sht4x_command_e command,
+    uint8_t             read_delay_ms
+);
+
 /// Synchronously read the serial number.
-app_sht4x_blocking_result_t app_sht4x_read_serial_number_blocking();
+app_sht4x_blocking_result_t
+app_sht4x_read_serial_number_blocking(app_sht4x_handle_t *self);
 
 /// Synchronously read a temperature.
-app_sht4x_blocking_result_t
-app_sht4x_read_temperature_blocking(app_sht4x_command_e command);
+app_sht4x_blocking_result_t app_sht4x_read_data_blocking(
+    app_sht4x_handle_t *self, app_sht4x_command_e command
+);
+
+typedef union {
+	app_sht4x_read_serial_number_callback_t serial_number;
+	app_sht4x_read_data_callback_t          data;
+	app_sht4x_soft_reset_callback_t         soft_reset;
+	void                                   *ptr;
+} app_sht4x_callback_u;
+
+struct app_sht4x_handle {
+	sl_i2c_handle_t             *i2c_bus;
+	uint8_t                      address;
+	uint8_t                      read_delay_ms;
+	uint8_t                      command_buffer;
+	uint8_t                      read_buffer[6];
+	sl_sleeptimer_timer_handle_t timer;
+
+	app_sht4x_callback_u callback;
+};
 
 #ifdef __cplusplus
 }
