@@ -1,4 +1,4 @@
-/***************************************************************************//**
+/*****************************************************************************
  * @file
  * @brief Application assert configuration
  *******************************************************************************
@@ -35,13 +35,13 @@
 
 // <e APP_ASSERT_ENABLE> Assert component
 // <i> Enables Assert.
-#define APP_ASSERT_ENABLE      1
+#define APP_ASSERT_ENABLE 1
 
 // <q APP_ASSERT_SCHEDULE_LOCK> Enable schedule lock
 // <i> Enables schedule locking under OS
 // <i> When both schedule lock and breakpoint are present,
 // <i> breakpoint will be used
-#define APP_ASSERT_SCHEDULE_LOCK      0
+#define APP_ASSERT_SCHEDULE_LOCK 0
 
 // <q APP_ASSERT_BREAKPOINT> Enable breakpoint insertion
 // <i> Inserts breakpoint to assert locations, which can halt the application
@@ -49,15 +49,15 @@
 // <i> and jumps to the location of the assertion in case it fails.
 // <i> When both schedule lock and breakpoint are present,
 // <i> breakpoint will be used
-#define APP_ASSERT_BREAKPOINT      1
+#define APP_ASSERT_BREAKPOINT 1
 
 // <e APP_ASSERT_LOG_ENABLE> Logging
 // <i> Enables logging for assert.
-#define APP_ASSERT_LOG_ENABLE      1
+#define APP_ASSERT_LOG_ENABLE 1
 
 // <q APP_ASSERT_TRACE_ENABLE> Enable trace
 // <i> Enables trace for assert.
-#define APP_ASSERT_TRACE_ENABLE      1
+#define APP_ASSERT_TRACE_ENABLE 1
 
 // </e>
 
@@ -66,4 +66,3 @@
 // <<< end of configuration section >>>
 
 #endif // APP_ASSERT_CONFIG_H
-

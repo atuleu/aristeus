@@ -8,6 +8,7 @@ readme:
 - path: readme.md
 source:
 - path: src/app.c
+- path: src/app_sht4x.c
 tag:
 - hwfilter:device:device_supports_bluetooth
 - hwfilter:device:device_series_2
@@ -16,6 +17,7 @@ include:
   file_list:
   - path: app.h
   - path: types.h
+  - path: app_sht4x.h
 sdk:
   vendor: silabs
   id: simplicity_sdk
@@ -602,3 +604,4 @@ ui_hints:
   - path: config/btconf/gatt_configuration.btconf
   - path: readme.md
     focus: true
+
