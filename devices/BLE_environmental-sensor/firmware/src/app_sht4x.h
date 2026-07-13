@@ -10,6 +10,7 @@
 extern "C" {
 #endif
 
+/// forward declaration for an handle. Please treat is as an opaque type.
 typedef struct app_sht4x_handle app_sht4x_handle_t;
 
 /// Base address for SHT4x devices.
@@ -26,7 +27,7 @@ typedef enum app_sht4x_command {
 
 } app_sht4x_command_e;
 
-/// Inits the SHT4X readouts.
+/// Inits the SHT4X instance.
 sl_status_t
 app_sht4x_init(app_sht4x_handle_t *self, sl_i2c_handle_t *i2c, uint8_t addr);
 
@@ -75,6 +76,7 @@ typedef struct {
 	} data;
 } app_sht4x_blocking_result_t;
 
+/// Sends a command synchronously.
 app_sht4x_blocking_result_t app_sht4x_send_command_blocking(
     app_sht4x_handle_t *instance,
     app_sht4x_command_e command,
@@ -90,6 +92,7 @@ app_sht4x_blocking_result_t app_sht4x_read_data_blocking(
     app_sht4x_handle_t *self, app_sht4x_command_e command
 );
 
+/// Any types of supported callback.
 typedef union {
 	app_sht4x_read_serial_number_callback_t serial_number;
 	app_sht4x_read_data_callback_t          data;
@@ -97,6 +100,8 @@ typedef union {
 	void                                   *ptr;
 } app_sht4x_callback_u;
 
+/// data for each instance. Please treat it as opaque. It is open to allow
+/// static optimizations.
 struct app_sht4x_handle {
 	sl_i2c_handle_t             *i2c_bus;
 	uint8_t                      address;

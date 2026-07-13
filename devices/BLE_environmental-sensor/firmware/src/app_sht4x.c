@@ -32,7 +32,11 @@ const char *get_i2c_instance_name(sl_i2c_handle_t *i2c) {
 sl_status_t
 app_sht4x_init(app_sht4x_handle_t *self, sl_i2c_handle_t *i2c, uint8_t addr) {
 	app_sht4x_blocking_result_t result;
-	self->i2c_bus        = i2c;
+	self->i2c_bus = i2c;
+	if (addr != 0x44 && addr != 0x45 && addr != 0x46) {
+		app_log_info("Invalid address 0x%x for SHT4x device" APP_LOG_NL, addr);
+		return SL_STATUS_INVALID_PARAMETER;
+	}
 	// TODO: Address check ??
 	self->address        = addr;
 	self->command_buffer = 0;
@@ -83,7 +87,8 @@ void app_sht4x_bus_cleanup(app_sht4x_handle_t *self) {
 	app_i2c_unclaim(self->i2c_bus);
 }
 
-void app_sht4x_error_callback(app_sht4x_handle_t *self, sl_status_t status) {
+/// Marks the on-going command as having an error.
+void app_sht4x_error_cmd(app_sht4x_handle_t *self, sl_status_t status) {
 	uint8_t              command  = self->command_buffer;
 	app_sht4x_callback_u callback = self->callback;
 	app_sht4x_bus_cleanup(self);
@@ -105,7 +110,8 @@ void app_sht4x_error_callback(app_sht4x_handle_t *self, sl_status_t status) {
 	}
 }
 
-void app_sht4x_complete(
+/// Marks the on-going command as completed succesfully.
+void app_sht4x_complete_cmd(
     app_sht4x_handle_t *self, app_sht4x_blocking_result_t *res
 ) {
 	uint8_t              command  = self->command_buffer;
@@ -136,7 +142,7 @@ void app_sht4x_complete(
 	}
 }
 
-sl_status_t app_sht4x_event_callback(
+sl_status_t app_sht4x_on_i2c_event(
     sl_i2c_handle_t *i2c, sl_i2c_event_t e, void *user_data
 ) {
 	(void)i2c;
@@ -146,7 +152,7 @@ sl_status_t app_sht4x_event_callback(
 	    e == SL_I2C_EVENT_IDLE) {
 		return SL_STATUS_OK;
 	}
-	app_sht4x_error_callback(
+	app_sht4x_error_cmd(
 	    self,
 	    e == SL_I2C_EVENT_ADDR_NACK ? SL_STATUS_NOT_FOUND : SL_STATUS_BUS_ERROR
 	);
@@ -213,19 +219,22 @@ void app_sht4x_parse_data(
 	}
 }
 
+// callback when receiving the command readout.
 sl_status_t
-app_sht4x_read_complete(sl_i2c_handle_t *i2c_handle, void *user_data) {
+app_sht4x_on_i2c_read_complete(sl_i2c_handle_t *i2c_handle, void *user_data) {
 	(void)i2c_handle;
 	app_sht4x_handle_t         *self = user_data;
 	app_sht4x_blocking_result_t res;
 
 	app_sht4x_parse_data(self, &res);
-
-	app_sht4x_complete(self, &res);
+	// note parse data may have failed the error for invalid (partial) data.
+	app_sht4x_complete_cmd(self, &res);
 	return SL_STATUS_OK;
 };
 
-void app_sht4x_timer_callback(
+// timeout function on the sleep timer to trigger the RX of data (or mark
+// completion).
+void app_sht4x_on_timer_timeout(
     sl_sleeptimer_timer_handle_t *handle, void *user_data
 ) {
 	(void)handle;
@@ -239,10 +248,10 @@ void app_sht4x_timer_callback(
 	}
 	sl_status_t status = sl_i2c_set_transfer_complete_callback(
 	    self->i2c_bus,
-	    &app_sht4x_read_complete
+	    &app_sht4x_on_i2c_read_complete
 	);
 	if (status != SL_STATUS_OK) {
-		app_sht4x_error_callback(self, status);
+		app_sht4x_error_cmd(self, status);
 	}
 
 	status = sl_i2c_leader_receive_non_blocking(
@@ -254,18 +263,20 @@ void app_sht4x_timer_callback(
 	);
 
 	if (status != SL_STATUS_OK) {
-		app_sht4x_error_callback(self, status);
+		app_sht4x_error_cmd(self, status);
 	}
 }
 
-sl_status_t app_sht4x_write_complete(sl_i2c_handle_t *i2c, void *user_data) {
+// Callback on the write TX that starts a timeout.
+sl_status_t
+app_sht4x_on_i2c_write_complete(sl_i2c_handle_t *i2c, void *user_data) {
 	(void)i2c;
 	app_sht4x_handle_t *self = user_data;
 	// here always succesful.
 	sl_sleeptimer_start_timer_ms(
 	    &self->timer,
 	    self->read_delay_ms,
-	    &app_sht4x_timer_callback,
+	    &app_sht4x_on_timer_timeout,
 	    self,
 	    0,
 	    0
@@ -273,6 +284,7 @@ sl_status_t app_sht4x_write_complete(sl_i2c_handle_t *i2c, void *user_data) {
 	return SL_STATUS_OK;
 };
 
+// checks if it is a valid command.
 sl_status_t app_sht4x_check_command(uint8_t command) {
 	switch (command) {
 	case SHT4X_SOFT_RESET:
@@ -286,6 +298,7 @@ sl_status_t app_sht4x_check_command(uint8_t command) {
 	}
 }
 
+// checks if it is a valid command for reading values.
 sl_status_t app_sht4x_check_readout_command(uint8_t command) {
 	switch (command) {
 	case SHT4X_MEASURE_HIGH_P:
@@ -297,6 +310,7 @@ sl_status_t app_sht4x_check_readout_command(uint8_t command) {
 	}
 }
 
+// sends a command to the device, asynchronously.
 sl_status_t app_sht4x_send_command(
     app_sht4x_handle_t *self,
     app_sht4x_command_e command,
@@ -315,15 +329,14 @@ sl_status_t app_sht4x_send_command(
 
 	status = sl_i2c_set_transfer_complete_callback(
 	    self->i2c_bus,
-	    &app_sht4x_write_complete
+	    &app_sht4x_on_i2c_write_complete
 	);
 	if (status != SL_STATUS_OK) {
 		app_sht4x_bus_cleanup(self);
 		return status;
 	}
 
-	status =
-	    sl_i2c_set_event_callback(self->i2c_bus, &app_sht4x_event_callback);
+	status = sl_i2c_set_event_callback(self->i2c_bus, &app_sht4x_on_i2c_event);
 	if (status != SL_STATUS_OK) {
 		app_sht4x_bus_cleanup(self);
 		return status;
@@ -347,6 +360,7 @@ sl_status_t app_sht4x_send_command(
 	return status;
 }
 
+// sends a command, blocking fashion.
 app_sht4x_blocking_result_t app_sht4x_send_command_blocking(
     app_sht4x_handle_t *self, app_sht4x_command_e command, uint8_t read_delay_ms
 ) {
