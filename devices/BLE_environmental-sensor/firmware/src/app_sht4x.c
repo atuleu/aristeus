@@ -18,7 +18,6 @@ app_sht4x_init(app_sht4x_handle_t *self, sl_i2c_handle_t *i2c, uint8_t addr) {
 		app_log_info("Invalid address 0x%x for SHT4x device" APP_LOG_NL, addr);
 		return SL_STATUS_INVALID_PARAMETER;
 	}
-	// TODO: Address check ??
 	self->address        = addr;
 	self->command_buffer = 0;
 	self->callback.ptr   = NULL;
