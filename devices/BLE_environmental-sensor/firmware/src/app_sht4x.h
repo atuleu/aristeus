@@ -8,7 +8,7 @@
 
 #ifdef __cplusplus
 extern "C" {
-#endif
+#endif // __cplusplus
 
 /// forward declaration for an handle. Please treat is as an opaque type.
 typedef struct app_sht4x_handle app_sht4x_handle_t;

@@ -9,6 +9,7 @@ readme:
 source:
 - path: src/app.c
 - path: src/app_sht4x.c
+- path: src/app_lps22df.c
 - path: src/crc8.c
 - path: src/app_i2c_utils.c
 tag:
@@ -20,6 +21,7 @@ include:
   - path: app.h
   - path: types.h
   - path: app_sht4x.h
+  - path: app_lps22df.h
   - path: crc8.h
   - path: app_i2c_utils.h
 sdk:
@@ -619,4 +621,3 @@ ui_hints:
   - path: config/btconf/gatt_configuration.btconf
   - path: readme.md
     focus: true
-
