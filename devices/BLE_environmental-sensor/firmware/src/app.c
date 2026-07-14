@@ -30,20 +30,66 @@
 #include "app.h"
 #include "app_assert.h"
 #include "app_log.h"
+#include "app_sht4x.h"
 #include "gatt_db.h"
 #include "sl_bt_api.h"
+#include "sl_i2c_instances.h"
 #include "sl_main_init.h"
 #include "sl_sleeptimer.h"
+#include "sl_status.h"
+#include "types.h"
 #include <stdint.h>
+#include <sys/reent.h>
 // The advertising set handle allocated from Bluetooth stack.
 static uint8_t                      advertising_set_handle = 0xff;
-static sl_sleeptimer_timer_handle_t alive_timer;
+static sl_sleeptimer_timer_handle_t sensor_timer;
+static volatile bool                advertising = false;
+static app_sht4x_handle_t           sht4x_sensor;
 
-void great_callback(sl_sleeptimer_timer_handle_t *handle, void *udata) {
-	(void)handle;
-	(void)udata;
-	app_log_info("alive" APP_LOG_NL);
+static volatile data_point_t data_point;
+
+sl_status_t app_set_legacy_advertiser_data(
+    uint8_t advertising_set, temperature_t temperature, humidity_t humidity
+);
+
+void sensor_read_callback(
+    sl_status_t status, temperature_t temperature, humidity_t humidity
+) {
+	if (status != SL_STATUS_OK) {
+		app_log_warning("Sensor readout failure: %lx" APP_LOG_NL, status);
+		return;
+	}
+	app_log_info(
+	    "Got temperature: %d.%02d°C humidity: %d.%01d%%" APP_LOG_NL,
+	    temperature / 100,
+	    temperature % 100,
+	    humidity / 10,
+	    humidity % 10
+	);
+	data_point.temperature = temperature;
+	data_point.humidity    = humidity;
+
+	// we need to do something
+	app_proceed();
 }
+
+void start_sensor_readout(
+    sl_sleeptimer_timer_handle_t *timer, void *user_data
+) {
+	(void)timer;
+	(void)user_data;
+
+	data_point.date = sl_sleeptimer_get_time();
+
+	sl_status_t s = app_sht4x_read_data(
+	    &sht4x_sensor,
+	    SHT4X_MEASURE_HIGH_P,
+	    &sensor_read_callback
+	);
+	if (s != SL_STATUS_OK) {
+		app_log_error("Could not start sensor reading: %lx" APP_LOG_NL, s);
+	}
+};
 
 // Application Init.
 void app_init(void) {
@@ -51,13 +97,92 @@ void app_init(void) {
 	// Put your additional application init code here! // This is called once
 	// during start-up.                                    //
 	/////////////////////////////////////////////////////////////////////////////
-	sl_sleeptimer_start_periodic_timer_ms(
-	    &alive_timer,
-	    1000,
-	    &great_callback,
-	    (void *)NULL,
+	sl_sleeptimer_delay_millisecond(1500);
+
+	if (app_sht4x_init(&sht4x_sensor, sl_i2c_i2c0_handle, SHT4X_BASE_ADDR) ==
+	    SL_STATUS_OK) {
+		sl_sleeptimer_start_periodic_timer_ms(
+		    &sensor_timer,
+		    1000,
+		    &start_sensor_readout,
+		    NULL,
+		    0,
+		    0
+		);
+		app_log_info("Started read loop" APP_LOG_NL);
+	} else {
+		app_log_warning("No loop started" APP_LOG_NL);
+	}
+}
+
+sl_status_t app_set_legacy_advertiser_data(
+    uint8_t advertising_set, temperature_t temperature, humidity_t humidity
+) {
+	int16_t power;
+	sl_bt_system_get_tx_power_setting(NULL, NULL, NULL, &power, NULL);
+
+	uint8_t adv_data[31];
+	uint8_t adv_data_len     = 0;
+	adv_data[adv_data_len++] = 0x02; // LEN: 2
+	adv_data[adv_data_len++] = 0x01; // AD Type: flags
+	adv_data[adv_data_len++] = 0x06; // Discoverable Connectable single mode
+
+	adv_data[adv_data_len++] = 0x0a; // LEN: 10
+	// AD Type: Service data
+	adv_data[adv_data_len++] = 0x16;
+	// BT Homew service
+	adv_data[adv_data_len++] = 0xD2;
+	adv_data[adv_data_len++] = 0xFC;
+	// non encrypted data
+	adv_data[adv_data_len++] = 0x40;
+	// BTHome temperature
+	adv_data[adv_data_len++] = 0x02;
+	adv_data[adv_data_len++] = (temperature >> 8) & 0xff;
+	adv_data[adv_data_len++] = temperature & 0xff;
+
+	// BTHome humidity
+	adv_data[adv_data_len++] = 0x03;
+	adv_data[adv_data_len++] = (humidity >> 8) & 0xff;
+	adv_data[adv_data_len++] = humidity & 0xff;
+
+	adv_data[adv_data_len++] = 0x02; // LEN: 2
+	// AD Type: Tx Power
+	adv_data[adv_data_len++] = 0x0A;
+	// Power in dBm
+	adv_data[adv_data_len++] = power / 10;
+
+	app_assert(adv_data_len < (31 - 5), "adv packet too large");
+
+	size_t name_len;
+
+	sl_status_t sc = sl_bt_gatt_server_read_attribute_value(
+	    gattdb_device_name,
 	    0,
-	    0
+	    sizeof(adv_data) - adv_data_len - 2,
+	    &name_len,
+	    &adv_data[adv_data_len]
+	);
+
+	app_assert_status_f(sc);
+
+	if (name_len < (29U - adv_data_len)) {
+		adv_data[adv_data_len++] = name_len + 2;
+		adv_data[adv_data_len++] = 0x09;
+		adv_data_len += name_len;
+	} else {
+		adv_data[adv_data_len] = 31 - adv_data_len;
+		adv_data_len++;
+		adv_data[adv_data_len++] = 0x08;
+		adv_data_len             = 31;
+	}
+
+	app_log_debug("new advertised data" APP_LOG_NL);
+
+	return sl_bt_legacy_advertiser_set_data(
+	    advertising_set,
+	    sl_bt_advertiser_advertising_data_packet,
+	    adv_data_len,
+	    adv_data
 	);
 }
 
@@ -72,6 +197,14 @@ void app_process_action(void) {
 	//
 	// Do not call blocking functions from here!
 	/////////////////////////////////////////////////////////////////////////////
+	if (advertising == true) {
+		sl_status_t sc = app_set_legacy_advertiser_data(
+		    advertising_set_handle,
+		    data_point.temperature,
+		    data_point.humidity
+		);
+		app_assert_status_f(sc);
+	}
 }
 
 /****************************************************************************
@@ -90,12 +223,14 @@ void sl_bt_on_event(sl_bt_msg_t *evt) {
 	case sl_bt_evt_system_boot_id:
 		// Create an advertising set.
 		sc = sl_bt_advertiser_create_set(&advertising_set_handle);
+
 		app_assert_status(sc);
 
 		// Generate data for advertising
-		sc = sl_bt_legacy_advertiser_generate_data(
+		sc = app_set_legacy_advertiser_data(
 		    advertising_set_handle,
-		    sl_bt_advertiser_general_discoverable
+		    0xffff,
+		    0xffff
 		);
 		app_assert_status(sc);
 
@@ -113,24 +248,28 @@ void sl_bt_on_event(sl_bt_msg_t *evt) {
 		    advertising_set_handle,
 		    sl_bt_legacy_advertiser_connectable
 		);
+		advertising = true;
 		app_assert_status(sc);
 		break;
 
 	// -------------------------------
 	// This event indicates that a new connection was opened.
 	case sl_bt_evt_connection_opened_id:
-		app_log_info("connected");
+		app_log_info("connected" APP_LOG_NL);
+		advertising = false;
 		break;
 
 	// -------------------------------
 	// This event indicates that a connection was closed.
 	case sl_bt_evt_connection_closed_id:
-		app_log_info("disconnected");
+		app_log_info("disconnected" APP_LOG_NL);
 		// Generate data for advertising
-		sc = sl_bt_legacy_advertiser_generate_data(
+		sc = app_set_legacy_advertiser_data(
 		    advertising_set_handle,
-		    sl_bt_advertiser_general_discoverable
+		    0xffff,
+		    0xffff
 		);
+
 		app_assert_status(sc);
 
 		// Restart advertising after client has disconnected.
@@ -138,6 +277,7 @@ void sl_bt_on_event(sl_bt_msg_t *evt) {
 		    advertising_set_handle,
 		    sl_bt_legacy_advertiser_connectable
 		);
+		advertising = true;
 		app_assert_status(sc);
 		break;
 

@@ -25,7 +25,7 @@ app_sht4x_init(app_sht4x_handle_t *self, sl_i2c_handle_t *i2c, uint8_t addr) {
 	result = app_sht4x_read_serial_number_blocking(self);
 	if (result.status == SL_STATUS_OK) {
 		app_log_info(
-		    "found SHT4x device at %s.0x%x: %lux" APP_LOG_NL,
+		    "found SHT4x device at %s.0x%x: %lx" APP_LOG_NL,
 		    app_i2c_get_name(i2c),
 		    addr,
 		    result.data.serial_number
@@ -51,7 +51,7 @@ app_sht4x_init(app_sht4x_handle_t *self, sl_i2c_handle_t *i2c, uint8_t addr) {
 	}
 
 	app_log_info(
-	    "found SHT4x device at %s.0x%x SN:%lux" APP_LOG_NL,
+	    "found SHT4x device at %s.0x%x SN:%lx" APP_LOG_NL,
 	    app_i2c_get_name(i2c),
 	    addr,
 	    result.data.serial_number
