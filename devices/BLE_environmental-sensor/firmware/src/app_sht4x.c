@@ -1,5 +1,5 @@
 #include "app_sht4x.h"
-#include "app_i2c0_claim.h"
+#include "app_i2c_utils.h"
 #include "app_log.h"
 #include "crc8.h"
 #include "sl_device_peripheral.h"
@@ -9,25 +9,6 @@
 #include "sl_status.h"
 #include "types.h"
 #include <stdint.h>
-
-const char *get_i2c_instance_name(sl_i2c_handle_t *i2c) {
-	if (i2c == NULL) {
-		return "I2C<NULL>";
-	}
-	if (i2c->i2c_peripheral == SL_PERIPHERAL_I2C0) {
-		return "I2C0";
-	}
-	if (i2c->i2c_peripheral == SL_PERIPHERAL_I2C1) {
-		return "I2C1";
-	}
-	if (i2c->i2c_peripheral == SL_PERIPHERAL_I2C2) {
-		return "I2C2";
-	}
-	if (i2c->i2c_peripheral == SL_PERIPHERAL_I2C3) {
-		return "I2C3";
-	}
-	return "I2C<Unknown>";
-}
 
 sl_status_t
 app_sht4x_init(app_sht4x_handle_t *self, sl_i2c_handle_t *i2c, uint8_t addr) {
@@ -46,7 +27,7 @@ app_sht4x_init(app_sht4x_handle_t *self, sl_i2c_handle_t *i2c, uint8_t addr) {
 	if (result.status == SL_STATUS_OK) {
 		app_log_info(
 		    "found SHT4x device at %s.0x%x: %lux" APP_LOG_NL,
-		    get_i2c_instance_name(i2c),
+		    app_i2c_get_name(i2c),
 		    addr,
 		    result.data.serial_number
 		);
@@ -55,7 +36,7 @@ app_sht4x_init(app_sht4x_handle_t *self, sl_i2c_handle_t *i2c, uint8_t addr) {
 
 	app_log_warning(
 	    "No SHT4x device at %s.0x%x, retrying in 80ms" APP_LOG_NL,
-	    get_i2c_instance_name(i2c),
+	    app_i2c_get_name(i2c),
 	    addr
 	);
 	sl_sleeptimer_delay_millisecond(80);
@@ -64,7 +45,7 @@ app_sht4x_init(app_sht4x_handle_t *self, sl_i2c_handle_t *i2c, uint8_t addr) {
 	if (result.status != SL_STATUS_OK) {
 		app_log_error(
 		    "No SHT4x device found at %s.0x%x" APP_LOG_NL,
-		    get_i2c_instance_name(i2c),
+		    app_i2c_get_name(i2c),
 		    addr
 		);
 		return SL_STATUS_INITIALIZATION;
@@ -72,7 +53,7 @@ app_sht4x_init(app_sht4x_handle_t *self, sl_i2c_handle_t *i2c, uint8_t addr) {
 
 	app_log_info(
 	    "found SHT4x device at %s.0x%x SN:%lux" APP_LOG_NL,
-	    get_i2c_instance_name(i2c),
+	    app_i2c_get_name(i2c),
 	    addr,
 	    result.data.serial_number
 	);

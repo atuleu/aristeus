@@ -9,6 +9,8 @@ readme:
 source:
 - path: src/app.c
 - path: src/app_sht4x.c
+- path: src/crc8.c
+- path: src/app_i2c_utils.c
 tag:
 - hwfilter:device:device_supports_bluetooth
 - hwfilter:device:device_series_2
@@ -18,6 +20,8 @@ include:
   - path: app.h
   - path: types.h
   - path: app_sht4x.h
+  - path: crc8.h
+  - path: app_i2c_utils.h
 sdk:
   vendor: silabs
   id: simplicity_sdk
