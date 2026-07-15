@@ -50,7 +50,7 @@
 static uint8_t                      advertising_set_handle = 0xff;
 static sl_sleeptimer_timer_handle_t sensor_timer;
 static volatile bool                advertising = false;
-static app_sht4x_handle_t           sht4x_sensor;
+static sht4x_handle_t               sht4x_sensor;
 
 static volatile data_point_t data_point;
 
@@ -87,7 +87,7 @@ void start_sensor_readout(
 
 	data_point.date = sl_sleeptimer_get_time();
 
-	sl_status_t s = app_sht4x_read_data(
+	sl_status_t s = sht4x_read_data(
 	    &sht4x_sensor,
 	    SHT4X_MEASURE_HIGH_P,
 	    &sensor_read_callback
@@ -105,7 +105,7 @@ void app_init(void) {
 	/////////////////////////////////////////////////////////////////////////////
 	sl_sleeptimer_delay_millisecond(1500);
 
-	if (app_sht4x_init(&sht4x_sensor, sl_i2c_i2c0_handle, SHT4X_BASE_ADDR) ==
+	if (sht4x_init(&sht4x_sensor, sl_i2c_i2c0_handle, SHT4X_BASE_ADDR) ==
 	    SL_STATUS_OK) {
 		sl_sleeptimer_start_periodic_timer_ms(
 		    &sensor_timer,

@@ -13,8 +13,8 @@
 #include <utils/crc8.h>
 
 sl_status_t
-app_sht4x_init(app_sht4x_handle_t *self, sl_i2c_handle_t *i2c, uint8_t addr) {
-	app_sht4x_blocking_result_t result;
+sht4x_init(sht4x_handle_t *self, sl_i2c_handle_t *i2c, uint8_t addr) {
+	sht4x_blocking_result_t result;
 	self->i2c_bus = i2c;
 	if (addr != 0x44 && addr != 0x45 && addr != 0x46) {
 		app_log_info("Invalid address 0x%x for SHT4x device" APP_LOG_NL, addr);
@@ -24,7 +24,7 @@ app_sht4x_init(app_sht4x_handle_t *self, sl_i2c_handle_t *i2c, uint8_t addr) {
 	self->command_buffer = 0;
 	self->callback.ptr   = NULL;
 
-	result = app_sht4x_read_serial_number_blocking(self);
+	result = sht4x_read_serial_number_blocking(self);
 	if (result.status == SL_STATUS_OK) {
 		app_log_info(
 		    "found SHT4x device at %s.0x%x: %lx" APP_LOG_NL,
@@ -42,7 +42,7 @@ app_sht4x_init(app_sht4x_handle_t *self, sl_i2c_handle_t *i2c, uint8_t addr) {
 	);
 	sl_sleeptimer_delay_millisecond(80);
 
-	result = app_sht4x_read_serial_number_blocking(self);
+	result = sht4x_read_serial_number_blocking(self);
 	if (result.status != SL_STATUS_OK) {
 		app_log_error(
 		    "No SHT4x device found at %s.0x%x" APP_LOG_NL,
@@ -61,7 +61,7 @@ app_sht4x_init(app_sht4x_handle_t *self, sl_i2c_handle_t *i2c, uint8_t addr) {
 	return SL_STATUS_OK;
 }
 
-void app_sht4x_bus_cleanup(app_sht4x_handle_t *self) {
+void _sht4x_bus_cleanup(sht4x_handle_t *self) {
 	self->command_buffer = 0;
 	self->callback.ptr   = NULL;
 	sl_i2c_set_transfer_complete_callback(self->i2c_bus, NULL);
@@ -70,10 +70,10 @@ void app_sht4x_bus_cleanup(app_sht4x_handle_t *self) {
 }
 
 /// Marks the on-going command as having an error.
-void app_sht4x_error_cmd(app_sht4x_handle_t *self, sl_status_t status) {
-	uint8_t              command  = self->command_buffer;
-	app_sht4x_callback_u callback = self->callback;
-	app_sht4x_bus_cleanup(self);
+void _sht4x_error_cmd(sht4x_handle_t *self, sl_status_t status) {
+	uint8_t          command  = self->command_buffer;
+	sht4x_callback_u callback = self->callback;
+	_sht4x_bus_cleanup(self);
 
 	if (callback.ptr == NULL) {
 		app_log_error("NULL callback in SHT4x driver async error" APP_LOG_NL);
@@ -93,13 +93,11 @@ void app_sht4x_error_cmd(app_sht4x_handle_t *self, sl_status_t status) {
 }
 
 /// Marks the on-going command as completed succesfully.
-void app_sht4x_complete_cmd(
-    app_sht4x_handle_t *self, app_sht4x_blocking_result_t *res
-) {
-	uint8_t              command  = self->command_buffer;
-	app_sht4x_callback_u callback = self->callback;
+void _sht4x_complete_cmd(sht4x_handle_t *self, sht4x_blocking_result_t *res) {
+	uint8_t          command  = self->command_buffer;
+	sht4x_callback_u callback = self->callback;
 
-	app_sht4x_bus_cleanup(self);
+	_sht4x_bus_cleanup(self);
 	self->callback.ptr = NULL;
 
 	if (callback.ptr == NULL) {
@@ -124,24 +122,23 @@ void app_sht4x_complete_cmd(
 	}
 }
 
-sl_status_t app_sht4x_on_i2c_event(
-    sl_i2c_handle_t *i2c, sl_i2c_event_t e, void *user_data
-) {
+sl_status_t
+_sht4x_on_i2c_event(sl_i2c_handle_t *i2c, sl_i2c_event_t e, void *user_data) {
 	(void)i2c;
-	app_sht4x_handle_t *self = user_data;
+	sht4x_handle_t *self = user_data;
 
 	if (e == SL_I2C_EVENT_IN_PROGRESS || e == SL_I2C_EVENT_COMPLETED ||
 	    e == SL_I2C_EVENT_IDLE) {
 		return SL_STATUS_OK;
 	}
-	app_sht4x_error_cmd(
+	_sht4x_error_cmd(
 	    self,
 	    e == SL_I2C_EVENT_ADDR_NACK ? SL_STATUS_NOT_FOUND : SL_STATUS_BUS_ERROR
 	);
 	return SL_STATUS_OK;
 }
 
-bool app_sht4x_check_crc(const uint8_t *buffer, size_t len) {
+bool _sht4x_check_crc(const uint8_t *buffer, size_t len) {
 	uint8_t crc = 0xff;
 	for (size_t i = 0; i < len; ++i) {
 		crc = CRC8_AppendByte(crc, 0x31, buffer[i]);
@@ -149,20 +146,18 @@ bool app_sht4x_check_crc(const uint8_t *buffer, size_t len) {
 	return crc == 0x00;
 }
 
-temperature_t app_sht4x_convert_temperature(uint16_t raw) {
+temperature_t _sht4x_convert_temperature(uint16_t raw) {
 	return (int16_t)((temperature_t)((((float)raw) * 17500.0f) / 65535.0f -
 	                                 4500.0f));
 }
 
-humidity_t app_sht4x_convert_humidity(uint16_t raw) {
+humidity_t _sht4x_convert_humidity(uint16_t raw) {
 	return (humidity_t)((((float)raw) * 1000.0f) / 65535.0f);
 }
 
-void app_sht4x_parse_data(
-    app_sht4x_handle_t *self, app_sht4x_blocking_result_t *res
-) {
-	bool dataAOk = app_sht4x_check_crc(&self->read_buffer[0], 3);
-	bool dataBOk = app_sht4x_check_crc(&self->read_buffer[3], 3);
+void _sht4x_parse_data(sht4x_handle_t *self, sht4x_blocking_result_t *res) {
+	bool dataAOk = _sht4x_check_crc(&self->read_buffer[0], 3);
+	bool dataBOk = _sht4x_check_crc(&self->read_buffer[3], 3);
 	if (dataAOk && dataBOk) {
 		res->status = SL_STATUS_OK;
 	} else {
@@ -183,7 +178,7 @@ void app_sht4x_parse_data(
 		break;
 	default:
 		if (dataAOk) {
-			res->data.th_readout.temperature = app_sht4x_convert_temperature(
+			res->data.th_readout.temperature = _sht4x_convert_temperature(
 			    ((uint16_t)self->read_buffer[0] << 8) |
 			    ((uint16_t)self->read_buffer[1])
 			);
@@ -191,7 +186,7 @@ void app_sht4x_parse_data(
 			res->data.th_readout.temperature = 0xffff;
 		}
 		if (dataBOk) {
-			res->data.th_readout.humidity = app_sht4x_convert_humidity(
+			res->data.th_readout.humidity = _sht4x_convert_humidity(
 			    ((uint16_t)self->read_buffer[3] << 8) |
 			    ((uint16_t)self->read_buffer[4])
 			);
@@ -203,37 +198,37 @@ void app_sht4x_parse_data(
 
 // callback when receiving the command readout.
 sl_status_t
-app_sht4x_on_i2c_read_complete(sl_i2c_handle_t *i2c_handle, void *user_data) {
+_sht4x_on_i2c_read_complete(sl_i2c_handle_t *i2c_handle, void *user_data) {
 	(void)i2c_handle;
-	app_sht4x_handle_t         *self = user_data;
-	app_sht4x_blocking_result_t res;
+	sht4x_handle_t         *self = user_data;
+	sht4x_blocking_result_t res;
 
-	app_sht4x_parse_data(self, &res);
+	_sht4x_parse_data(self, &res);
 	// note parse data may have failed the error for invalid (partial) data.
-	app_sht4x_complete_cmd(self, &res);
+	_sht4x_complete_cmd(self, &res);
 	return SL_STATUS_OK;
 };
 
 // timeout function on the sleep timer to trigger the RX of data (or mark
 // completion).
-void app_sht4x_on_timer_timeout(
+void _sht4x_on_timer_timeout(
     sl_sleeptimer_timer_handle_t *handle, void *user_data
 ) {
 	(void)handle;
-	app_sht4x_handle_t *self = user_data;
+	sht4x_handle_t *self = user_data;
 
 	if (self->command_buffer == SHT4X_SOFT_RESET) {
-		app_sht4x_callback_u callback = self->callback;
-		app_sht4x_bus_cleanup(self);
+		sht4x_callback_u callback = self->callback;
+		_sht4x_bus_cleanup(self);
 		callback.soft_reset(SL_STATUS_OK);
 		return;
 	}
 	sl_status_t status = sl_i2c_set_transfer_complete_callback(
 	    self->i2c_bus,
-	    &app_sht4x_on_i2c_read_complete
+	    &_sht4x_on_i2c_read_complete
 	);
 	if (status != SL_STATUS_OK) {
-		app_sht4x_error_cmd(self, status);
+		_sht4x_error_cmd(self, status);
 	}
 
 	status = sl_i2c_leader_receive_non_blocking(
@@ -245,20 +240,20 @@ void app_sht4x_on_timer_timeout(
 	);
 
 	if (status != SL_STATUS_OK) {
-		app_sht4x_error_cmd(self, status);
+		_sht4x_error_cmd(self, status);
 	}
 }
 
 // Callback on the write TX that starts a timeout.
 sl_status_t
-app_sht4x_on_i2c_write_complete(sl_i2c_handle_t *i2c, void *user_data) {
+_sht4x_on_i2c_write_complete(sl_i2c_handle_t *i2c, void *user_data) {
 	(void)i2c;
-	app_sht4x_handle_t *self = user_data;
+	sht4x_handle_t *self = user_data;
 	// here always succesful.
 	sl_sleeptimer_start_timer_ms(
 	    &self->timer,
 	    self->read_delay_ms,
-	    &app_sht4x_on_timer_timeout,
+	    &_sht4x_on_timer_timeout,
 	    self,
 	    0,
 	    0
@@ -267,7 +262,7 @@ app_sht4x_on_i2c_write_complete(sl_i2c_handle_t *i2c, void *user_data) {
 };
 
 // checks if it is a valid command.
-sl_status_t app_sht4x_check_command(uint8_t command) {
+sl_status_t _sht4x_check_command(uint8_t command) {
 	switch (command) {
 	case SHT4X_SOFT_RESET:
 	case SHT4X_READ_SERIAL_NUMBER:
@@ -281,7 +276,7 @@ sl_status_t app_sht4x_check_command(uint8_t command) {
 }
 
 // checks if it is a valid command for reading values.
-sl_status_t app_sht4x_check_readout_command(uint8_t command) {
+sl_status_t _sht4x_check_readout_command(uint8_t command) {
 	switch (command) {
 	case SHT4X_MEASURE_HIGH_P:
 	case SHT4X_MEASURE_MEDIUM_P:
@@ -293,11 +288,11 @@ sl_status_t app_sht4x_check_readout_command(uint8_t command) {
 }
 
 // sends a command to the device, asynchronously.
-sl_status_t app_sht4x_send_command(
-    app_sht4x_handle_t *self,
-    app_sht4x_command_e command,
-    uint8_t             read_delay_ms,
-    void               *callback
+sl_status_t _sht4x_send_command(
+    sht4x_handle_t *self,
+    sht4x_command_e command,
+    uint8_t         read_delay_ms,
+    void           *callback
 ) {
 	if (callback == NULL) {
 		return SL_STATUS_NULL_POINTER;
@@ -311,16 +306,16 @@ sl_status_t app_sht4x_send_command(
 
 	status = sl_i2c_set_transfer_complete_callback(
 	    self->i2c_bus,
-	    &app_sht4x_on_i2c_write_complete
+	    &_sht4x_on_i2c_write_complete
 	);
 	if (status != SL_STATUS_OK) {
-		app_sht4x_bus_cleanup(self);
+		_sht4x_bus_cleanup(self);
 		return status;
 	}
 
-	status = sl_i2c_set_event_callback(self->i2c_bus, &app_sht4x_on_i2c_event);
+	status = sl_i2c_set_event_callback(self->i2c_bus, &_sht4x_on_i2c_event);
 	if (status != SL_STATUS_OK) {
-		app_sht4x_bus_cleanup(self);
+		_sht4x_bus_cleanup(self);
 		return status;
 	}
 
@@ -335,7 +330,7 @@ sl_status_t app_sht4x_send_command(
         (void *)self
     );
 	if (status != SL_STATUS_OK) {
-		app_sht4x_bus_cleanup(self);
+		_sht4x_bus_cleanup(self);
 		self->callback.ptr = NULL;
 	}
 
@@ -343,10 +338,10 @@ sl_status_t app_sht4x_send_command(
 }
 
 // sends a command, blocking fashion.
-app_sht4x_blocking_result_t app_sht4x_send_command_blocking(
-    app_sht4x_handle_t *self, app_sht4x_command_e command, uint8_t read_delay_ms
+sht4x_blocking_result_t sht4x_send_command_blocking(
+    sht4x_handle_t *self, sht4x_command_e command, uint8_t read_delay_ms
 ) {
-	app_sht4x_blocking_result_t res;
+	sht4x_blocking_result_t res;
 	res.status = i2c_claim_instance(self->i2c_bus);
 	if (res.status != SL_STATUS_OK) {
 		return res;
@@ -361,7 +356,7 @@ app_sht4x_blocking_result_t app_sht4x_send_command_blocking(
         5
     );
 	if (res.status != SL_STATUS_OK) {
-		app_sht4x_bus_cleanup(self);
+		_sht4x_bus_cleanup(self);
 		return res;
 	}
 	sl_sleeptimer_delay_millisecond(read_delay_ms);
@@ -373,63 +368,56 @@ app_sht4x_blocking_result_t app_sht4x_send_command_blocking(
 	    5
 	);
 	if (res.status != SL_STATUS_OK) {
-		app_sht4x_bus_cleanup(self);
+		_sht4x_bus_cleanup(self);
 		return res;
 	}
-	app_sht4x_parse_data(self, &res);
-	app_sht4x_bus_cleanup(self);
+	_sht4x_parse_data(self, &res);
+	_sht4x_bus_cleanup(self);
 	return res;
 }
 
-sl_status_t app_sht4x_read_serial_number(
-    app_sht4x_handle_t *self, app_sht4x_read_serial_number_callback_t cb
+sl_status_t sht4x_read_serial_number(
+    sht4x_handle_t *self, sht4x_read_serial_number_callback_t cb
 ) {
-	return app_sht4x_send_command(
-	    self,
-	    SHT4X_READ_SERIAL_NUMBER,
-	    1,
-	    (void *)cb
-	);
+	return _sht4x_send_command(self, SHT4X_READ_SERIAL_NUMBER, 1, (void *)cb);
 }
 
-app_sht4x_blocking_result_t
-app_sht4x_read_serial_number_blocking(app_sht4x_handle_t *self) {
-	return app_sht4x_send_command_blocking(self, SHT4X_READ_SERIAL_NUMBER, 1);
+sht4x_blocking_result_t sht4x_read_serial_number_blocking(sht4x_handle_t *self
+) {
+	return sht4x_send_command_blocking(self, SHT4X_READ_SERIAL_NUMBER, 1);
 }
 
-sl_status_t app_sht4x_read_data(
-    app_sht4x_handle_t            *self,
-    app_sht4x_command_e            type,
-    app_sht4x_read_data_callback_t callback
+sl_status_t sht4x_read_data(
+    sht4x_handle_t            *self,
+    sht4x_command_e            type,
+    sht4x_read_data_callback_t callback
 ) {
 
-	sl_status_t status = app_sht4x_check_readout_command(type);
+	sl_status_t status = _sht4x_check_readout_command(type);
 	if (status != SL_STATUS_OK) {
 		return status;
 	}
 
-	return app_sht4x_send_command(self, type, 10, (void *)callback);
+	return _sht4x_send_command(self, type, 10, (void *)callback);
 }
 
-app_sht4x_blocking_result_t app_sht4x_read_data_blocking(
-    app_sht4x_handle_t *self, app_sht4x_command_e cmd
-) {
-	app_sht4x_blocking_result_t res;
-	res.status = app_sht4x_check_readout_command(cmd);
+sht4x_blocking_result_t
+sht4x_read_data_blocking(sht4x_handle_t *self, sht4x_command_e cmd) {
+	sht4x_blocking_result_t res;
+	res.status = _sht4x_check_readout_command(cmd);
 	if (res.status != SL_STATUS_OK) {
 		return res;
 	}
-	return app_sht4x_send_command_blocking(self, cmd, 10);
+	return sht4x_send_command_blocking(self, cmd, 10);
 }
 
-sl_status_t app_sht4x_soft_reset(
-    app_sht4x_handle_t *self, app_sht4x_soft_reset_callback_t cb
-) {
-	return app_sht4x_send_command(self, SHT4X_SOFT_RESET, 80, (void *)cb);
+sl_status_t
+sht4x_soft_reset(sht4x_handle_t *self, sht4x_soft_reset_callback_t cb) {
+	return _sht4x_send_command(self, SHT4X_SOFT_RESET, 80, (void *)cb);
 }
 
-sl_status_t app_sht4x_soft_reset_blocking(app_sht4x_handle_t *self) {
-	app_sht4x_blocking_result_t res =
-	    app_sht4x_send_command_blocking(self, SHT4X_SOFT_RESET, 80);
+sl_status_t sht4x_soft_reset_blocking(sht4x_handle_t *self) {
+	sht4x_blocking_result_t res =
+	    sht4x_send_command_blocking(self, SHT4X_SOFT_RESET, 80);
 	return res.status;
 }
