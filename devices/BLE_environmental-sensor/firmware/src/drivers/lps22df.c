@@ -24,7 +24,7 @@ void app_lps22df_tx_complete(app_lps22df_handle_t *self, sl_status_t status) {
 	self->tx_callback  = NULL;
 	self->tx_user_data = NULL;
 
-	app_i2c_unclaim(self->i2c_bus);
+	i2c_unclaim_instance(self->i2c_bus);
 
 	cb(status, user_data);
 }
@@ -67,7 +67,7 @@ sl_status_t app_lps22df_read(
     void                     *user_data
 ) {
 
-	sl_status_t sc = app_i2c_claim(self->i2c_bus);
+	sl_status_t sc = i2c_claim_instance(self->i2c_bus);
 
 	if (sc != SL_STATUS_OK) {
 		return sc;
@@ -79,13 +79,13 @@ sl_status_t app_lps22df_read(
 	);
 
 	if (sc != SL_STATUS_OK) {
-		app_i2c_unclaim(self->i2c_bus);
+		i2c_unclaim_instance(self->i2c_bus);
 		return sc;
 	}
 
 	sc = sl_i2c_set_event_callback(self->i2c_bus, &app_lps22df_on_i2c_event);
 	if (sc != SL_STATUS_OK) {
-		app_i2c_unclaim(self->i2c_bus);
+		i2c_unclaim_instance(self->i2c_bus);
 		return sc;
 	}
 
@@ -107,7 +107,7 @@ sl_status_t app_lps22df_read(
 	if (sc != SL_STATUS_OK) {
 		self->tx_callback  = NULL;
 		self->tx_user_data = NULL;
-		app_i2c_unclaim(self->i2c_bus);
+		i2c_unclaim_instance(self->i2c_bus);
 
 		return sc;
 	}
@@ -126,7 +126,7 @@ sl_status_t app_lps22df_write(
 		return SL_STATUS_INVALID_COUNT;
 	}
 
-	sl_status_t sc = app_i2c_claim(self->i2c_bus);
+	sl_status_t sc = i2c_claim_instance(self->i2c_bus);
 	if (sc != SL_STATUS_OK) {
 		return sc;
 	}
@@ -137,12 +137,12 @@ sl_status_t app_lps22df_write(
 	);
 
 	if (sc != SL_STATUS_OK) {
-		app_i2c_unclaim(self->i2c_bus);
+		i2c_unclaim_instance(self->i2c_bus);
 		return sc;
 	}
 	sc = sl_i2c_set_event_callback(self->i2c_bus, &app_lps22df_on_i2c_event);
 	if (sc != SL_STATUS_OK) {
-		app_i2c_unclaim(self->i2c_bus);
+		i2c_unclaim_instance(self->i2c_bus);
 		return sc;
 	}
 
@@ -157,7 +157,7 @@ sl_status_t app_lps22df_write(
 	    (void *)self
 	);
 	if (sc != SL_STATUS_OK) {
-		app_i2c_unclaim(self->i2c_bus);
+		i2c_unclaim_instance(self->i2c_bus);
 		self->tx_callback  = NULL;
 		self->tx_user_data = NULL;
 
@@ -172,7 +172,7 @@ sl_status_t app_lps22df_read_blocking(
     uint8_t               count,
     uint8_t              *buffer
 ) {
-	sl_status_t sc = app_i2c_claim(self->i2c_bus);
+	sl_status_t sc = i2c_claim_instance(self->i2c_bus);
 	if (sc != SL_STATUS_OK) {
 		return sc;
 	}
@@ -187,7 +187,7 @@ sl_status_t app_lps22df_read_blocking(
         count
     );
 
-	app_i2c_unclaim(self->i2c_bus);
+	i2c_unclaim_instance(self->i2c_bus);
 
 	return sc;
 }
@@ -199,7 +199,7 @@ sl_status_t app_lps22df_write_blocking(
 		return SL_STATUS_INVALID_COUNT;
 	}
 
-	sl_status_t sc = app_i2c_claim(self->i2c_bus);
+	sl_status_t sc = i2c_claim_instance(self->i2c_bus);
 	if (sc != SL_STATUS_OK) {
 		return sc;
 	}
@@ -212,7 +212,7 @@ sl_status_t app_lps22df_write_blocking(
 	    count
 	);
 
-	app_i2c_unclaim(self->i2c_bus);
+	i2c_unclaim_instance(self->i2c_bus);
 
 	return sc;
 }
@@ -348,7 +348,7 @@ app_lps22df_init(app_lps22df_handle_t *self, app_lps22df_config_t *config) {
 	if (sc != SL_STATUS_OK) {
 		app_log_warning(
 		    "No LPS22DF devices at %s.0x%x found, retrying in 80ms" APP_LOG_NL,
-		    app_i2c_get_name(self->i2c_bus),
+		    i2c_get_instance_name(self->i2c_bus),
 		    self->address
 		);
 
@@ -358,7 +358,7 @@ app_lps22df_init(app_lps22df_handle_t *self, app_lps22df_config_t *config) {
 		if (sc != SL_STATUS_OK) {
 			app_log_error(
 			    "No LPS22DF devices at %s.0x%x found" APP_LOG_NL,
-			    app_i2c_get_name(self->i2c_bus),
+			    i2c_get_instance_name(self->i2c_bus),
 			    self->address
 			);
 			return SL_STATUS_INITIALIZATION;
@@ -369,7 +369,7 @@ app_lps22df_init(app_lps22df_handle_t *self, app_lps22df_config_t *config) {
 		app_log_error(
 		    "LPS2DF device found at %s.0x%x, but wrong whoAmI value 0x%x "
 		    "(expected 0x5c)" APP_LOG_NL,
-		    app_i2c_get_name(self->i2c_bus),
+		    i2c_get_instance_name(self->i2c_bus),
 		    self->address,
 		    whoAmI
 		);
@@ -378,7 +378,7 @@ app_lps22df_init(app_lps22df_handle_t *self, app_lps22df_config_t *config) {
 
 	app_log_info(
 	    "found LPS22DF devices at %s.0x%x" APP_LOG_NL,
-	    app_i2c_get_name(self->i2c_bus),
+	    i2c_get_instance_name(self->i2c_bus),
 	    self->address
 	);
 
@@ -394,7 +394,7 @@ app_lps22df_init(app_lps22df_handle_t *self, app_lps22df_config_t *config) {
 	if (sc != SL_STATUS_OK) {
 		app_log_error(
 		    "LPS22DF %s.0x%x: could not set config" APP_LOG_NL,
-		    app_i2c_get_name(self->i2c_bus),
+		    i2c_get_instance_name(self->i2c_bus),
 		    self->address
 		);
 		return SL_STATUS_INITIALIZATION;
@@ -404,7 +404,7 @@ app_lps22df_init(app_lps22df_handle_t *self, app_lps22df_config_t *config) {
 	if (sc != SL_STATUS_OK) {
 		app_log_error(
 		    "LPS22DF %s.0x%x: could not set  pin mode" APP_LOG_NL,
-		    app_i2c_get_name(self->i2c_bus),
+		    i2c_get_instance_name(self->i2c_bus),
 		    self->address
 		);
 		return SL_STATUS_INITIALIZATION;
@@ -419,7 +419,7 @@ app_lps22df_init(app_lps22df_handle_t *self, app_lps22df_config_t *config) {
 	if (sc != SL_STATUS_OK) {
 		app_log_error(
 		    "LPS22DF %s.0x%x: could not set pin interrupt" APP_LOG_NL,
-		    app_i2c_get_name(self->i2c_bus),
+		    i2c_get_instance_name(self->i2c_bus),
 		    self->address
 		);
 		return SL_STATUS_INITIALIZATION;

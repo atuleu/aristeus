@@ -31,7 +31,7 @@ uint8_t i2c_get_index(sl_peripheral_t peripheral) {
 
 #define ARRAY_SIZE(array) (sizeof(array) / sizeof((array)[0]))
 
-const char *app_i2c_get_name(sl_i2c_handle_t *instance) {
+const char *i2c_get_instance_name(sl_i2c_handle_t *instance) {
 	if (instance == NULL || instance->i2c_peripheral == NULL) {
 		return "I2C<NULL>";
 	}
@@ -71,7 +71,7 @@ static volatile bool locked[I2C_COUNT] = {
 #endif
 };
 
-sl_status_t app_i2c_claim(sl_i2c_handle_t *instance) {
+sl_status_t i2c_claim_instance(sl_i2c_handle_t *instance) {
 	if (instance == NULL) {
 		return SL_STATUS_NULL_POINTER;
 	}
@@ -91,7 +91,7 @@ sl_status_t app_i2c_claim(sl_i2c_handle_t *instance) {
 	return status;
 }
 
-sl_status_t app_i2c_unclaim(sl_i2c_handle_t *instance) {
+sl_status_t i2c_unclaim_instance(sl_i2c_handle_t *instance) {
 	if (instance == NULL) {
 		return SL_STATUS_NULL_POINTER;
 	}

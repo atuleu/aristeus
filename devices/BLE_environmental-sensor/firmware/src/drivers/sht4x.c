@@ -28,7 +28,7 @@ app_sht4x_init(app_sht4x_handle_t *self, sl_i2c_handle_t *i2c, uint8_t addr) {
 	if (result.status == SL_STATUS_OK) {
 		app_log_info(
 		    "found SHT4x device at %s.0x%x: %lx" APP_LOG_NL,
-		    app_i2c_get_name(i2c),
+		    i2c_get_instance_name(i2c),
 		    addr,
 		    result.data.serial_number
 		);
@@ -37,7 +37,7 @@ app_sht4x_init(app_sht4x_handle_t *self, sl_i2c_handle_t *i2c, uint8_t addr) {
 
 	app_log_warning(
 	    "No SHT4x device at %s.0x%x, retrying in 80ms" APP_LOG_NL,
-	    app_i2c_get_name(i2c),
+	    i2c_get_instance_name(i2c),
 	    addr
 	);
 	sl_sleeptimer_delay_millisecond(80);
@@ -46,7 +46,7 @@ app_sht4x_init(app_sht4x_handle_t *self, sl_i2c_handle_t *i2c, uint8_t addr) {
 	if (result.status != SL_STATUS_OK) {
 		app_log_error(
 		    "No SHT4x device found at %s.0x%x" APP_LOG_NL,
-		    app_i2c_get_name(i2c),
+		    i2c_get_instance_name(i2c),
 		    addr
 		);
 		return SL_STATUS_INITIALIZATION;
@@ -54,7 +54,7 @@ app_sht4x_init(app_sht4x_handle_t *self, sl_i2c_handle_t *i2c, uint8_t addr) {
 
 	app_log_info(
 	    "found SHT4x device at %s.0x%x SN:%lx" APP_LOG_NL,
-	    app_i2c_get_name(i2c),
+	    i2c_get_instance_name(i2c),
 	    addr,
 	    result.data.serial_number
 	);
@@ -66,7 +66,7 @@ void app_sht4x_bus_cleanup(app_sht4x_handle_t *self) {
 	self->callback.ptr   = NULL;
 	sl_i2c_set_transfer_complete_callback(self->i2c_bus, NULL);
 	sl_i2c_set_event_callback(self->i2c_bus, NULL);
-	app_i2c_unclaim(self->i2c_bus);
+	i2c_unclaim_instance(self->i2c_bus);
 }
 
 /// Marks the on-going command as having an error.
@@ -303,7 +303,7 @@ sl_status_t app_sht4x_send_command(
 		return SL_STATUS_NULL_POINTER;
 	}
 
-	sl_status_t status = app_i2c_claim(self->i2c_bus);
+	sl_status_t status = i2c_claim_instance(self->i2c_bus);
 
 	if (status != SL_STATUS_OK) {
 		return status;
@@ -347,7 +347,7 @@ app_sht4x_blocking_result_t app_sht4x_send_command_blocking(
     app_sht4x_handle_t *self, app_sht4x_command_e command, uint8_t read_delay_ms
 ) {
 	app_sht4x_blocking_result_t res;
-	res.status = app_i2c_claim(self->i2c_bus);
+	res.status = i2c_claim_instance(self->i2c_bus);
 	if (res.status != SL_STATUS_OK) {
 		return res;
 	}
