@@ -1,8 +1,10 @@
-#include "app_i2c_utils.h"
-#include "bgm220pc22hna.h"
-#include "sl_core.h"
-#include "sl_status.h"
 #include <stdint.h>
+
+#include <bgm220pc22hna.h>
+#include <sl_core.h>
+#include <sl_status.h>
+
+#include <drivers/i2c_utils.h>
 
 uint8_t i2c_get_index(sl_peripheral_t peripheral) {
 	switch (peripheral->base) {

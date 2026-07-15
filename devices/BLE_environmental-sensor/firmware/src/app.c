@@ -28,18 +28,24 @@
  *
  ******************************************************************************/
 #include "app.h"
-#include "app_assert.h"
-#include "app_log.h"
-#include "app_sht4x.h"
-#include "gatt_db.h"
-#include "sl_bt_api.h"
-#include "sl_i2c_instances.h"
-#include "sl_main_init.h"
-#include "sl_sleeptimer.h"
-#include "sl_status.h"
-#include "types.h"
+
 #include <stdint.h>
-#include <sys/reent.h>
+
+#include <sl_bt_api.h>
+#include <sl_i2c_instances.h>
+#include <sl_main_init.h>
+#include <sl_sleeptimer.h>
+#include <sl_status.h>
+
+#include <app_assert.h>
+#include <app_log.h>
+
+#include <gatt_db.h>
+
+#include "types.h"
+
+#include <drivers/sht4x.h>
+
 // The advertising set handle allocated from Bluetooth stack.
 static uint8_t                      advertising_set_handle = 0xff;
 static sl_sleeptimer_timer_handle_t sensor_timer;

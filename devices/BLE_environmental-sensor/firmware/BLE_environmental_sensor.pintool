@@ -7,6 +7,8 @@
     <property object="EUART0" propertyId="peripheral.name" value="vcom"/>
     <property object="I2C0" propertyId="ABModule.selectedRequirement" value="i2c%T%SL_I2C_I2C0%T%sl_i2c_i2c0_config.h"/>
     <property object="I2C0" propertyId="ABPeripheral.included" value="true"/>
+    <property object="PB01" propertyId="pin.name" value="LPS22DF_INT"/>
+    <property object="PB01" propertyId="pin.reserve" value="Reserved"/>
     <property object="PORTIO" propertyId="portio.euart0.enable.rx" value="Enabled"/>
     <property object="PORTIO" propertyId="portio.euart0.enable.tx" value="Enabled"/>
     <property object="PORTIO" propertyId="portio.euart0.location.rx" value="6"/>

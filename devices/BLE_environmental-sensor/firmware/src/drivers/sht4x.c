@@ -1,14 +1,16 @@
-#include "app_sht4x.h"
-#include "app_i2c_utils.h"
-#include "app_log.h"
-#include "crc8.h"
-#include "sl_device_peripheral.h"
-#include "sl_i2c.h"
-#include "sl_sleeptimer.h"
+#include "sht4x.h"
 
-#include "sl_status.h"
-#include "types.h"
 #include <stdint.h>
+
+#include <sl_i2c.h>
+#include <sl_sleeptimer.h>
+#include <sl_status.h>
+
+#include <app_log.h>
+
+#include "i2c_utils.h"
+#include "types.h"
+#include <utils/crc8.h>
 
 sl_status_t
 app_sht4x_init(app_sht4x_handle_t *self, sl_i2c_handle_t *i2c, uint8_t addr) {
