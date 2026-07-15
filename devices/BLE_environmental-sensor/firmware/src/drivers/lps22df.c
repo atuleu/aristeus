@@ -1,4 +1,5 @@
 
+#include "app.h"
 #include <stdint.h>
 
 #include <sl_core.h>
@@ -25,8 +26,9 @@ void _lps22df_tx_complete(lps22df_handle_t *self, sl_status_t status) {
 	self->tx_user_data = NULL;
 
 	i2c_unclaim_instance(self->i2c_bus);
-
-	cb(status, user_data);
+	if (cb != NULL) {
+		cb(status, user_data);
+	}
 }
 
 sl_status_t
@@ -65,6 +67,9 @@ sl_status_t lps22df_read(
     lps22df_tx_callback_t cb,
     void                 *user_data
 ) {
+	if (cb == NULL) {
+		return SL_STATUS_NULL_POINTER;
+	}
 
 	sl_status_t sc = i2c_claim_instance(self->i2c_bus);
 
@@ -123,6 +128,9 @@ sl_status_t lps22df_write(
 ) {
 	if (count < 2) {
 		return SL_STATUS_INVALID_COUNT;
+	}
+	if (cb == NULL) {
+		return SL_STATUS_NULL_POINTER;
 	}
 
 	sl_status_t sc = i2c_claim_instance(self->i2c_bus);
@@ -226,17 +234,44 @@ void _lps22df_oneshot_complete(
 		self->oneshot_user_data = NULL;
 	});
 
-	cb(status, pressure, user_data);
+	if (cb != NULL) {
+		cb(status, pressure, user_data);
+	}
 }
+
+#define LPS22DF_ONESHOT_MAXTRIALS 10
 
 void _lps22df_oneshot_read_cb(sl_status_t status, void *user_data) {
 	lps22df_handle_t *self = user_data;
+	CORE_DECLARE_IRQ_STATE;
+	CORE_ENTER_ATOMIC();
+	self->oneshot_reading = false;
 
 	if (status != SL_STATUS_OK) {
-		_lps22df_oneshot_complete(self, status, 0xffffffff);
+
+		if (self->oneshot_tries < LPS22DF_ONESHOT_MAXTRIALS) {
+			app_proceed();
+		} else {
+			_lps22df_oneshot_complete(self, status, 0xffffffff);
+		}
+		CORE_EXIT_ATOMIC();
 		return;
 	}
+	CORE_EXIT_ATOMIC();
 
+	// checks if the device cleared the data ready as we read the the H
+	// register.
+	bool data_ready;
+	sl_gpio_get_pin_input(self->dready, &data_ready);
+	if (data_ready == true) {
+		app_log_warning(
+		    "LPS22DF %s.0x%x has stale data, re-reading" APP_LOG_NL,
+		    i2c_get_instance_name(self->i2c_bus),
+		    self->address
+		);
+		app_proceed();
+		return;
+	}
 	int32_t pressure_data = ((uint32_t)self->read_buffer[2] << 16) |
 	                        ((uint32_t)self->read_buffer[1] << 8) |
 	                        ((uint32_t)self->read_buffer[0]);
@@ -249,32 +284,6 @@ void _lps22df_oneshot_read_cb(sl_status_t status, void *user_data) {
 	// data sensitivity is 4096 LSB/ hPA, pressure is in dPa
 	float pressure_dPa = ((float)pressure_data) / 4.096f;
 	_lps22df_oneshot_complete(self, SL_STATUS_OK, (pressure_t)pressure_dPa);
-}
-
-void _lps22df_gpio_callback(uint8_t interrupt_number, void *user_data) {
-	lps22df_handle_t *self = user_data;
-	CORE_DECLARE_IRQ_STATE;
-	CORE_ENTER_ATOMIC();
-	if (interrupt_number != self->interrupt_number ||
-	    self->oneshot_callback == NULL) {
-		// nothing to do
-		CORE_EXIT_ATOMIC();
-		return;
-	}
-	CORE_EXIT_ATOMIC();
-
-	sl_status_t sc = lps22df_read(
-	    self,
-	    0x28,
-	    3,
-	    self->read_buffer,
-	    &_lps22df_oneshot_read_cb,
-	    (void *)self
-	);
-
-	if (sc != SL_STATUS_OK) {
-		_lps22df_oneshot_complete(self, sc, 0xffffffff);
-	}
 }
 
 void _lps22df_oneshot_write_cb(sl_status_t status, void *user_data) {
@@ -290,6 +299,10 @@ void _lps22df_oneshot_write_cb(sl_status_t status, void *user_data) {
 sl_status_t lps22df_oneshot(
     lps22df_handle_t *self, lps22df_readout_callback_t cb, void *user_data
 ) {
+	if (cb == NULL) {
+		return SL_STATUS_NULL_POINTER;
+	}
+
 	CORE_DECLARE_IRQ_STATE;
 	CORE_ENTER_ATOMIC();
 	if (self->oneshot_callback != NULL || self->oneshot_user_data != NULL) {
@@ -299,6 +312,8 @@ sl_status_t lps22df_oneshot(
 
 	self->oneshot_callback  = cb;
 	self->oneshot_user_data = user_data;
+	self->oneshot_reading   = false;
+	self->oneshot_tries     = 0;
 	CORE_EXIT_ATOMIC();
 
 	static const uint8_t oneshot_command[2] = {0x11, 0x01};
@@ -335,6 +350,7 @@ sl_status_t lps22df_init(lps22df_handle_t *self, lps22df_config_t *config) {
 	self->tx_user_data      = NULL;
 	self->oneshot_callback  = NULL;
 	self->oneshot_user_data = NULL;
+	self->oneshot_reading   = true;
 
 	uint8_t     whoAmI;
 	sl_status_t sc = lps22df_read_blocking(self, 0x0f, 1, &whoAmI);
@@ -402,16 +418,12 @@ sl_status_t lps22df_init(lps22df_handle_t *self, lps22df_config_t *config) {
 		);
 		return SL_STATUS_INITIALIZATION;
 	}
-	sc = sl_gpio_configure_external_interrupt(
-	    self->dready,
-	    &self->interrupt_number,
-	    SL_GPIO_INTERRUPT_RISING_EDGE,
-	    &_lps22df_gpio_callback,
-	    self
-	);
+
+	bool dummy;
+	sc = sl_gpio_get_pin_input(self->dready, &dummy);
 	if (sc != SL_STATUS_OK) {
 		app_log_error(
-		    "LPS22DF %s.0x%x: could not set pin interrupt" APP_LOG_NL,
+		    "LPS22DF %s.0x%x: could not read pin" APP_LOG_NL,
 		    i2c_get_instance_name(self->i2c_bus),
 		    self->address
 		);
@@ -419,4 +431,46 @@ sl_status_t lps22df_init(lps22df_handle_t *self, lps22df_config_t *config) {
 	}
 
 	return SL_STATUS_OK;
+}
+
+void lps22df_process_action(lps22df_handle_t *self) {
+	CORE_DECLARE_IRQ_STATE;
+	CORE_ENTER_ATOMIC();
+	if (self->oneshot_callback == NULL || self->oneshot_reading == true) {
+		CORE_EXIT_ATOMIC();
+		return;
+	}
+	CORE_EXIT_ATOMIC();
+
+	bool data_ready;
+	sl_gpio_get_pin_input(self->dready, &data_ready);
+	if (data_ready == false) {
+		// we mark that there is sill work to be done.
+		app_proceed();
+		return;
+	}
+
+	CORE_ENTER_ATOMIC();
+	sl_status_t status = lps22df_read(
+	    self,
+	    0x28,
+	    3,
+	    self->read_buffer,
+	    &_lps22df_oneshot_read_cb,
+	    self
+	);
+	self->oneshot_tries += 1;
+	if (status != SL_STATUS_OK) {
+		// we retry on next iteration
+		if (self->oneshot_tries < LPS22DF_ONESHOT_MAXTRIALS) {
+			app_proceed();
+		} else {
+			_lps22df_oneshot_complete(self, SL_STATUS_BUS_ERROR, 0xffffffff);
+			return;
+		}
+	} else {
+		self->oneshot_reading = true;
+	}
+	CORE_EXIT_ATOMIC();
+	return;
 }

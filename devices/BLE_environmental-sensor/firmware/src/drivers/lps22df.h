@@ -64,6 +64,13 @@ typedef struct lps22df_config {
 sl_status_t lps22df_init(lps22df_handle_t *self, lps22df_config_t *config);
 
 /**
+ * Proceed with any pending operations for the LPS22DF sensor driver.  Must be
+ * called from the main loop to ensure proper handling of asynchronous
+ * operations.
+ */
+void lps22df_process_action(lps22df_handle_t *self);
+
+/**
  * Callback function type for LPS22DF read/write operations.
  *
  * @param status The status of the read/write operation.
@@ -207,6 +214,8 @@ struct lps22df_handle {
 
 	volatile lps22df_readout_callback_t oneshot_callback;
 	volatile void                      *oneshot_user_data;
+	bool                                oneshot_reading;
+	uint8_t                             oneshot_tries;
 };
 
 #ifdef __cplusplus
