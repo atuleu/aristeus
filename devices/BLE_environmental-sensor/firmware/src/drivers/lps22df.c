@@ -262,7 +262,7 @@ void _lps22df_oneshot_read_cb(sl_status_t status, void *user_data) {
 	// checks if the device cleared the data ready as we read the the H
 	// register.
 	bool data_ready;
-	sl_gpio_get_pin_input(self->dready, &data_ready);
+	sl_gpio_get_pin_input(self->data_ready_pin, &data_ready);
 	if (data_ready == true) {
 		app_log_warning(
 		    "LPS22DF %s.0x%x has stale data, re-reading" APP_LOG_NL,
@@ -338,13 +338,13 @@ sl_status_t lps22df_oneshot(
 
 sl_status_t lps22df_init(lps22df_handle_t *self, lps22df_config_t *config) {
 	if (self == NULL || config == NULL || config->i2c_bus == NULL ||
-	    config->drdy == NULL) {
+	    config->interrupt_pin == NULL) {
 		return SL_STATUS_NULL_POINTER;
 	}
 
-	self->i2c_bus = config->i2c_bus;
-	self->address = config->addrLSBSet ? 0x5d : 0x5c;
-	self->dready  = config->drdy;
+	self->i2c_bus        = config->i2c_bus;
+	self->address        = config->addrLSBSet ? 0x5d : 0x5c;
+	self->data_ready_pin = config->interrupt_pin;
 
 	self->tx_callback       = NULL;
 	self->tx_user_data      = NULL;
@@ -392,13 +392,29 @@ sl_status_t lps22df_init(lps22df_handle_t *self, lps22df_config_t *config) {
 	);
 
 	uint8_t config_buffer[5] = {
-	    0x10,
-	    config->average, // reg 0x10, oneshot mode and AVG set by user
-	    0x00,            // reg 0x11, default value, no command, idle mode
-	    0x01,            // reg 0x12: IF_ADD_INC set
-	    0x10,            // reg 0x13: DRDY on INT pint
+	    0x12, // CTRL_REG3, for first set, then CTRL_REG1 (0x10)  in second
+	          // pass.
+	    0x01, // reg 0x12, IF_ADD_INC_SET
+	    0x00, // reg 0x11, default value, no command, idle mode
+	    0x01, // reg 0x12: IF_ADD_INC set
+	    0x20, // reg 0x13: DRDY on INT pint
 	};
+	// first make sure IF_ADD_INC_SET is set, so we can read/write multiple
+	// registers in one TX.
+	sc = lps22df_write_blocking(self, 2, config_buffer);
+	if (sc != SL_STATUS_OK) {
+		app_log_error(
+		    "LPS22DF %s.0x%x: could not set IF_ADD_INC" APP_LOG_NL,
+		    i2c_get_instance_name(self->i2c_bus),
+		    self->address
+		);
+		return SL_STATUS_INITIALIZATION;
+	}
+	config_buffer[0] = 0x10; // CTRL_REG1 start;
+	config_buffer[1] =
+	    config->average; // One-shot mode, user averaging setting.
 
+	// rewrites all control register
 	sc = lps22df_write_blocking(self, sizeof(config_buffer), config_buffer);
 	if (sc != SL_STATUS_OK) {
 		app_log_error(
@@ -409,7 +425,11 @@ sl_status_t lps22df_init(lps22df_handle_t *self, lps22df_config_t *config) {
 		return SL_STATUS_INITIALIZATION;
 	}
 
-	sc = sl_gpio_set_pin_mode(self->dready, SL_GPIO_MODE_INPUT_PULL, false);
+	sc = sl_gpio_set_pin_mode(
+	    self->data_ready_pin,
+	    SL_GPIO_MODE_INPUT_PULL,
+	    false
+	);
 	if (sc != SL_STATUS_OK) {
 		app_log_error(
 		    "LPS22DF %s.0x%x: could not set  pin mode" APP_LOG_NL,
@@ -420,7 +440,7 @@ sl_status_t lps22df_init(lps22df_handle_t *self, lps22df_config_t *config) {
 	}
 
 	bool dummy;
-	sc = sl_gpio_get_pin_input(self->dready, &dummy);
+	sc = sl_gpio_get_pin_input(self->data_ready_pin, &dummy);
 	if (sc != SL_STATUS_OK) {
 		app_log_error(
 		    "LPS22DF %s.0x%x: could not read pin" APP_LOG_NL,
@@ -443,7 +463,7 @@ void lps22df_process_action(lps22df_handle_t *self) {
 	CORE_EXIT_ATOMIC();
 
 	bool data_ready;
-	sl_gpio_get_pin_input(self->dready, &data_ready);
+	sl_gpio_get_pin_input(self->data_ready_pin, &data_ready);
 	if (data_ready == false) {
 		// we mark that there is sill work to be done.
 		app_proceed();

@@ -46,7 +46,7 @@ typedef struct lps22df_config {
 	/// options.
 	lps22df_avg_t    average;
 	/// GPIO pin configured for the sensor's data ready (DRDY) interrupt.
-	sl_gpio_t       *drdy;
+	sl_gpio_t       *interrupt_pin;
 } lps22df_config_t;
 
 /**
@@ -207,7 +207,7 @@ struct lps22df_handle {
 	volatile lps22df_tx_callback_t tx_callback;
 	volatile void                 *tx_user_data;
 
-	sl_gpio_t *dready;
+	sl_gpio_t *data_ready_pin;
 	int32_t    interrupt_number;
 
 	uint8_t read_buffer[3];
