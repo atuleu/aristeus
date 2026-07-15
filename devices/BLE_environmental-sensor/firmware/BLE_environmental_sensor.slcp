@@ -6,12 +6,6 @@ description: |
 quality: production
 readme:
 - path: readme.md
-source:
-- path: src/app.c
-- path: src/drivers/sht4x.c
-- path: src/drivers/lps22df.c
-- path: src/utils/crc8.c
-- path: src/drivers/i2c_utils.c
 tag:
 - hwfilter:device:device_supports_bluetooth
 - hwfilter:device:device_series_2
@@ -19,7 +13,6 @@ include:
 - path: src
   file_list:
   - path: app.h
-  - path: types.h
 sdk:
   vendor: silabs
   id: simplicity_sdk

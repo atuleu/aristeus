@@ -14,9 +14,21 @@ include(BLE_environmental_sensor.cmake)
 
 add_executable(BLE_environmental_sensor
     # Add additional sources here
+	${PROJECT_SOURCE_DIR}/../src/app.c
+	${PROJECT_SOURCE_DIR}/../src/app.h
+	${PROJECT_SOURCE_DIR}/../src/types.h
+	${PROJECT_SOURCE_DIR}/../src/drivers/lps22hh.c
+	${PROJECT_SOURCE_DIR}/../src/drivers/lps22hh.h
+	${PROJECT_SOURCE_DIR}/../src/drivers/sht4x.c
+	${PROJECT_SOURCE_DIR}/../src/drivers/sht4x.h
+	${PROJECT_SOURCE_DIR}/../src/drivers/i2c_utils.c
+	${PROJECT_SOURCE_DIR}/../src/drivers/i2c_utils.h
+	${PROJECT_SOURCE_DIR}/../src/utils/crc8.c
+	${PROJECT_SOURCE_DIR}/../src/utils/crc8.h
 )
 
 target_include_directories(BLE_environmental_sensor PUBLIC
+	${PROJECT_SOURCE_DIR}/../src
     # Add additional include paths here
 )
 
@@ -51,7 +63,7 @@ add_custom_command(TARGET BLE_environmental_sensor
     POST_BUILD
     COMMAND ${CMAKE_OBJCOPY} ${OBJCOPY_SREC_CMD} "$<TARGET_FILE:BLE_environmental_sensor>" "$<TARGET_FILE_DIR:BLE_environmental_sensor>/$<TARGET_FILE_BASE_NAME:BLE_environmental_sensor>.s37"
     COMMAND ${CMAKE_OBJCOPY} ${OBJCOPY_IHEX_CMD} "$<TARGET_FILE:BLE_environmental_sensor>" "$<TARGET_FILE_DIR:BLE_environmental_sensor>/$<TARGET_FILE_BASE_NAME:BLE_environmental_sensor>.hex"
-    COMMAND ${CMAKE_OBJCOPY} ${OBJCOPY_BIN_CMD}  "$<TARGET_FILE:BLE_environmental_sensor>" "$<TARGET_FILE_DIR:BLE_environmental_sensor>/$<TARGET_FILE_BASE_NAME:BLE_environmental_sensor>.bin" 
+    COMMAND ${CMAKE_OBJCOPY} ${OBJCOPY_BIN_CMD}  "$<TARGET_FILE:BLE_environmental_sensor>" "$<TARGET_FILE_DIR:BLE_environmental_sensor>/$<TARGET_FILE_BASE_NAME:BLE_environmental_sensor>.bin"
 )
 
 # Run post-build pipeline to perform additional post-processing

@@ -42,6 +42,9 @@
 
 #include <gatt_db.h>
 
+#include "drivers/lps22hh.h"
+#include "pin_config.h"
+#include "sl_device_gpio.h"
 #include "types.h"
 
 #include <drivers/sht4x.h>
@@ -51,6 +54,10 @@ static uint8_t                      advertising_set_handle = 0xff;
 static sl_sleeptimer_timer_handle_t sensor_timer;
 static volatile bool                advertising = false;
 static sht4x_handle_t               sht4x_sensor;
+static const sl_gpio_t              data_ready = {
+                 .port = LPS22DF_INT_PORT, .pin = LPS22DF_INT_PIN
+};
+static lps22hh_handle_t lps22hh_sensor;
 
 static volatile data_point_t data_point;
 
@@ -58,7 +65,7 @@ sl_status_t app_set_legacy_advertiser_data(
     uint8_t advertising_set, temperature_t temperature, humidity_t humidity
 );
 
-void sensor_read_callback(
+void sht4x_read_callback(
     sl_status_t status, temperature_t temperature, humidity_t humidity
 ) {
 	if (status != SL_STATUS_OK) {
@@ -90,7 +97,7 @@ void start_sensor_readout(
 	sl_status_t s = sht4x_read_data(
 	    &sht4x_sensor,
 	    SHT4X_MEASURE_HIGH_P,
-	    &sensor_read_callback
+	    &sht4x_read_callback
 	);
 	if (s != SL_STATUS_OK) {
 		app_log_error("Could not start sensor reading: %lx" APP_LOG_NL, s);
@@ -105,20 +112,32 @@ void app_init(void) {
 	/////////////////////////////////////////////////////////////////////////////
 	sl_sleeptimer_delay_millisecond(1500);
 
-	if (sht4x_init(&sht4x_sensor, sl_i2c_i2c0_handle, SHT4X_BASE_ADDR) ==
-	    SL_STATUS_OK) {
-		sl_sleeptimer_start_periodic_timer_ms(
-		    &sensor_timer,
-		    1000,
-		    &start_sensor_readout,
-		    NULL,
-		    0,
-		    0
-		);
-		app_log_info("Started read loop" APP_LOG_NL);
-	} else {
+	sl_status_t status =
+	    sht4x_init(&sht4x_sensor, sl_i2c_i2c0_handle, SHT4X_BASE_ADDR);
+	if (status != SL_STATUS_OK) {
 		app_log_warning("No loop started" APP_LOG_NL);
+		return;
 	}
+	lps22hh_config_t config = {
+	    .i2c_bus       = sl_i2c_i2c0_handle,
+	    .addrLSBSet    = false,
+	    .interrupt_pin = &data_ready,
+	};
+	status = lps22hh_init(&lps22hh_sensor, &config);
+	if (status != SL_STATUS_OK) {
+		app_log_warning("No loop started" APP_LOG_NL);
+		return;
+	}
+
+	sl_sleeptimer_start_periodic_timer_ms(
+	    &sensor_timer,
+	    1000,
+	    &start_sensor_readout,
+	    NULL,
+	    0,
+	    0
+	);
+	app_log_info("Started read loop" APP_LOG_NL);
 }
 
 sl_status_t app_set_legacy_advertiser_data(
