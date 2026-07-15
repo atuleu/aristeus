@@ -15,9 +15,9 @@
 #include <drivers/i2c_utils.h>
 #include <drivers/lps22df.h>
 
-void app_lps22df_tx_complete(app_lps22df_handle_t *self, sl_status_t status) {
-	app_lps22df_tx_callback_t cb;
-	void                     *user_data;
+void _lps22df_tx_complete(lps22df_handle_t *self, sl_status_t status) {
+	lps22df_tx_callback_t cb;
+	void                 *user_data;
 
 	cb                 = self->tx_callback;
 	user_data          = (void *)self->tx_user_data;
@@ -30,18 +30,17 @@ void app_lps22df_tx_complete(app_lps22df_handle_t *self, sl_status_t status) {
 }
 
 sl_status_t
-app_lps22df_on_i2c_transfer_complete(sl_i2c_handle_t *i2c, void *user_data) {
+_lps22df_on_i2c_transfer_complete(sl_i2c_handle_t *i2c, void *user_data) {
 	(void)i2c;
 
-	app_lps22df_handle_t *self = user_data;
+	lps22df_handle_t *self = user_data;
 
-	app_lps22df_tx_complete(self, SL_STATUS_OK);
+	_lps22df_tx_complete(self, SL_STATUS_OK);
 	return SL_STATUS_OK;
 }
 
-sl_status_t app_lps22df_on_i2c_event(
-    sl_i2c_handle_t *i2c, sl_i2c_event_t e, void *user_data
-) {
+sl_status_t
+_lps22df_on_i2c_event(sl_i2c_handle_t *i2c, sl_i2c_event_t e, void *user_data) {
 	(void)i2c;
 
 	if (e == SL_I2C_EVENT_IN_PROGRESS || e == SL_I2C_EVENT_COMPLETED ||
@@ -49,8 +48,8 @@ sl_status_t app_lps22df_on_i2c_event(
 		return SL_STATUS_OK;
 	}
 
-	app_lps22df_handle_t *self = user_data;
-	app_lps22df_tx_complete(
+	lps22df_handle_t *self = user_data;
+	_lps22df_tx_complete(
 	    self,
 	    e == SL_I2C_EVENT_DATA_NACK ? SL_STATUS_NOT_FOUND : SL_STATUS_BUS_ERROR
 	);
@@ -58,13 +57,13 @@ sl_status_t app_lps22df_on_i2c_event(
 	return SL_STATUS_OK;
 }
 
-sl_status_t app_lps22df_read(
-    app_lps22df_handle_t     *self,
-    uint8_t                   start_reg,
-    uint8_t                   count,
-    uint8_t                  *buffer,
-    app_lps22df_tx_callback_t cb,
-    void                     *user_data
+sl_status_t lps22df_read(
+    lps22df_handle_t     *self,
+    uint8_t               start_reg,
+    uint8_t               count,
+    uint8_t              *buffer,
+    lps22df_tx_callback_t cb,
+    void                 *user_data
 ) {
 
 	sl_status_t sc = i2c_claim_instance(self->i2c_bus);
@@ -75,7 +74,7 @@ sl_status_t app_lps22df_read(
 
 	sc = sl_i2c_set_transfer_complete_callback(
 	    self->i2c_bus,
-	    &app_lps22df_on_i2c_transfer_complete
+	    &_lps22df_on_i2c_transfer_complete
 	);
 
 	if (sc != SL_STATUS_OK) {
@@ -83,7 +82,7 @@ sl_status_t app_lps22df_read(
 		return sc;
 	}
 
-	sc = sl_i2c_set_event_callback(self->i2c_bus, &app_lps22df_on_i2c_event);
+	sc = sl_i2c_set_event_callback(self->i2c_bus, &_lps22df_on_i2c_event);
 	if (sc != SL_STATUS_OK) {
 		i2c_unclaim_instance(self->i2c_bus);
 		return sc;
@@ -115,12 +114,12 @@ sl_status_t app_lps22df_read(
 	return sc;
 }
 
-sl_status_t app_lps22df_write(
-    app_lps22df_handle_t     *self,
-    uint8_t                   count,
-    const uint8_t            *buffer,
-    app_lps22df_tx_callback_t cb,
-    void                     *user_data
+sl_status_t lps22df_write(
+    lps22df_handle_t     *self,
+    uint8_t               count,
+    const uint8_t        *buffer,
+    lps22df_tx_callback_t cb,
+    void                 *user_data
 ) {
 	if (count < 2) {
 		return SL_STATUS_INVALID_COUNT;
@@ -133,14 +132,14 @@ sl_status_t app_lps22df_write(
 
 	sc = sl_i2c_set_transfer_complete_callback(
 	    self->i2c_bus,
-	    &app_lps22df_on_i2c_transfer_complete
+	    &_lps22df_on_i2c_transfer_complete
 	);
 
 	if (sc != SL_STATUS_OK) {
 		i2c_unclaim_instance(self->i2c_bus);
 		return sc;
 	}
-	sc = sl_i2c_set_event_callback(self->i2c_bus, &app_lps22df_on_i2c_event);
+	sc = sl_i2c_set_event_callback(self->i2c_bus, &_lps22df_on_i2c_event);
 	if (sc != SL_STATUS_OK) {
 		i2c_unclaim_instance(self->i2c_bus);
 		return sc;
@@ -166,11 +165,8 @@ sl_status_t app_lps22df_write(
 	return sc;
 }
 
-sl_status_t app_lps22df_read_blocking(
-    app_lps22df_handle_t *self,
-    uint8_t               start_reg,
-    uint8_t               count,
-    uint8_t              *buffer
+sl_status_t lps22df_read_blocking(
+    lps22df_handle_t *self, uint8_t start_reg, uint8_t count, uint8_t *buffer
 ) {
 	sl_status_t sc = i2c_claim_instance(self->i2c_bus);
 	if (sc != SL_STATUS_OK) {
@@ -192,8 +188,8 @@ sl_status_t app_lps22df_read_blocking(
 	return sc;
 }
 
-sl_status_t app_lps22df_write_blocking(
-    app_lps22df_handle_t *self, uint8_t count, const uint8_t *buffer
+sl_status_t lps22df_write_blocking(
+    lps22df_handle_t *self, uint8_t count, const uint8_t *buffer
 ) {
 	if (count < 2) {
 		return SL_STATUS_INVALID_COUNT;
@@ -217,11 +213,11 @@ sl_status_t app_lps22df_write_blocking(
 	return sc;
 }
 
-void app_lps22df_oneshot_complete(
-    app_lps22df_handle_t *self, sl_status_t status, pressure_t pressure
+void _lps22df_oneshot_complete(
+    lps22df_handle_t *self, sl_status_t status, pressure_t pressure
 ) {
-	app_lps22df_readout_callback_t cb;
-	void                          *user_data;
+	lps22df_readout_callback_t cb;
+	void                      *user_data;
 
 	CORE_ATOMIC_SECTION({
 		cb                      = self->oneshot_callback;
@@ -233,11 +229,11 @@ void app_lps22df_oneshot_complete(
 	cb(status, pressure, user_data);
 }
 
-void app_lps22df_oneshot_read_cb(sl_status_t status, void *user_data) {
-	app_lps22df_handle_t *self = user_data;
+void _lps22df_oneshot_read_cb(sl_status_t status, void *user_data) {
+	lps22df_handle_t *self = user_data;
 
 	if (status != SL_STATUS_OK) {
-		app_lps22df_oneshot_complete(self, status, 0xffffffff);
+		_lps22df_oneshot_complete(self, status, 0xffffffff);
 		return;
 	}
 
@@ -246,17 +242,17 @@ void app_lps22df_oneshot_read_cb(sl_status_t status, void *user_data) {
 	                        ((uint32_t)self->read_buffer[0]);
 	// data is 24bit signed in 2 complement, we do not support negative pressure
 	if ((pressure_data & 0x00800000) != 0x00) {
-		app_lps22df_oneshot_complete(self, SL_STATUS_INVALID_RANGE, 0xffffffff);
+		_lps22df_oneshot_complete(self, SL_STATUS_INVALID_RANGE, 0xffffffff);
 		return;
 	}
 
 	// data sensitivity is 4096 LSB/ hPA, pressure is in dPa
 	float pressure_dPa = ((float)pressure_data) / 4.096f;
-	app_lps22df_oneshot_complete(self, SL_STATUS_OK, (pressure_t)pressure_dPa);
+	_lps22df_oneshot_complete(self, SL_STATUS_OK, (pressure_t)pressure_dPa);
 }
 
-void gpio_callback(uint8_t interrupt_number, void *user_data) {
-	app_lps22df_handle_t *self = user_data;
+void _lps22df_gpio_callback(uint8_t interrupt_number, void *user_data) {
+	lps22df_handle_t *self = user_data;
 	CORE_DECLARE_IRQ_STATE;
 	CORE_ENTER_ATOMIC();
 	if (interrupt_number != self->interrupt_number ||
@@ -267,34 +263,32 @@ void gpio_callback(uint8_t interrupt_number, void *user_data) {
 	}
 	CORE_EXIT_ATOMIC();
 
-	sl_status_t sc = app_lps22df_read(
+	sl_status_t sc = lps22df_read(
 	    self,
 	    0x28,
 	    3,
 	    self->read_buffer,
-	    &app_lps22df_oneshot_read_cb,
+	    &_lps22df_oneshot_read_cb,
 	    (void *)self
 	);
 
 	if (sc != SL_STATUS_OK) {
-		app_lps22df_oneshot_complete(self, sc, 0xffffffff);
+		_lps22df_oneshot_complete(self, sc, 0xffffffff);
 	}
 }
 
-void app_lps22df_oneshot_write_cb(sl_status_t status, void *user_data) {
+void _lps22df_oneshot_write_cb(sl_status_t status, void *user_data) {
 	if (status == SL_STATUS_OK) {
 		// nothing todo, waiting INT.
 		return;
 	}
 	// we could not write the command, terminate the async call
-	app_lps22df_handle_t *self = user_data;
-	app_lps22df_oneshot_complete(self, status, 0xffffffff);
+	lps22df_handle_t *self = user_data;
+	_lps22df_oneshot_complete(self, status, 0xffffffff);
 }
 
-sl_status_t app_lps22df_oneshot(
-    app_lps22df_handle_t          *self,
-    app_lps22df_readout_callback_t cb,
-    void                          *user_data
+sl_status_t lps22df_oneshot(
+    lps22df_handle_t *self, lps22df_readout_callback_t cb, void *user_data
 ) {
 	CORE_DECLARE_IRQ_STATE;
 	CORE_ENTER_ATOMIC();
@@ -309,11 +303,11 @@ sl_status_t app_lps22df_oneshot(
 
 	static const uint8_t oneshot_command[2] = {0x11, 0x01};
 
-	sl_status_t s = app_lps22df_write(
+	sl_status_t s = lps22df_write(
 	    self,
 	    2,
 	    oneshot_command,
-	    &app_lps22df_oneshot_write_cb,
+	    &_lps22df_oneshot_write_cb,
 	    self
 	);
 
@@ -327,8 +321,7 @@ sl_status_t app_lps22df_oneshot(
 	return s;
 }
 
-sl_status_t
-app_lps22df_init(app_lps22df_handle_t *self, app_lps22df_config_t *config) {
+sl_status_t lps22df_init(lps22df_handle_t *self, lps22df_config_t *config) {
 	if (self == NULL || config == NULL || config->i2c_bus == NULL ||
 	    config->drdy == NULL) {
 		return SL_STATUS_NULL_POINTER;
@@ -344,7 +337,7 @@ app_lps22df_init(app_lps22df_handle_t *self, app_lps22df_config_t *config) {
 	self->oneshot_user_data = NULL;
 
 	uint8_t     whoAmI;
-	sl_status_t sc = app_lps22df_read_blocking(self, 0x0f, 1, &whoAmI);
+	sl_status_t sc = lps22df_read_blocking(self, 0x0f, 1, &whoAmI);
 	if (sc != SL_STATUS_OK) {
 		app_log_warning(
 		    "No LPS22DF devices at %s.0x%x found, retrying in 80ms" APP_LOG_NL,
@@ -353,7 +346,7 @@ app_lps22df_init(app_lps22df_handle_t *self, app_lps22df_config_t *config) {
 		);
 
 		sl_sleeptimer_delay_millisecond(80);
-		sc = app_lps22df_read_blocking(self, 0x0f, 1, &whoAmI);
+		sc = lps22df_read_blocking(self, 0x0f, 1, &whoAmI);
 
 		if (sc != SL_STATUS_OK) {
 			app_log_error(
@@ -390,7 +383,7 @@ app_lps22df_init(app_lps22df_handle_t *self, app_lps22df_config_t *config) {
 	    0x10,            // reg 0x13: DRDY on INT pint
 	};
 
-	sc = app_lps22df_write_blocking(self, sizeof(config_buffer), config_buffer);
+	sc = lps22df_write_blocking(self, sizeof(config_buffer), config_buffer);
 	if (sc != SL_STATUS_OK) {
 		app_log_error(
 		    "LPS22DF %s.0x%x: could not set config" APP_LOG_NL,
@@ -413,7 +406,7 @@ app_lps22df_init(app_lps22df_handle_t *self, app_lps22df_config_t *config) {
 	    self->dready,
 	    &self->interrupt_number,
 	    SL_GPIO_INTERRUPT_RISING_EDGE,
-	    &gpio_callback,
+	    &_lps22df_gpio_callback,
 	    self
 	);
 	if (sc != SL_STATUS_OK) {
