@@ -44,26 +44,65 @@
 
 #include "drivers/lps22hh.h"
 #include "pin_config.h"
+#include "sl_core.h"
 #include "sl_device_gpio.h"
 #include "types.h"
 
 #include <drivers/sht4x.h>
 
-// The advertising set handle allocated from Bluetooth stack.
-static uint8_t                      advertising_set_handle = 0xff;
-static sl_sleeptimer_timer_handle_t sensor_timer;
-static volatile bool                advertising = false;
-static sht4x_handle_t               sht4x_sensor;
-static const sl_gpio_t              data_ready = {
-                 .port = LPS22DF_INT_PORT, .pin = LPS22DF_INT_PIN
-};
-static lps22hh_handle_t lps22hh_sensor;
+typedef struct app_handle {
+	uint8_t                      advertising_set_handle;
+	sl_sleeptimer_timer_handle_t sensor_timer;
+	volatile bool                is_advertising;
+	sht4x_handle_t               sht4x_sensor;
+	const sl_gpio_t              data_ready;
+	lps22hh_handle_t             lps22hh_sensor;
 
-static volatile data_point_t data_point;
+	volatile data_point_t current_data_point;
+	volatile bool         new_sht4x_data;
+	volatile bool         new_lps22hh_data;
+
+} app_handle_t;
+
+static app_handle_t app = {
+    .advertising_set_handle = 0xff,
+    .is_advertising         = false,
+    .data_ready = {.port = LPS22DF_INT_PORT, .pin = LPS22DF_INT_PIN},
+    .current_data_point =
+        {.date        = 0,
+         .temperature = 0xffff,
+         .humidity    = 0xffff,
+         .pressure    = 0xffffffff,
+         .c02         = 0xffff},
+    .new_lps22hh_data = false,
+    .new_sht4x_data   = false
+};
+
+// The advertising set handle allocated from Bluetooth stack.
 
 sl_status_t app_set_legacy_advertiser_data(
     uint8_t advertising_set, temperature_t temperature, humidity_t humidity
 );
+
+void lps22h_read_callback(
+    sl_status_t status, pressure_t pressure, void *user_data
+) {
+	(void)user_data;
+	if (status != SL_STATUS_OK) {
+		app_log_warning("Could not read pressure: 0x%03lx" APP_LOG_NL, status);
+		return;
+	}
+	app_log_info(
+	    "Got pressure %ld.%03ld" APP_LOG_NL,
+	    pressure / 1000,
+	    pressure % 1000
+	);
+	CORE_ATOMIC_SECTION({
+		app.current_data_point.pressure = pressure;
+		app.new_lps22hh_data            = true;
+	});
+	app_proceed();
+}
 
 void sht4x_read_callback(
     sl_status_t status, temperature_t temperature, humidity_t humidity
@@ -79,11 +118,16 @@ void sht4x_read_callback(
 	    humidity / 10,
 	    humidity % 10
 	);
-	data_point.temperature = temperature;
-	data_point.humidity    = humidity;
+	CORE_ATOMIC_SECTION({
+		app.current_data_point.temperature = temperature;
+		app.current_data_point.humidity    = humidity;
+		app.new_sht4x_data                 = true;
+	});
 
 	// we need to do something
 	app_proceed();
+
+	lps22hh_oneshot(&app.lps22hh_sensor, &lps22h_read_callback, NULL);
 }
 
 void start_sensor_readout(
@@ -92,10 +136,10 @@ void start_sensor_readout(
 	(void)timer;
 	(void)user_data;
 
-	data_point.date = sl_sleeptimer_get_time();
+	app.current_data_point.date = sl_sleeptimer_get_time();
 
 	sl_status_t s = sht4x_read_data(
-	    &sht4x_sensor,
+	    &app.sht4x_sensor,
 	    SHT4X_MEASURE_HIGH_P,
 	    &sht4x_read_callback
 	);
@@ -113,7 +157,7 @@ void app_init(void) {
 	sl_sleeptimer_delay_millisecond(1500);
 
 	sl_status_t status =
-	    sht4x_init(&sht4x_sensor, sl_i2c_i2c0_handle, SHT4X_BASE_ADDR);
+	    sht4x_init(&app.sht4x_sensor, sl_i2c_i2c0_handle, SHT4X_BASE_ADDR);
 	if (status != SL_STATUS_OK) {
 		app_log_warning("No loop started" APP_LOG_NL);
 		return;
@@ -121,16 +165,16 @@ void app_init(void) {
 	lps22hh_config_t config = {
 	    .i2c_bus       = sl_i2c_i2c0_handle,
 	    .addrLSBSet    = false,
-	    .interrupt_pin = &data_ready,
+	    .interrupt_pin = &app.data_ready,
 	};
-	status = lps22hh_init(&lps22hh_sensor, &config);
+	status = lps22hh_init(&app.lps22hh_sensor, &config);
 	if (status != SL_STATUS_OK) {
 		app_log_warning("No loop started" APP_LOG_NL);
 		return;
 	}
 
 	sl_sleeptimer_start_periodic_timer_ms(
-	    &sensor_timer,
+	    &app.sensor_timer,
 	    1000,
 	    &start_sensor_readout,
 	    NULL,
@@ -216,17 +260,31 @@ void app_process_action(void) {
 	if (app_is_process_required() == false) {
 		return;
 	}
+
+	lps22hh_process_action(&app.lps22hh_sensor);
+
+	bool need_update;
+	CORE_ATOMIC_SECTION({
+		need_update          = app.new_lps22hh_data || app.new_sht4x_data;
+		app.new_lps22hh_data = false;
+		app.new_sht4x_data   = false;
+	});
+
+	if (need_update == false) {
+		return;
+	}
+
 	/////////////////////////////////////////////////////////////////////////////
 	// Put your additional application code here! This is will run each time
 	// app_proceed() is called.
 	//
 	// Do not call blocking functions from here!
 	/////////////////////////////////////////////////////////////////////////////
-	if (advertising == true) {
+	if (app.is_advertising == true) {
 		sl_status_t sc = app_set_legacy_advertiser_data(
-		    advertising_set_handle,
-		    data_point.temperature,
-		    data_point.humidity
+		    app.advertising_set_handle,
+		    app.current_data_point.temperature,
+		    app.current_data_point.humidity
 		);
 		app_assert_status_f(sc);
 	}
@@ -247,13 +305,13 @@ void sl_bt_on_event(sl_bt_msg_t *evt) {
 	// Do not call any stack command before receiving this boot event!
 	case sl_bt_evt_system_boot_id:
 		// Create an advertising set.
-		sc = sl_bt_advertiser_create_set(&advertising_set_handle);
+		sc = sl_bt_advertiser_create_set(&app.advertising_set_handle);
 
 		app_assert_status(sc);
 
 		// Generate data for advertising
 		sc = app_set_legacy_advertiser_data(
-		    advertising_set_handle,
+		    app.advertising_set_handle,
 		    0xffff,
 		    0xffff
 		);
@@ -261,7 +319,7 @@ void sl_bt_on_event(sl_bt_msg_t *evt) {
 
 		// Set advertising interval to 100ms.
 		sc = sl_bt_advertiser_set_timing(
-		    advertising_set_handle,
+		    app.advertising_set_handle,
 		    160, // min. adv. interval (milliseconds / 1.6)
 		    160, // max. adv. interval (milliseconds / 1.6)
 		    0,   // adv. duration
@@ -270,10 +328,10 @@ void sl_bt_on_event(sl_bt_msg_t *evt) {
 		app_assert_status(sc);
 		// Start advertising and enable connections.
 		sc = sl_bt_legacy_advertiser_start(
-		    advertising_set_handle,
+		    app.advertising_set_handle,
 		    sl_bt_legacy_advertiser_connectable
 		);
-		advertising = true;
+		app.is_advertising = true;
 		app_assert_status(sc);
 		break;
 
@@ -281,7 +339,7 @@ void sl_bt_on_event(sl_bt_msg_t *evt) {
 	// This event indicates that a new connection was opened.
 	case sl_bt_evt_connection_opened_id:
 		app_log_info("connected" APP_LOG_NL);
-		advertising = false;
+		app.is_advertising = false;
 		break;
 
 	// -------------------------------
@@ -290,7 +348,7 @@ void sl_bt_on_event(sl_bt_msg_t *evt) {
 		app_log_info("disconnected" APP_LOG_NL);
 		// Generate data for advertising
 		sc = app_set_legacy_advertiser_data(
-		    advertising_set_handle,
+		    app.advertising_set_handle,
 		    0xffff,
 		    0xffff
 		);
@@ -299,10 +357,10 @@ void sl_bt_on_event(sl_bt_msg_t *evt) {
 
 		// Restart advertising after client has disconnected.
 		sc = sl_bt_legacy_advertiser_start(
-		    advertising_set_handle,
+		    app.advertising_set_handle,
 		    sl_bt_legacy_advertiser_connectable
 		);
-		advertising = true;
+		app.is_advertising = true;
 		app_assert_status(sc);
 		break;
 

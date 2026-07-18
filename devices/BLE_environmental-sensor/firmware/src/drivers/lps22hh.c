@@ -20,10 +20,12 @@ void _lps22hh_tx_complete(lps22hh_handle_t *self, sl_status_t status) {
 	lps22hh_tx_callback_t cb;
 	void                 *user_data;
 
-	cb                 = self->tx_callback;
-	user_data          = (void *)self->tx_user_data;
-	self->tx_callback  = NULL;
-	self->tx_user_data = NULL;
+	CORE_ATOMIC_SECTION({
+		cb                 = self->tx_callback;
+		user_data          = (void *)self->tx_user_data;
+		self->tx_callback  = NULL;
+		self->tx_user_data = NULL;
+	});
 
 	i2c_unclaim_instance(self->i2c_bus);
 	if (cb != NULL) {
@@ -67,13 +69,28 @@ sl_status_t lps22hh_read(
     lps22hh_tx_callback_t cb,
     void                 *user_data
 ) {
-	if (cb == NULL) {
+
+	if (self == NULL || cb == NULL) {
 		return SL_STATUS_NULL_POINTER;
 	}
+
+	CORE_DECLARE_IRQ_STATE;
+	CORE_ENTER_ATOMIC();
+	if (self->tx_callback != NULL) {
+		CORE_EXIT_ATOMIC();
+		return SL_STATUS_BUSY;
+	}
+	self->tx_callback  = cb;
+	self->tx_user_data = user_data;
+	CORE_EXIT_ATOMIC();
 
 	sl_status_t sc = i2c_claim_instance(self->i2c_bus);
 
 	if (sc != SL_STATUS_OK) {
+		CORE_ENTER_ATOMIC();
+		self->tx_callback  = NULL;
+		self->tx_user_data = NULL;
+		CORE_EXIT_ATOMIC();
 		return sc;
 	}
 
@@ -84,17 +101,23 @@ sl_status_t lps22hh_read(
 
 	if (sc != SL_STATUS_OK) {
 		i2c_unclaim_instance(self->i2c_bus);
+		CORE_ENTER_ATOMIC();
+		self->tx_callback  = NULL;
+		self->tx_user_data = NULL;
+		CORE_EXIT_ATOMIC();
 		return sc;
 	}
 
 	sc = sl_i2c_set_event_callback(self->i2c_bus, &_lps22hh_on_i2c_event);
 	if (sc != SL_STATUS_OK) {
+
+		CORE_ENTER_ATOMIC();
+		self->tx_callback  = NULL;
+		self->tx_user_data = NULL;
+		CORE_EXIT_ATOMIC();
 		i2c_unclaim_instance(self->i2c_bus);
 		return sc;
 	}
-
-	self->tx_callback  = cb;
-	self->tx_user_data = user_data;
 
 	self->reg_address_buffer = start_reg;
 
@@ -109,10 +132,11 @@ sl_status_t lps22hh_read(
 	);
 
 	if (sc != SL_STATUS_OK) {
+		CORE_ENTER_ATOMIC();
 		self->tx_callback  = NULL;
 		self->tx_user_data = NULL;
+		CORE_EXIT_ATOMIC();
 		i2c_unclaim_instance(self->i2c_bus);
-
 		return sc;
 	}
 
@@ -129,12 +153,27 @@ sl_status_t lps22hh_write(
 	if (count < 2) {
 		return SL_STATUS_INVALID_COUNT;
 	}
-	if (cb == NULL) {
+	if (self == NULL || cb == NULL) {
 		return SL_STATUS_NULL_POINTER;
 	}
 
+	CORE_DECLARE_IRQ_STATE;
+	CORE_ENTER_ATOMIC();
+	if (self->tx_callback != NULL) {
+		CORE_EXIT_ATOMIC();
+		return SL_STATUS_BUSY;
+	}
+	self->tx_callback  = cb;
+	self->tx_user_data = user_data;
+	CORE_EXIT_ATOMIC();
+
 	sl_status_t sc = i2c_claim_instance(self->i2c_bus);
 	if (sc != SL_STATUS_OK) {
+		CORE_ENTER_ATOMIC();
+		self->tx_callback  = NULL;
+		self->tx_user_data = NULL;
+		CORE_EXIT_ATOMIC();
+
 		return sc;
 	}
 
@@ -144,11 +183,19 @@ sl_status_t lps22hh_write(
 	);
 
 	if (sc != SL_STATUS_OK) {
+		CORE_ENTER_ATOMIC();
+		self->tx_callback  = NULL;
+		self->tx_user_data = NULL;
+		CORE_EXIT_ATOMIC();
 		i2c_unclaim_instance(self->i2c_bus);
 		return sc;
 	}
 	sc = sl_i2c_set_event_callback(self->i2c_bus, &_lps22hh_on_i2c_event);
 	if (sc != SL_STATUS_OK) {
+		CORE_ENTER_ATOMIC();
+		self->tx_callback  = NULL;
+		self->tx_user_data = NULL;
+		CORE_EXIT_ATOMIC();
 		i2c_unclaim_instance(self->i2c_bus);
 		return sc;
 	}
@@ -164,10 +211,11 @@ sl_status_t lps22hh_write(
 	    (void *)self
 	);
 	if (sc != SL_STATUS_OK) {
-		i2c_unclaim_instance(self->i2c_bus);
+		CORE_ENTER_ATOMIC();
 		self->tx_callback  = NULL;
 		self->tx_user_data = NULL;
-
+		CORE_EXIT_ATOMIC();
+		i2c_unclaim_instance(self->i2c_bus);
 		return sc;
 	}
 	return sc;
@@ -316,7 +364,7 @@ sl_status_t lps22hh_oneshot(
 	self->oneshot_tries     = 0;
 	CORE_EXIT_ATOMIC();
 
-	static const uint8_t oneshot_command[2] = {0x11, 0x01};
+	static const uint8_t oneshot_command[2] = {0x11, 0x11};
 
 	sl_status_t s = lps22hh_write(
 	    self,
