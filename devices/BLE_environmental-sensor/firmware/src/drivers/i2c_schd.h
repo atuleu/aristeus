@@ -57,6 +57,8 @@ SL_ENUM(i2c_tx_status_t){
     I2C_TX_TIMEOUT,            /// Transaction timeouted
 };
 
+sl_status_t i2c_tx_status_map(i2c_tx_status_t);
+
 /**
  * @brief Callback type for I2C transmission operations.
  *

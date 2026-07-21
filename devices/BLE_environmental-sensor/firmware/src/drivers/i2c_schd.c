@@ -281,6 +281,23 @@ _i2c_schd_on_i2c_complete(sl_i2c_handle_t *i2c_bus, void *user_data) {
 	return SL_STATUS_OK;
 }
 
+sl_status_t i2c_tx_status_map(i2c_tx_status_t status) {
+	switch (status) {
+	case I2C_TX_OK:
+		return SL_STATUS_OK;
+	case I2C_TX_PARAMETER_ERROR:
+		return SL_STATUS_INVALID_PARAMETER;
+	case I2C_TX_FOLLOWER_ACK_ERROR:
+		return SL_STATUS_NOT_FOUND;
+	case I2C_TX_BUS_ERROR:
+		return SL_STATUS_TRANSMIT;
+	case I2C_TX_TIMEOUT:
+		return SL_STATUS_TIMEOUT;
+	default:
+		return SL_STATUS_FAIL;
+	}
+}
+
 sl_status_t _i2c_schd_on_i2c_event(
     sl_i2c_handle_t *i2c_bus, sl_i2c_event_t e, void *user_data
 ) {

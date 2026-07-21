@@ -9,6 +9,7 @@
 #include <app_log.h>
 
 #include "drivers/i2c_schd.h"
+#include "sl_core.h"
 #include "types.h"
 #include <utils/crc8.h>
 
@@ -61,16 +62,17 @@ sht4x_init(sht4x_handle_t *self, i2c_schd_handle_t *i2c, uint8_t addr) {
 	return SL_STATUS_OK;
 }
 
-void _sht4x_bus_cleanup(sht4x_handle_t *self) {
-	self->command_buffer = 0;
-	self->callback.ptr   = NULL;
-}
-
 /// Marks the on-going command as having an error.
 void _sht4x_error_cmd(sht4x_handle_t *self, sl_status_t status) {
-	uint8_t          command  = self->command_buffer;
-	sht4x_callback_u callback = self->callback;
-	_sht4x_bus_cleanup(self);
+	uint8_t          command;
+	sht4x_callback_u callback;
+
+	CORE_ATOMIC_SECTION({
+		command              = self->command_buffer;
+		callback             = self->callback;
+		self->command_buffer = 0;
+		self->callback.ptr   = NULL;
+	});
 
 	if (callback.ptr == NULL) {
 		app_log_error("NULL callback in SHT4x driver async error" APP_LOG_NL);
@@ -91,11 +93,15 @@ void _sht4x_error_cmd(sht4x_handle_t *self, sl_status_t status) {
 
 /// Marks the on-going command as completed succesfully.
 void _sht4x_complete_cmd(sht4x_handle_t *self, sht4x_blocking_result_t *res) {
-	uint8_t          command  = self->command_buffer;
-	sht4x_callback_u callback = self->callback;
+	uint8_t          command;
+	sht4x_callback_u callback;
 
-	_sht4x_bus_cleanup(self);
-	self->callback.ptr = NULL;
+	CORE_ATOMIC_SECTION({
+		command              = self->command_buffer;
+		callback             = self->callback;
+		self->command_buffer = 0;
+		self->callback.ptr   = NULL;
+	});
 
 	if (callback.ptr == NULL) {
 		app_log_error("NULL callback in SHT4x driver async complete" APP_LOG_NL
@@ -185,12 +191,11 @@ void _sht4x_on_i2c_read_complete(
 	(void)len;
 	sht4x_handle_t         *self = user_data;
 	sht4x_blocking_result_t res;
-	if (status == I2C_TX_OK) {
-		res.status = SL_STATUS_OK;
-	} else {
-		res.status = SL_STATUS_BUS_ERROR;
+	res.status = i2c_tx_status_map(status);
+	if (status != I2C_TX_OK) {
+		_sht4x_error_cmd(self, res.status);
+		return;
 	}
-
 	_sht4x_parse_data(self, &res);
 	// note parse data may have failed the error for invalid (partial) data.
 	_sht4x_complete_cmd(self, &res);
@@ -202,11 +207,17 @@ void _sht4x_on_timer_timeout(
     sl_sleeptimer_timer_handle_t *handle, void *user_data
 ) {
 	(void)handle;
-	sht4x_handle_t *self = user_data;
+	sht4x_handle_t  *self = user_data;
+	uint8_t          command;
+	sht4x_callback_u callback;
+	CORE_ATOMIC_SECTION({ command = self->command_buffer; });
 
-	if (self->command_buffer == SHT4X_SOFT_RESET) {
-		sht4x_callback_u callback = self->callback;
-		_sht4x_bus_cleanup(self);
+	if (command == SHT4X_SOFT_RESET) {
+		CORE_ATOMIC_SECTION({
+			callback             = self->callback;
+			self->command_buffer = 0;
+			self->callback.ptr   = NULL;
+		});
 		callback.soft_reset(SL_STATUS_OK);
 		return;
 	}
@@ -292,21 +303,31 @@ sl_status_t _sht4x_send_command(
 		return SL_STATUS_NULL_POINTER;
 	}
 
+	CORE_DECLARE_IRQ_STATE;
+	CORE_ENTER_ATOMIC();
+	if (self->command_buffer != 0) {
+		CORE_EXIT_ATOMIC();
+		return SL_STATUS_BUSY;
+	}
 	self->command_buffer = command;
 	self->read_delay_ms  = read_delay_ms;
 	self->callback.ptr   = callback;
-	sl_status_t status   = i2c_schd_send(
-        self->i2c_bus,
-        self->address,
-        &self->command_buffer,
-        1,
-        &_sht4x_on_i2c_write_complete,
-        self
-    );
+	CORE_EXIT_ATOMIC();
+
+	sl_status_t status = i2c_schd_send(
+	    self->i2c_bus,
+	    self->address,
+	    &self->command_buffer,
+	    1,
+	    &_sht4x_on_i2c_write_complete,
+	    self
+	);
 	if (status != SL_STATUS_OK) {
 		app_log_debug("Could not write command: 0x%04lX" APP_LOG_NL, status);
-		_sht4x_bus_cleanup(self);
-		self->callback.ptr = NULL;
+		CORE_ENTER_ATOMIC();
+		self->command_buffer = 0;
+		self->callback.ptr   = NULL;
+		CORE_EXIT_ATOMIC();
 	}
 
 	return status;
@@ -326,7 +347,7 @@ sht4x_blocking_result_t sht4x_send_command_blocking(
         1
     );
 	if (res.status != SL_STATUS_OK) {
-		_sht4x_bus_cleanup(self);
+		self->command_buffer = 0;
 		return res;
 	}
 	sl_sleeptimer_delay_millisecond(read_delay_ms);
@@ -337,11 +358,11 @@ sht4x_blocking_result_t sht4x_send_command_blocking(
 	    6
 	);
 	if (res.status != SL_STATUS_OK) {
-		_sht4x_bus_cleanup(self);
+		self->command_buffer = 0;
 		return res;
 	}
 	_sht4x_parse_data(self, &res);
-	_sht4x_bus_cleanup(self);
+	self->command_buffer = 0;
 	return res;
 }
 

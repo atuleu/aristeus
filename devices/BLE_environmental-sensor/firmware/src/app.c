@@ -147,7 +147,7 @@ void start_sensor_readout(
 	    &sht4x_read_callback
 	);
 	if (s != SL_STATUS_OK) {
-		app_log_error("Could not start sensor reading: %lx" APP_LOG_NL, s);
+		app_log_error("Could not start sensor reading: 0x%04lX" APP_LOG_NL, s);
 	}
 };
 
@@ -157,7 +157,6 @@ void app_init(void) {
 	// Put your additional application init code here! // This is called once
 	// during start-up.                                    //
 	/////////////////////////////////////////////////////////////////////////////
-	sl_sleeptimer_delay_millisecond(1500);
 
 	sl_status_t status = i2c_schd_init(&app.i2c0, sl_i2c_i2c0_handle);
 	app_assert_status(status);
