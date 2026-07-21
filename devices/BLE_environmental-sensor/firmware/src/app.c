@@ -108,8 +108,12 @@ void lps22h_read_callback(
 }
 
 void sht4x_read_callback(
-    sl_status_t status, temperature_t temperature, humidity_t humidity
+    sl_status_t   status,
+    temperature_t temperature,
+    humidity_t    humidity,
+    void         *user_data
 ) {
+	(void)user_data;
 	if (status != SL_STATUS_OK) {
 		app_log_warning("Sensor readout failure: 0x%04lX" APP_LOG_NL, status);
 		return;
@@ -144,7 +148,8 @@ void start_sensor_readout(
 	sl_status_t s = sht4x_read_data(
 	    &app.sht4x_sensor,
 	    SHT4X_MEASURE_HIGH_P,
-	    &sht4x_read_callback
+	    &sht4x_read_callback,
+	    NULL
 	);
 	if (s != SL_STATUS_OK) {
 		app_log_error("Could not start sensor reading: 0x%04lX" APP_LOG_NL, s);

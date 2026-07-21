@@ -46,7 +46,7 @@ sht4x_init(sht4x_handle_t *self, i2c_schd_handle_t *i2c, uint8_t addr);
  * failed.
  */
 typedef void (*sht4x_read_serial_number_callback_t)(
-    sl_status_t status, uint32_t serial
+    sl_status_t status, uint32_t serial, void *user_data
 );
 
 /**
@@ -60,7 +60,9 @@ typedef void (*sht4x_read_serial_number_callback_t)(
  *         code otherwise.
  */
 sl_status_t sht4x_read_serial_number(
-    sht4x_handle_t *self, sht4x_read_serial_number_callback_t cb
+    sht4x_handle_t                     *self,
+    sht4x_read_serial_number_callback_t cb,
+    void                               *user_data
 );
 
 /**
@@ -77,7 +79,10 @@ sl_status_t sht4x_read_serial_number(
  *
  */
 typedef void (*sht4x_read_data_callback_t)(
-    sl_status_t status, temperature_t temperature, humidity_t humidity
+    sl_status_t   status,
+    temperature_t temperature,
+    humidity_t    humidity,
+    void         *user_data
 );
 
 /**
@@ -95,7 +100,8 @@ typedef void (*sht4x_read_data_callback_t)(
 sl_status_t sht4x_read_data(
     sht4x_handle_t            *self,
     sht4x_command_e            type,
-    sht4x_read_data_callback_t callback
+    sht4x_read_data_callback_t callback,
+    void                      *user_data
 );
 
 /**
@@ -105,7 +111,9 @@ sl_status_t sht4x_read_data(
  *        reset operation was successful. Otherwise, an error code indicating
  *        the failure reason.
  */
-typedef void (*sht4x_soft_reset_callback_t)(sl_status_t);
+typedef void (*sht4x_soft_reset_callback_t)(
+    sl_status_t status, void *user_data
+);
 
 /**
  * Asynchronously perform a soft reset on the SHT4x sensor.
@@ -117,8 +125,9 @@ typedef void (*sht4x_soft_reset_callback_t)(sl_status_t);
  * @return SL_STATUS_OK if the soft reset operation was initiated successfully,
  *         error code otherwise.
  */
-sl_status_t
-sht4x_soft_reset(sht4x_handle_t *self, sht4x_soft_reset_callback_t cb);
+sl_status_t sht4x_soft_reset(
+    sht4x_handle_t *self, sht4x_soft_reset_callback_t cb, void *user_data
+);
 
 /**
  * Synchronously perform a soft reset on the SHT4x sensor.
@@ -225,6 +234,7 @@ struct sht4x_handle {
 	sl_sleeptimer_timer_handle_t timer;
 
 	sht4x_callback_u callback;
+	void            *user_data;
 };
 
 #ifdef __cplusplus

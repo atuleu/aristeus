@@ -66,12 +66,14 @@ sht4x_init(sht4x_handle_t *self, i2c_schd_handle_t *i2c, uint8_t addr) {
 void _sht4x_error_cmd(sht4x_handle_t *self, sl_status_t status) {
 	uint8_t          command;
 	sht4x_callback_u callback;
-
+	void            *user_data;
 	CORE_ATOMIC_SECTION({
 		command              = self->command_buffer;
 		callback             = self->callback;
+		user_data            = self->user_data;
 		self->command_buffer = 0;
 		self->callback.ptr   = NULL;
+		self->user_data      = NULL;
 	});
 
 	if (callback.ptr == NULL) {
@@ -81,13 +83,13 @@ void _sht4x_error_cmd(sht4x_handle_t *self, sl_status_t status) {
 
 	switch (command) {
 	case SHT4X_READ_SERIAL_NUMBER:
-		callback.serial_number(status, -1);
+		callback.serial_number(status, -1, user_data);
 		break;
 	case SHT4X_SOFT_RESET:
-		callback.soft_reset(status);
+		callback.soft_reset(status, user_data);
 		break;
 	default:
-		callback.data(status, 0xffff, 0xffff);
+		callback.data(status, 0xffff, 0xffff, user_data);
 	}
 }
 
@@ -95,12 +97,14 @@ void _sht4x_error_cmd(sht4x_handle_t *self, sl_status_t status) {
 void _sht4x_complete_cmd(sht4x_handle_t *self, sht4x_blocking_result_t *res) {
 	uint8_t          command;
 	sht4x_callback_u callback;
-
+	void            *user_data;
 	CORE_ATOMIC_SECTION({
 		command              = self->command_buffer;
 		callback             = self->callback;
+		user_data            = self->user_data;
 		self->command_buffer = 0;
 		self->callback.ptr   = NULL;
+		self->user_data      = NULL;
 	});
 
 	if (callback.ptr == NULL) {
@@ -111,16 +115,17 @@ void _sht4x_complete_cmd(sht4x_handle_t *self, sht4x_blocking_result_t *res) {
 
 	switch (command) {
 	case SHT4X_READ_SERIAL_NUMBER:
-		callback.serial_number(res->status, res->data.serial_number);
+		callback.serial_number(res->status, res->data.serial_number, user_data);
 		break;
 	case SHT4X_SOFT_RESET:
-		callback.soft_reset(res->status);
+		callback.soft_reset(res->status, user_data);
 		break;
 	default:
 		callback.data(
 		    res->status,
 		    res->data.th_readout.temperature,
-		    res->data.th_readout.humidity
+		    res->data.th_readout.humidity,
+		    user_data
 		);
 	}
 }
@@ -210,15 +215,18 @@ void _sht4x_on_timer_timeout(
 	sht4x_handle_t  *self = user_data;
 	uint8_t          command;
 	sht4x_callback_u callback;
+
 	CORE_ATOMIC_SECTION({ command = self->command_buffer; });
 
 	if (command == SHT4X_SOFT_RESET) {
 		CORE_ATOMIC_SECTION({
 			callback             = self->callback;
+			user_data            = self->user_data;
 			self->command_buffer = 0;
 			self->callback.ptr   = NULL;
+			self->user_data      = NULL;
 		});
-		callback.soft_reset(SL_STATUS_OK);
+		callback.soft_reset(SL_STATUS_OK, user_data);
 		return;
 	}
 
@@ -297,7 +305,8 @@ sl_status_t _sht4x_send_command(
     sht4x_handle_t *self,
     sht4x_command_e command,
     uint8_t         read_delay_ms,
-    void           *callback
+    void           *callback,
+    void           *user_data
 ) {
 	if (callback == NULL) {
 		return SL_STATUS_NULL_POINTER;
@@ -312,6 +321,7 @@ sl_status_t _sht4x_send_command(
 	self->command_buffer = command;
 	self->read_delay_ms  = read_delay_ms;
 	self->callback.ptr   = callback;
+	self->user_data      = user_data;
 	CORE_EXIT_ATOMIC();
 
 	sl_status_t status = i2c_schd_send(
@@ -327,6 +337,7 @@ sl_status_t _sht4x_send_command(
 		CORE_ENTER_ATOMIC();
 		self->command_buffer = 0;
 		self->callback.ptr   = NULL;
+		self->user_data      = NULL;
 		CORE_EXIT_ATOMIC();
 	}
 
@@ -367,9 +378,17 @@ sht4x_blocking_result_t sht4x_send_command_blocking(
 }
 
 sl_status_t sht4x_read_serial_number(
-    sht4x_handle_t *self, sht4x_read_serial_number_callback_t cb
+    sht4x_handle_t                     *self,
+    sht4x_read_serial_number_callback_t cb,
+    void                               *user_data
 ) {
-	return _sht4x_send_command(self, SHT4X_READ_SERIAL_NUMBER, 1, (void *)cb);
+	return _sht4x_send_command(
+	    self,
+	    SHT4X_READ_SERIAL_NUMBER,
+	    1,
+	    (void *)cb,
+	    user_data
+	);
 }
 
 sht4x_blocking_result_t sht4x_read_serial_number_blocking(sht4x_handle_t *self
@@ -380,7 +399,8 @@ sht4x_blocking_result_t sht4x_read_serial_number_blocking(sht4x_handle_t *self
 sl_status_t sht4x_read_data(
     sht4x_handle_t            *self,
     sht4x_command_e            type,
-    sht4x_read_data_callback_t callback
+    sht4x_read_data_callback_t callback,
+    void                      *user_data
 ) {
 
 	sl_status_t status = _sht4x_check_readout_command(type);
@@ -388,7 +408,7 @@ sl_status_t sht4x_read_data(
 		return status;
 	}
 
-	return _sht4x_send_command(self, type, 10, (void *)callback);
+	return _sht4x_send_command(self, type, 10, (void *)callback, user_data);
 }
 
 sht4x_blocking_result_t
@@ -401,9 +421,16 @@ sht4x_read_data_blocking(sht4x_handle_t *self, sht4x_command_e cmd) {
 	return sht4x_send_command_blocking(self, cmd, 10);
 }
 
-sl_status_t
-sht4x_soft_reset(sht4x_handle_t *self, sht4x_soft_reset_callback_t cb) {
-	return _sht4x_send_command(self, SHT4X_SOFT_RESET, 80, (void *)cb);
+sl_status_t sht4x_soft_reset(
+    sht4x_handle_t *self, sht4x_soft_reset_callback_t cb, void *user_data
+) {
+	return _sht4x_send_command(
+	    self,
+	    SHT4X_SOFT_RESET,
+	    80,
+	    (void *)cb,
+	    user_data
+	);
 }
 
 sl_status_t sht4x_soft_reset_blocking(sht4x_handle_t *self) {

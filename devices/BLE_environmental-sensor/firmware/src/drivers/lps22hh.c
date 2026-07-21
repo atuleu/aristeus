@@ -40,16 +40,7 @@ void _lps22hh_on_i2c_transfer_complete(
 
 	lps22hh_handle_t *self = user_data;
 
-	if (status != I2C_TX_OK) {
-		_lps22hh_tx_complete(
-		    self,
-		    status == I2C_TX_FOLLOWER_ACK_ERROR ? SL_STATUS_NOT_FOUND
-		                                        : SL_STATUS_BUS_ERROR
-		);
-
-	} else {
-		_lps22hh_tx_complete(self, SL_STATUS_OK);
-	}
+	_lps22hh_tx_complete(self, i2c_tx_status_map(status));
 }
 
 sl_status_t lps22hh_read(
