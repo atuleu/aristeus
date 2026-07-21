@@ -86,7 +86,7 @@ sl_status_t app_set_legacy_advertiser_data(
     uint8_t advertising_set, temperature_t temperature, humidity_t humidity
 );
 
-void lps22h_read_callback(
+void _app_on_lps22hh_readout(
     sl_status_t status, pressure_t pressure, void *user_data
 ) {
 	(void)user_data;
@@ -106,7 +106,7 @@ void lps22h_read_callback(
 	app_proceed();
 }
 
-void sht4x_read_callback(
+void _app_on_sht4x_readout(
     sl_status_t   status,
     temperature_t temperature,
     humidity_t    humidity,
@@ -145,14 +145,14 @@ void start_sensor_readout(
 	sl_status_t s = sht4x_read_data(
 	    &app.sht4x_sensor,
 	    SHT4X_MEASURE_HIGH_P,
-	    &sht4x_read_callback,
+	    &_app_on_sht4x_readout,
 	    NULL
 	);
 	if (s != SL_STATUS_OK) {
 		app_log_error("Could not start SHT4X reading: 0x%04lX" APP_LOG_NL, s);
 	}
 
-	s = lps22hh_oneshot(&app.lps22hh_sensor, &lps22h_read_callback, NULL);
+	s = lps22hh_oneshot(&app.lps22hh_sensor, &_app_on_lps22hh_readout, NULL);
 	if (s != SL_STATUS_OK) {
 		app_log_error("Could not start LPS22HH reading: 0x%04lX" APP_LOG_NL, s);
 	}
