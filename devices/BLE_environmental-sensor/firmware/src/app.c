@@ -42,10 +42,12 @@
 
 #include <gatt_db.h>
 
+#include "drivers/i2c_schd.h"
 #include "drivers/lps22hh.h"
 #include "pin_config.h"
 #include "sl_core.h"
 #include "sl_device_gpio.h"
+#include "sl_i2c.h"
 #include "types.h"
 
 #include <drivers/sht4x.h>
@@ -54,6 +56,7 @@ typedef struct app_handle {
 	uint8_t                      advertising_set_handle;
 	sl_sleeptimer_timer_handle_t sensor_timer;
 	volatile bool                is_advertising;
+	i2c_schd_handle_t            i2c0;
 	sht4x_handle_t               sht4x_sensor;
 	const sl_gpio_t              data_ready;
 	lps22hh_handle_t             lps22hh_sensor;
@@ -89,7 +92,7 @@ void lps22h_read_callback(
 ) {
 	(void)user_data;
 	if (status != SL_STATUS_OK) {
-		app_log_warning("Could not read pressure: 0x%03lx" APP_LOG_NL, status);
+		app_log_warning("Could not read pressure: 0x%04lX" APP_LOG_NL, status);
 		return;
 	}
 	app_log_info(
@@ -108,7 +111,7 @@ void sht4x_read_callback(
     sl_status_t status, temperature_t temperature, humidity_t humidity
 ) {
 	if (status != SL_STATUS_OK) {
-		app_log_warning("Sensor readout failure: %lx" APP_LOG_NL, status);
+		app_log_warning("Sensor readout failure: 0x%04lX" APP_LOG_NL, status);
 		return;
 	}
 	app_log_info(
@@ -156,14 +159,16 @@ void app_init(void) {
 	/////////////////////////////////////////////////////////////////////////////
 	sl_sleeptimer_delay_millisecond(1500);
 
-	sl_status_t status =
-	    sht4x_init(&app.sht4x_sensor, sl_i2c_i2c0_handle, SHT4X_BASE_ADDR);
+	sl_status_t status = i2c_schd_init(&app.i2c0, sl_i2c_i2c0_handle);
+	app_assert_status(status);
+
+	status = sht4x_init(&app.sht4x_sensor, &app.i2c0, SHT4X_BASE_ADDR);
 	if (status != SL_STATUS_OK) {
 		app_log_warning("No loop started" APP_LOG_NL);
 		return;
 	}
 	lps22hh_config_t config = {
-	    .i2c_bus       = sl_i2c_i2c0_handle,
+	    .i2c_bus       = &app.i2c0,
 	    .addrLSBSet    = false,
 	    .interrupt_pin = &app.data_ready,
 	};
@@ -257,6 +262,8 @@ sl_status_t app_set_legacy_advertiser_data(
 
 // Application Process Action.
 void app_process_action(void) {
+	i2c_schd_process_action(&app.i2c0);
+
 	if (app_is_process_required() == false) {
 		return;
 	}

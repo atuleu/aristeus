@@ -27,6 +27,16 @@ typedef struct i2c_schd_handle i2c_schd_handle_t;
 sl_status_t i2c_schd_init(i2c_schd_handle_t *handle, sl_i2c_handle_t *i2c_bus);
 
 /**
+ * Returns a name for the I2C instance
+ *
+ * @param instance Pointer to the I2C instance
+ *
+ * @return Name of the I2C instance, or "I2C<NULL>" if the instance is NULL, or
+ *         "I2C<Unknown>" if the instance is not recognized.
+ */
+const char *i2c_schd_get_instance_name(i2c_schd_handle_t *self);
+
+/**
  * Process any pending I2C actions in the scheduler. This function should be
  * called in app_process(). It should not be protected by the proceed guard.
  *
@@ -232,6 +242,7 @@ struct i2c_schd_handle {
 	uint8_t                      head, tail;
 	sl_sleeptimer_timer_handle_t timer;
 	volatile bool                stuck_flag;
+	const char                  *name;
 };
 
 #if defined(__cplusplus)

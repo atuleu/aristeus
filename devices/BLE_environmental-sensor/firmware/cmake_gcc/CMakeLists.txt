@@ -21,8 +21,6 @@ add_executable(BLE_environmental_sensor
 	${PROJECT_SOURCE_DIR}/../src/drivers/lps22hh.h
 	${PROJECT_SOURCE_DIR}/../src/drivers/sht4x.c
 	${PROJECT_SOURCE_DIR}/../src/drivers/sht4x.h
-	${PROJECT_SOURCE_DIR}/../src/drivers/i2c_utils.c
-	${PROJECT_SOURCE_DIR}/../src/drivers/i2c_utils.h
 	${PROJECT_SOURCE_DIR}/../src/drivers/i2c_schd.c
 	${PROJECT_SOURCE_DIR}/../src/drivers/i2c_schd.h
 	${PROJECT_SOURCE_DIR}/../src/utils/crc8.c

@@ -1,5 +1,6 @@
 #pragma once
 
+#include "drivers/i2c_schd.h"
 #include "sl_device_gpio.h"
 #include "sl_i2c.h"
 #include "types.h"
@@ -24,12 +25,12 @@ typedef struct lps22hh_handle lps22hh_handle_t;
  */
 typedef struct lps22hh_config {
 	/// I2C bus handle to use for communication with the sensor.
-	sl_i2c_handle_t *i2c_bus;
+	i2c_schd_handle_t *i2c_bus;
 	/// Set to true if the sensor's I2C address LSB is set (0x5D), false for
 	/// default (0x5C).
-	bool             addrLSBSet;
+	bool               addrLSBSet;
 	/// GPIO pin configured for the sensor's data ready (DRDY) interrupt.
-	const sl_gpio_t *interrupt_pin;
+	const sl_gpio_t   *interrupt_pin;
 } lps22hh_config_t;
 
 /**
@@ -183,9 +184,9 @@ sl_status_t lps22hh_oneshot(
  * directly by application code.
  */
 struct lps22hh_handle {
-	sl_i2c_handle_t *i2c_bus;
-	uint8_t          address;
-	uint8_t          reg_address_buffer;
+	i2c_schd_handle_t *i2c_bus;
+	uint8_t            address;
+	uint8_t            reg_address_buffer;
 
 	volatile lps22hh_tx_callback_t tx_callback;
 	volatile void                 *tx_user_data;

@@ -1,6 +1,6 @@
 #pragma once
 
-#include "sl_i2c.h"
+#include "drivers/i2c_schd.h"
 #include "sl_sleeptimer.h"
 #include "sl_status.h"
 #include "types.h"
@@ -37,7 +37,7 @@ SL_ENUM(sht4x_command_e){
  * @return SL_STATUS_OK if successful, error code otherwise.
  */
 sl_status_t
-sht4x_init(sht4x_handle_t *self, sl_i2c_handle_t *i2c, uint8_t addr);
+sht4x_init(sht4x_handle_t *self, i2c_schd_handle_t *i2c, uint8_t addr);
 
 /**
  * Asynchronous serial number read callback
@@ -217,7 +217,7 @@ typedef union {
  * the SHT4x sensor.
  */
 struct sht4x_handle {
-	sl_i2c_handle_t             *i2c_bus;
+	i2c_schd_handle_t           *i2c_bus;
 	uint8_t                      address;
 	uint8_t                      read_delay_ms;
 	uint8_t                      command_buffer;

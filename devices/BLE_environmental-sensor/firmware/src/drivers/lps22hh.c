@@ -1,5 +1,6 @@
 
 #include "app.h"
+#include "drivers/i2c_schd.h"
 #include <stdint.h>
 
 #include <sl_core.h>
@@ -13,7 +14,6 @@
 
 #include <types.h>
 
-#include <drivers/i2c_utils.h>
 #include <drivers/lps22hh.h>
 
 void _lps22hh_tx_complete(lps22hh_handle_t *self, sl_status_t status) {
@@ -27,38 +27,29 @@ void _lps22hh_tx_complete(lps22hh_handle_t *self, sl_status_t status) {
 		self->tx_user_data = NULL;
 	});
 
-	i2c_unclaim_instance(self->i2c_bus);
 	if (cb != NULL) {
 		cb(status, user_data);
 	}
 }
 
-sl_status_t
-_lps22hh_on_i2c_transfer_complete(sl_i2c_handle_t *i2c, void *user_data) {
-	(void)i2c;
+void _lps22hh_on_i2c_transfer_complete(
+    i2c_tx_status_t status, const uint8_t *buffer, uint8_t len, void *user_data
+) {
+	(void)buffer;
+	(void)len;
 
 	lps22hh_handle_t *self = user_data;
 
-	_lps22hh_tx_complete(self, SL_STATUS_OK);
-	return SL_STATUS_OK;
-}
+	if (status != I2C_TX_OK) {
+		_lps22hh_tx_complete(
+		    self,
+		    status == I2C_TX_FOLLOWER_ACK_ERROR ? SL_STATUS_NOT_FOUND
+		                                        : SL_STATUS_BUS_ERROR
+		);
 
-sl_status_t
-_lps22hh_on_i2c_event(sl_i2c_handle_t *i2c, sl_i2c_event_t e, void *user_data) {
-	(void)i2c;
-
-	if (e == SL_I2C_EVENT_IN_PROGRESS || e == SL_I2C_EVENT_COMPLETED ||
-	    e == SL_I2C_EVENT_IDLE) {
-		return SL_STATUS_OK;
+	} else {
+		_lps22hh_tx_complete(self, SL_STATUS_OK);
 	}
-
-	lps22hh_handle_t *self = user_data;
-	_lps22hh_tx_complete(
-	    self,
-	    e == SL_I2C_EVENT_DATA_NACK ? SL_STATUS_NOT_FOUND : SL_STATUS_BUS_ERROR
-	);
-
-	return SL_STATUS_OK;
 }
 
 sl_status_t lps22hh_read(
@@ -80,67 +71,30 @@ sl_status_t lps22hh_read(
 		CORE_EXIT_ATOMIC();
 		return SL_STATUS_BUSY;
 	}
-	self->tx_callback  = cb;
-	self->tx_user_data = user_data;
+	self->tx_callback        = cb;
+	self->tx_user_data       = user_data;
+	self->reg_address_buffer = start_reg;
 	CORE_EXIT_ATOMIC();
 
-	sl_status_t sc = i2c_claim_instance(self->i2c_bus);
-
-	if (sc != SL_STATUS_OK) {
-		CORE_ENTER_ATOMIC();
-		self->tx_callback  = NULL;
-		self->tx_user_data = NULL;
-		CORE_EXIT_ATOMIC();
-		return sc;
-	}
-
-	sc = sl_i2c_set_transfer_complete_callback(
-	    self->i2c_bus,
-	    &_lps22hh_on_i2c_transfer_complete
-	);
-
-	if (sc != SL_STATUS_OK) {
-		i2c_unclaim_instance(self->i2c_bus);
-		CORE_ENTER_ATOMIC();
-		self->tx_callback  = NULL;
-		self->tx_user_data = NULL;
-		CORE_EXIT_ATOMIC();
-		return sc;
-	}
-
-	sc = sl_i2c_set_event_callback(self->i2c_bus, &_lps22hh_on_i2c_event);
-	if (sc != SL_STATUS_OK) {
-
-		CORE_ENTER_ATOMIC();
-		self->tx_callback  = NULL;
-		self->tx_user_data = NULL;
-		CORE_EXIT_ATOMIC();
-		i2c_unclaim_instance(self->i2c_bus);
-		return sc;
-	}
-
-	self->reg_address_buffer = start_reg;
-
-	sc = sl_i2c_leader_transfer_non_blocking(
+	sl_status_t status = i2c_schd_transfer(
 	    self->i2c_bus,
 	    self->address,
 	    &self->reg_address_buffer,
 	    1,
 	    buffer,
 	    count,
-	    (void *)self
+	    &_lps22hh_on_i2c_transfer_complete,
+	    self
 	);
 
-	if (sc != SL_STATUS_OK) {
+	if (status != SL_STATUS_OK) {
 		CORE_ENTER_ATOMIC();
 		self->tx_callback  = NULL;
 		self->tx_user_data = NULL;
 		CORE_EXIT_ATOMIC();
-		i2c_unclaim_instance(self->i2c_bus);
-		return sc;
 	}
 
-	return sc;
+	return status;
 }
 
 sl_status_t lps22hh_write(
@@ -167,81 +121,35 @@ sl_status_t lps22hh_write(
 	self->tx_user_data = user_data;
 	CORE_EXIT_ATOMIC();
 
-	sl_status_t sc = i2c_claim_instance(self->i2c_bus);
-	if (sc != SL_STATUS_OK) {
-		CORE_ENTER_ATOMIC();
-		self->tx_callback  = NULL;
-		self->tx_user_data = NULL;
-		CORE_EXIT_ATOMIC();
-
-		return sc;
-	}
-
-	sc = sl_i2c_set_transfer_complete_callback(
-	    self->i2c_bus,
-	    &_lps22hh_on_i2c_transfer_complete
-	);
-
-	if (sc != SL_STATUS_OK) {
-		CORE_ENTER_ATOMIC();
-		self->tx_callback  = NULL;
-		self->tx_user_data = NULL;
-		CORE_EXIT_ATOMIC();
-		i2c_unclaim_instance(self->i2c_bus);
-		return sc;
-	}
-	sc = sl_i2c_set_event_callback(self->i2c_bus, &_lps22hh_on_i2c_event);
-	if (sc != SL_STATUS_OK) {
-		CORE_ENTER_ATOMIC();
-		self->tx_callback  = NULL;
-		self->tx_user_data = NULL;
-		CORE_EXIT_ATOMIC();
-		i2c_unclaim_instance(self->i2c_bus);
-		return sc;
-	}
-
-	self->tx_callback  = cb;
-	self->tx_user_data = user_data;
-
-	sc = sl_i2c_leader_send_non_blocking(
+	sl_status_t status = i2c_schd_send(
 	    self->i2c_bus,
 	    self->address,
 	    buffer,
 	    count,
+	    &_lps22hh_on_i2c_transfer_complete,
 	    (void *)self
 	);
-	if (sc != SL_STATUS_OK) {
+	if (status != SL_STATUS_OK) {
 		CORE_ENTER_ATOMIC();
 		self->tx_callback  = NULL;
 		self->tx_user_data = NULL;
 		CORE_EXIT_ATOMIC();
-		i2c_unclaim_instance(self->i2c_bus);
-		return sc;
 	}
-	return sc;
+	return status;
 }
 
 sl_status_t lps22hh_read_blocking(
     lps22hh_handle_t *self, uint8_t start_reg, uint8_t count, uint8_t *buffer
 ) {
-	sl_status_t sc = i2c_claim_instance(self->i2c_bus);
-	if (sc != SL_STATUS_OK) {
-		return sc;
-	}
 	self->reg_address_buffer = start_reg;
-	sc                       = sl_i2c_leader_transfer_blocking(
-        self->i2c_bus,
-        self->address,
-        &self->reg_address_buffer,
-        1,
-        buffer,
-        count,
-        count
-    );
-
-	i2c_unclaim_instance(self->i2c_bus);
-
-	return sc;
+	return i2c_schd_transfer_blocking(
+	    self->i2c_bus,
+	    self->address,
+	    &self->reg_address_buffer,
+	    1,
+	    buffer,
+	    count
+	);
 }
 
 sl_status_t lps22hh_write_blocking(
@@ -251,22 +159,7 @@ sl_status_t lps22hh_write_blocking(
 		return SL_STATUS_INVALID_COUNT;
 	}
 
-	sl_status_t sc = i2c_claim_instance(self->i2c_bus);
-	if (sc != SL_STATUS_OK) {
-		return sc;
-	}
-
-	sc = sl_i2c_leader_send_blocking(
-	    self->i2c_bus,
-	    self->address,
-	    buffer,
-	    count,
-	    count
-	);
-
-	i2c_unclaim_instance(self->i2c_bus);
-
-	return sc;
+	return i2c_schd_send_blocking(self->i2c_bus, self->address, buffer, count);
 }
 
 void _lps22hh_oneshot_complete(
@@ -314,7 +207,7 @@ void _lps22hh_oneshot_read_cb(sl_status_t status, void *user_data) {
 	if (data_ready == true) {
 		app_log_warning(
 		    "LPS22HH %s.0x%x has stale data, re-reading" APP_LOG_NL,
-		    i2c_get_instance_name(self->i2c_bus),
+		    i2c_schd_get_instance_name(self->i2c_bus),
 		    self->address
 		);
 		app_proceed();
@@ -405,7 +298,7 @@ sl_status_t lps22hh_init(lps22hh_handle_t *self, lps22hh_config_t *config) {
 	if (sc != SL_STATUS_OK) {
 		app_log_warning(
 		    "No LPS22HH devices at %s.0x%x found, retrying in 80ms" APP_LOG_NL,
-		    i2c_get_instance_name(self->i2c_bus),
+		    i2c_schd_get_instance_name(self->i2c_bus),
 		    self->address
 		);
 
@@ -415,7 +308,7 @@ sl_status_t lps22hh_init(lps22hh_handle_t *self, lps22hh_config_t *config) {
 		if (sc != SL_STATUS_OK) {
 			app_log_error(
 			    "No LPS22HH devices at %s.0x%x found" APP_LOG_NL,
-			    i2c_get_instance_name(self->i2c_bus),
+			    i2c_schd_get_instance_name(self->i2c_bus),
 			    self->address
 			);
 			return SL_STATUS_INITIALIZATION;
@@ -426,7 +319,7 @@ sl_status_t lps22hh_init(lps22hh_handle_t *self, lps22hh_config_t *config) {
 		app_log_error(
 		    "LPS2DF device found at %s.0x%x, but wrong whoAmI value 0x%x "
 		    "(expected 0xb3)" APP_LOG_NL,
-		    i2c_get_instance_name(self->i2c_bus),
+		    i2c_schd_get_instance_name(self->i2c_bus),
 		    self->address,
 		    whoAmI
 		);
@@ -435,7 +328,7 @@ sl_status_t lps22hh_init(lps22hh_handle_t *self, lps22hh_config_t *config) {
 
 	app_log_info(
 	    "found LPS22HH devices at %s.0x%x" APP_LOG_NL,
-	    i2c_get_instance_name(self->i2c_bus),
+	    i2c_schd_get_instance_name(self->i2c_bus),
 	    self->address
 	);
 
@@ -453,7 +346,7 @@ sl_status_t lps22hh_init(lps22hh_handle_t *self, lps22hh_config_t *config) {
 	if (sc != SL_STATUS_OK) {
 		app_log_error(
 		    "LPS22HH %s.0x%x: could not set IF_ADD_INC" APP_LOG_NL,
-		    i2c_get_instance_name(self->i2c_bus),
+		    i2c_schd_get_instance_name(self->i2c_bus),
 		    self->address
 		);
 		return SL_STATUS_INITIALIZATION;
@@ -466,7 +359,7 @@ sl_status_t lps22hh_init(lps22hh_handle_t *self, lps22hh_config_t *config) {
 	if (sc != SL_STATUS_OK) {
 		app_log_error(
 		    "LPS22HH %s.0x%x: could not set config" APP_LOG_NL,
-		    i2c_get_instance_name(self->i2c_bus),
+		    i2c_schd_get_instance_name(self->i2c_bus),
 		    self->address
 		);
 		return SL_STATUS_INITIALIZATION;
@@ -480,7 +373,7 @@ sl_status_t lps22hh_init(lps22hh_handle_t *self, lps22hh_config_t *config) {
 	if (sc != SL_STATUS_OK) {
 		app_log_error(
 		    "LPS22HH %s.0x%x: could not set  pin mode" APP_LOG_NL,
-		    i2c_get_instance_name(self->i2c_bus),
+		    i2c_schd_get_instance_name(self->i2c_bus),
 		    self->address
 		);
 		return SL_STATUS_INITIALIZATION;
@@ -491,7 +384,7 @@ sl_status_t lps22hh_init(lps22hh_handle_t *self, lps22hh_config_t *config) {
 	if (sc != SL_STATUS_OK) {
 		app_log_error(
 		    "LPS22HH %s.0x%x: could not read pin" APP_LOG_NL,
-		    i2c_get_instance_name(self->i2c_bus),
+		    i2c_schd_get_instance_name(self->i2c_bus),
 		    self->address
 		);
 		return SL_STATUS_INITIALIZATION;

@@ -8,12 +8,12 @@
 
 #include <app_log.h>
 
-#include "i2c_utils.h"
+#include "drivers/i2c_schd.h"
 #include "types.h"
 #include <utils/crc8.h>
 
 sl_status_t
-sht4x_init(sht4x_handle_t *self, sl_i2c_handle_t *i2c, uint8_t addr) {
+sht4x_init(sht4x_handle_t *self, i2c_schd_handle_t *i2c, uint8_t addr) {
 	sht4x_blocking_result_t result;
 	self->i2c_bus = i2c;
 	if (addr != 0x44 && addr != 0x45 && addr != 0x46) {
@@ -28,7 +28,7 @@ sht4x_init(sht4x_handle_t *self, sl_i2c_handle_t *i2c, uint8_t addr) {
 	if (result.status == SL_STATUS_OK) {
 		app_log_info(
 		    "found SHT4x device at %s.0x%x: %lx" APP_LOG_NL,
-		    i2c_get_instance_name(i2c),
+		    i2c_schd_get_instance_name(i2c),
 		    addr,
 		    result.data.serial_number
 		);
@@ -37,7 +37,7 @@ sht4x_init(sht4x_handle_t *self, sl_i2c_handle_t *i2c, uint8_t addr) {
 
 	app_log_warning(
 	    "No SHT4x device at %s.0x%x, retrying in 80ms" APP_LOG_NL,
-	    i2c_get_instance_name(i2c),
+	    i2c_schd_get_instance_name(i2c),
 	    addr
 	);
 	sl_sleeptimer_delay_millisecond(80);
@@ -46,7 +46,7 @@ sht4x_init(sht4x_handle_t *self, sl_i2c_handle_t *i2c, uint8_t addr) {
 	if (result.status != SL_STATUS_OK) {
 		app_log_error(
 		    "No SHT4x device found at %s.0x%x" APP_LOG_NL,
-		    i2c_get_instance_name(i2c),
+		    i2c_schd_get_instance_name(i2c),
 		    addr
 		);
 		return SL_STATUS_INITIALIZATION;
@@ -54,7 +54,7 @@ sht4x_init(sht4x_handle_t *self, sl_i2c_handle_t *i2c, uint8_t addr) {
 
 	app_log_info(
 	    "found SHT4x device at %s.0x%x SN:%lx" APP_LOG_NL,
-	    i2c_get_instance_name(i2c),
+	    i2c_schd_get_instance_name(i2c),
 	    addr,
 	    result.data.serial_number
 	);
@@ -64,9 +64,6 @@ sht4x_init(sht4x_handle_t *self, sl_i2c_handle_t *i2c, uint8_t addr) {
 void _sht4x_bus_cleanup(sht4x_handle_t *self) {
 	self->command_buffer = 0;
 	self->callback.ptr   = NULL;
-	sl_i2c_set_transfer_complete_callback(self->i2c_bus, NULL);
-	sl_i2c_set_event_callback(self->i2c_bus, NULL);
-	i2c_unclaim_instance(self->i2c_bus);
 }
 
 /// Marks the on-going command as having an error.
@@ -120,22 +117,6 @@ void _sht4x_complete_cmd(sht4x_handle_t *self, sht4x_blocking_result_t *res) {
 		    res->data.th_readout.humidity
 		);
 	}
-}
-
-sl_status_t
-_sht4x_on_i2c_event(sl_i2c_handle_t *i2c, sl_i2c_event_t e, void *user_data) {
-	(void)i2c;
-	sht4x_handle_t *self = user_data;
-
-	if (e == SL_I2C_EVENT_IN_PROGRESS || e == SL_I2C_EVENT_COMPLETED ||
-	    e == SL_I2C_EVENT_IDLE) {
-		return SL_STATUS_OK;
-	}
-	_sht4x_error_cmd(
-	    self,
-	    e == SL_I2C_EVENT_ADDR_NACK ? SL_STATUS_NOT_FOUND : SL_STATUS_BUS_ERROR
-	);
-	return SL_STATUS_OK;
 }
 
 bool _sht4x_check_crc(const uint8_t *buffer, size_t len) {
@@ -197,16 +178,22 @@ void _sht4x_parse_data(sht4x_handle_t *self, sht4x_blocking_result_t *res) {
 }
 
 // callback when receiving the command readout.
-sl_status_t
-_sht4x_on_i2c_read_complete(sl_i2c_handle_t *i2c_handle, void *user_data) {
-	(void)i2c_handle;
+void _sht4x_on_i2c_read_complete(
+    i2c_tx_status_t status, const uint8_t *buffer, uint8_t len, void *user_data
+) {
+	(void)buffer;
+	(void)len;
 	sht4x_handle_t         *self = user_data;
 	sht4x_blocking_result_t res;
+	if (status == I2C_TX_OK) {
+		res.status = SL_STATUS_OK;
+	} else {
+		res.status = SL_STATUS_BUS_ERROR;
+	}
 
 	_sht4x_parse_data(self, &res);
 	// note parse data may have failed the error for invalid (partial) data.
 	_sht4x_complete_cmd(self, &res);
-	return SL_STATUS_OK;
 };
 
 // timeout function on the sleep timer to trigger the RX of data (or mark
@@ -223,19 +210,13 @@ void _sht4x_on_timer_timeout(
 		callback.soft_reset(SL_STATUS_OK);
 		return;
 	}
-	sl_status_t status = sl_i2c_set_transfer_complete_callback(
-	    self->i2c_bus,
-	    &_sht4x_on_i2c_read_complete
-	);
-	if (status != SL_STATUS_OK) {
-		_sht4x_error_cmd(self, status);
-	}
 
-	status = sl_i2c_leader_receive_non_blocking(
+	sl_status_t status = i2c_schd_receive(
 	    self->i2c_bus,
 	    self->address,
 	    self->read_buffer,
 	    6,
+	    &_sht4x_on_i2c_read_complete,
 	    self
 	);
 
@@ -245,11 +226,25 @@ void _sht4x_on_timer_timeout(
 }
 
 // Callback on the write TX that starts a timeout.
-sl_status_t
-_sht4x_on_i2c_write_complete(sl_i2c_handle_t *i2c, void *user_data) {
-	(void)i2c;
+void _sht4x_on_i2c_write_complete(
+    i2c_tx_status_t status, const uint8_t *buffer, uint8_t len, void *user_data
+) {
+	(void)buffer;
+	(void)len;
 	sht4x_handle_t *self = user_data;
-	// here always succesful.
+	if (status != I2C_TX_OK) {
+		app_log_debug(
+		    "Could not write command bus error: 0x%04X" APP_LOG_NL,
+		    status
+		);
+		_sht4x_error_cmd(
+		    self,
+		    status == I2C_TX_FOLLOWER_ACK_ERROR ? SL_STATUS_NOT_FOUND
+		                                        : SL_STATUS_BUS_ERROR
+		);
+		return;
+	}
+
 	sl_sleeptimer_start_timer_ms(
 	    &self->timer,
 	    self->read_delay_ms,
@@ -258,7 +253,6 @@ _sht4x_on_i2c_write_complete(sl_i2c_handle_t *i2c, void *user_data) {
 	    0,
 	    0
 	);
-	return SL_STATUS_OK;
 };
 
 // checks if it is a valid command.
@@ -298,38 +292,19 @@ sl_status_t _sht4x_send_command(
 		return SL_STATUS_NULL_POINTER;
 	}
 
-	sl_status_t status = i2c_claim_instance(self->i2c_bus);
-
-	if (status != SL_STATUS_OK) {
-		return status;
-	}
-
-	status = sl_i2c_set_transfer_complete_callback(
-	    self->i2c_bus,
-	    &_sht4x_on_i2c_write_complete
-	);
-	if (status != SL_STATUS_OK) {
-		_sht4x_bus_cleanup(self);
-		return status;
-	}
-
-	status = sl_i2c_set_event_callback(self->i2c_bus, &_sht4x_on_i2c_event);
-	if (status != SL_STATUS_OK) {
-		_sht4x_bus_cleanup(self);
-		return status;
-	}
-
 	self->command_buffer = command;
 	self->read_delay_ms  = read_delay_ms;
 	self->callback.ptr   = callback;
-	status               = sl_i2c_leader_send_non_blocking(
+	sl_status_t status   = i2c_schd_send(
         self->i2c_bus,
         self->address,
         &self->command_buffer,
         1,
-        (void *)self
+        &_sht4x_on_i2c_write_complete,
+        self
     );
 	if (status != SL_STATUS_OK) {
+		app_log_debug("Could not write command: 0x%04lX" APP_LOG_NL, status);
 		_sht4x_bus_cleanup(self);
 		self->callback.ptr = NULL;
 	}
@@ -342,30 +317,24 @@ sht4x_blocking_result_t sht4x_send_command_blocking(
     sht4x_handle_t *self, sht4x_command_e command, uint8_t read_delay_ms
 ) {
 	sht4x_blocking_result_t res;
-	res.status = i2c_claim_instance(self->i2c_bus);
-	if (res.status != SL_STATUS_OK) {
-		return res;
-	}
 
 	self->command_buffer = command;
-	res.status           = sl_i2c_leader_send_blocking(
+	res.status           = i2c_schd_send_blocking(
         self->i2c_bus,
         self->address,
         &self->command_buffer,
-        1,
-        5
+        1
     );
 	if (res.status != SL_STATUS_OK) {
 		_sht4x_bus_cleanup(self);
 		return res;
 	}
 	sl_sleeptimer_delay_millisecond(read_delay_ms);
-	res.status = sl_i2c_leader_receive_blocking(
+	res.status = i2c_schd_receive_blocking(
 	    self->i2c_bus,
 	    self->address,
 	    &self->read_buffer[0],
-	    6,
-	    5
+	    6
 	);
 	if (res.status != SL_STATUS_OK) {
 		_sht4x_bus_cleanup(self);

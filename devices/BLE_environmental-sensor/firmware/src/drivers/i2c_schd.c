@@ -1,4 +1,5 @@
 #include "i2c_schd.h"
+#include "app_log.h"
 #include "sl_core.h"
 #include "sl_i2c.h"
 #include "sl_sleeptimer.h"
@@ -271,10 +272,11 @@ _i2c_schd_on_i2c_complete(sl_i2c_handle_t *i2c_bus, void *user_data) {
 		tx               = (i2c_tx_handle_t *)self->current_tx;
 		self->current_tx = NULL;
 	});
+	sl_sleeptimer_stop_timer(&self->timer);
 	if (tx == NULL) {
 		return SL_STATUS_OK;
 	}
-	sl_sleeptimer_stop_timer(&self->timer);
+
 	_i2c_schd_complete_tx(self, tx, I2C_TX_OK);
 	return SL_STATUS_OK;
 }
@@ -294,10 +296,10 @@ sl_status_t _i2c_schd_on_i2c_event(
 		tx               = (i2c_tx_handle_t *)self->current_tx;
 		self->current_tx = NULL;
 	});
+	sl_sleeptimer_stop_timer(&self->timer);
 	if (tx == NULL) {
 		return SL_STATUS_OK;
 	}
-	sl_sleeptimer_stop_timer(&self->timer);
 
 	_i2c_schd_complete_tx(
 	    self,
@@ -310,15 +312,11 @@ sl_status_t _i2c_schd_on_i2c_event(
 
 void _i2c_schd_start_tx(i2c_schd_handle_t *self, i2c_tx_handle_t *tx) {
 	if (tx->write_buffer == NULL && tx->read_buffer == NULL) {
-		_i2c_schd_complete_tx(
-		    self,
-		    tx,
-		    I2C_TX_PARAMETER_ERROR // TODO: better error
-		);
+		_i2c_schd_complete_tx(self, tx, I2C_TX_PARAMETER_ERROR);
 		return;
 	}
 
-	sl_status_t status = sl_sleeptimer_start_timer(
+	sl_status_t status = sl_sleeptimer_start_timer_ms(
 	    &self->timer,
 	    tx->read_len + tx->write_len + 2,
 	    _i2c_schd_on_timeout,
@@ -408,6 +406,7 @@ sl_status_t i2c_schd_init(i2c_schd_handle_t *self, sl_i2c_handle_t *i2c_bus) {
 	self->init_params.scl_gpio       = self->i2c_bus->scl_gpio;
 	self->init_params.sda_gpio       = self->i2c_bus->sda_gpio;
 	self->current_tx                 = NULL;
+	self->name                       = NULL;
 	self->head                       = 0;
 	self->tail                       = 0;
 	self->stuck_flag                 = false;
@@ -425,4 +424,65 @@ sl_status_t i2c_schd_init(i2c_schd_handle_t *self, sl_i2c_handle_t *i2c_bus) {
 		return status;
 	}
 	return SL_STATUS_OK;
+}
+
+uint8_t _i2c_get_index(sl_peripheral_t peripheral) {
+	switch (peripheral->base) {
+#ifdef I2C0_BASE
+	case I2C0_BASE:
+		return 0;
+#endif // I2C0_BASE
+#ifdef I2C1_BASE
+	case I2C1_BASE:
+		return 1;
+#endif // I2C1_BASE
+#ifdef I2C2_BASE
+	case I2C2_BASE:
+		return 2;
+#endif // I2C2_BASE
+#ifdef I2C3_BASE
+	case I2C3_BASE:
+		return 3;
+#endif // I2C3_BASE
+	default:
+		return I2C_COUNT;
+	}
+}
+
+#define ARRAY_SIZE(array) (sizeof(array) / sizeof((array)[0]))
+
+const char *_i2c_schd_get_instance_name(i2c_schd_handle_t *self) {
+	if (self->i2c_bus == NULL || self->i2c_bus->i2c_peripheral == NULL) {
+
+		return "I2C<NULL>";
+	}
+	static const char *names[I2C_COUNT] = {
+#ifdef I2C0_BASE
+	    "I2C0",
+#endif // I2C0_BASE
+#ifdef I2C1_BASE
+	    "I2C1",
+#endif // I2C1_BASE
+#ifdef I2C2_BASE
+	    "I2C2",
+#endif // I2C2_BASE
+#ifdef I2C3_BASE
+	    "I2C3",
+#endif // I2C3_BASE
+	};
+	uint8_t index = _i2c_get_index(self->i2c_bus->i2c_peripheral);
+	if (index >= I2C_COUNT) {
+		return "I2C<Unknown>";
+	}
+	return names[index];
+}
+
+const char *i2c_schd_get_instance_name(i2c_schd_handle_t *self) {
+	if (self == NULL) {
+		return "I2C<NULL>";
+	}
+	if (self->name == NULL) {
+		self->name = _i2c_schd_get_instance_name(self);
+	}
+	return self->name;
 }
