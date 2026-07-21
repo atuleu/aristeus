@@ -55,65 +55,6 @@ sl_status_t lps22hh_init(lps22hh_handle_t *self, lps22hh_config_t *config);
 void lps22hh_process_action(lps22hh_handle_t *self);
 
 /**
- * Callback function type for LPS22HH read/write operations.
- *
- * @param status The status of the read/write operation.
- * @param user_data User-defined data passed to the callback function.
- */
-typedef void (*lps22hh_tx_callback_t)(sl_status_t, void *);
-
-/**
- * Asynchronously read data from the LPS22HH sensor starting from the specified
- * register address.
- *
- * @param self Pointer to the LPS22HH handle.
- * @param start_reg The starting register address to read from.
- * @param count The number of bytes to read.
- * @param buffer Pointer to the buffer where the read data will be stored.
- * @param cb Callback function to be called upon completion of the read
- *        operation.
- * @param user_data User-defined data to be passed to the callback function.
- *
- * @return SL_STATUS_OK if the read operation was successfully initiated, or an
- *         error code if there was an issue starting the operation.
- */
-sl_status_t lps22hh_read(
-    lps22hh_handle_t     *self,
-    uint8_t               start_reg,
-    uint8_t               count,
-    uint8_t              *buffer,
-    lps22hh_tx_callback_t cb,
-    void                 *user_data
-);
-
-/**
- * @brief Asynchronously write data to the LPS22HH sensor.
- *
- * Asynchronously writes data to the LPS22HH sensor. The first byte of the
- * buffer should be the starting register address, followed by the data to write
- * for each register. The count parameter should include the register address
- * byte and the data bytes to write.
- *
- * @param self Pointer to the LPS22HH handle.
- * @param count The number of bytes to write, including the register address
- *        byte.
- * @param buffer Pointer to the buffer where the first byte is the register
- *        address and the subsequent bytes are the data to write.
- * @param cb Callback function to be called upon completion of the write.
- * @param user_data User-defined data to be passed to the callback function.
- *
- * @return SL_STATUS_OK if the write operation was successfully initiated, or an
- *         error code if there was an issue starting the operation.
- */
-sl_status_t lps22hh_write(
-    lps22hh_handle_t     *self,
-    uint8_t               count,
-    const uint8_t        *buffer,
-    lps22hh_tx_callback_t cb,
-    void                 *user_data
-);
-
-/**
  * Synchronously read data from the LPS22HH sensor starting from the specified
  * register address.
  *
@@ -186,10 +127,6 @@ sl_status_t lps22hh_oneshot(
 struct lps22hh_handle {
 	i2c_schd_handle_t *i2c_bus;
 	uint8_t            address;
-	uint8_t            reg_address_buffer;
-
-	volatile lps22hh_tx_callback_t tx_callback;
-	volatile void                 *tx_user_data;
 
 	const sl_gpio_t *data_ready_pin;
 	int32_t          interrupt_number;

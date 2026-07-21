@@ -16,124 +16,14 @@
 
 #include <drivers/lps22hh.h>
 
-void _lps22hh_tx_complete(lps22hh_handle_t *self, sl_status_t status) {
-	lps22hh_tx_callback_t cb;
-	void                 *user_data;
-
-	CORE_ATOMIC_SECTION({
-		cb                 = self->tx_callback;
-		user_data          = (void *)self->tx_user_data;
-		self->tx_callback  = NULL;
-		self->tx_user_data = NULL;
-	});
-
-	if (cb != NULL) {
-		cb(status, user_data);
-	}
-}
-
-void _lps22hh_on_i2c_transfer_complete(
-    i2c_tx_status_t status, void *user_data
-) {
-	lps22hh_handle_t *self = user_data;
-
-	_lps22hh_tx_complete(self, i2c_tx_status_map(status));
-}
-
-sl_status_t lps22hh_read(
-    lps22hh_handle_t     *self,
-    uint8_t               start_reg,
-    uint8_t               count,
-    uint8_t              *buffer,
-    lps22hh_tx_callback_t cb,
-    void                 *user_data
-) {
-
-	if (self == NULL || cb == NULL) {
-		return SL_STATUS_NULL_POINTER;
-	}
-
-	CORE_DECLARE_IRQ_STATE;
-	CORE_ENTER_ATOMIC();
-	if (self->tx_callback != NULL) {
-		CORE_EXIT_ATOMIC();
-		return SL_STATUS_BUSY;
-	}
-	self->tx_callback        = cb;
-	self->tx_user_data       = user_data;
-	self->reg_address_buffer = start_reg;
-	CORE_EXIT_ATOMIC();
-
-	sl_status_t status = i2c_schd_transfer(
-	    self->i2c_bus,
-	    self->address,
-	    &self->reg_address_buffer,
-	    1,
-	    buffer,
-	    count,
-	    &_lps22hh_on_i2c_transfer_complete,
-	    self
-	);
-
-	if (status != SL_STATUS_OK) {
-		CORE_ENTER_ATOMIC();
-		self->tx_callback  = NULL;
-		self->tx_user_data = NULL;
-		CORE_EXIT_ATOMIC();
-	}
-
-	return status;
-}
-
-sl_status_t lps22hh_write(
-    lps22hh_handle_t     *self,
-    uint8_t               count,
-    const uint8_t        *buffer,
-    lps22hh_tx_callback_t cb,
-    void                 *user_data
-) {
-	if (count < 2) {
-		return SL_STATUS_INVALID_COUNT;
-	}
-	if (self == NULL || cb == NULL) {
-		return SL_STATUS_NULL_POINTER;
-	}
-
-	CORE_DECLARE_IRQ_STATE;
-	CORE_ENTER_ATOMIC();
-	if (self->tx_callback != NULL) {
-		CORE_EXIT_ATOMIC();
-		return SL_STATUS_BUSY;
-	}
-	self->tx_callback  = cb;
-	self->tx_user_data = user_data;
-	CORE_EXIT_ATOMIC();
-
-	sl_status_t status = i2c_schd_send(
-	    self->i2c_bus,
-	    self->address,
-	    buffer,
-	    count,
-	    &_lps22hh_on_i2c_transfer_complete,
-	    (void *)self
-	);
-	if (status != SL_STATUS_OK) {
-		CORE_ENTER_ATOMIC();
-		self->tx_callback  = NULL;
-		self->tx_user_data = NULL;
-		CORE_EXIT_ATOMIC();
-	}
-	return status;
-}
-
 sl_status_t lps22hh_read_blocking(
     lps22hh_handle_t *self, uint8_t start_reg, uint8_t count, uint8_t *buffer
 ) {
-	self->reg_address_buffer = start_reg;
+	uint8_t reg_address_buffer = start_reg;
 	return i2c_schd_transfer_blocking(
 	    self->i2c_bus,
 	    self->address,
-	    &self->reg_address_buffer,
+	    &reg_address_buffer,
 	    1,
 	    buffer,
 	    count
@@ -170,18 +60,22 @@ void _lps22hh_oneshot_complete(
 
 #define LPS22HH_ONESHOT_MAXTRIALS 10
 
-void _lps22hh_oneshot_read_cb(sl_status_t status, void *user_data) {
+void _lps22hh_oneshot_read_cb(i2c_tx_status_t status, void *user_data) {
 	lps22hh_handle_t *self = user_data;
 	CORE_DECLARE_IRQ_STATE;
 	CORE_ENTER_ATOMIC();
 	self->oneshot_reading = false;
 
-	if (status != SL_STATUS_OK) {
+	if (status != I2C_TX_OK) {
 
 		if (self->oneshot_tries < LPS22HH_ONESHOT_MAXTRIALS) {
 			app_proceed();
 		} else {
-			_lps22hh_oneshot_complete(self, status, 0xffffffff);
+			_lps22hh_oneshot_complete(
+			    self,
+			    i2c_tx_status_map(status),
+			    0xffffffff
+			);
 		}
 		CORE_EXIT_ATOMIC();
 		return;
@@ -215,14 +109,14 @@ void _lps22hh_oneshot_read_cb(sl_status_t status, void *user_data) {
 	_lps22hh_oneshot_complete(self, SL_STATUS_OK, (pressure_t)pressure_dPa);
 }
 
-void _lps22hh_oneshot_write_cb(sl_status_t status, void *user_data) {
-	if (status == SL_STATUS_OK) {
+void _lps22hh_oneshot_write_cb(i2c_tx_status_t status, void *user_data) {
+	if (status == I2C_TX_OK) {
 		// nothing todo, waiting INT.
 		return;
 	}
 	// we could not write the command, terminate the async call
 	lps22hh_handle_t *self = user_data;
-	_lps22hh_oneshot_complete(self, status, 0xffffffff);
+	_lps22hh_oneshot_complete(self, i2c_tx_status_map(status), 0xffffffff);
 }
 
 sl_status_t lps22hh_oneshot(
@@ -247,10 +141,11 @@ sl_status_t lps22hh_oneshot(
 
 	static const uint8_t oneshot_command[2] = {0x11, 0x11};
 
-	sl_status_t s = lps22hh_write(
-	    self,
-	    2,
+	sl_status_t s = i2c_schd_send(
+	    self->i2c_bus,
+	    self->address,
 	    oneshot_command,
+	    2,
 	    &_lps22hh_oneshot_write_cb,
 	    self
 	);
@@ -275,8 +170,6 @@ sl_status_t lps22hh_init(lps22hh_handle_t *self, lps22hh_config_t *config) {
 	self->address        = config->addrLSBSet ? 0x5d : 0x5c;
 	self->data_ready_pin = config->interrupt_pin;
 
-	self->tx_callback       = NULL;
-	self->tx_user_data      = NULL;
 	self->oneshot_callback  = NULL;
 	self->oneshot_user_data = NULL;
 	self->oneshot_reading   = true;
@@ -399,14 +292,17 @@ void lps22hh_process_action(lps22hh_handle_t *self) {
 	}
 
 	CORE_ENTER_ATOMIC();
-	sl_status_t status = lps22hh_read(
-	    self,
-	    0x28,
-	    3,
-	    self->read_buffer,
-	    &_lps22hh_oneshot_read_cb,
-	    self
-	);
+	static uint8_t start_address[1] = {0x28};
+	sl_status_t    status           = i2c_schd_transfer(
+        self->i2c_bus,
+        self->address,
+        start_address,
+        1,
+        self->read_buffer,
+        3,
+        &_lps22hh_oneshot_read_cb,
+        self
+    );
 	self->oneshot_tries += 1;
 	if (status != SL_STATUS_OK) {
 		// we retry on next iteration
