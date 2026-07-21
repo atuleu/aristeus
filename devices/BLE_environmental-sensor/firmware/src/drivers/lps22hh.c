@@ -33,11 +33,8 @@ void _lps22hh_tx_complete(lps22hh_handle_t *self, sl_status_t status) {
 }
 
 void _lps22hh_on_i2c_transfer_complete(
-    i2c_tx_status_t status, const uint8_t *buffer, uint8_t len, void *user_data
+    i2c_tx_status_t status, void *user_data
 ) {
-	(void)buffer;
-	(void)len;
-
 	lps22hh_handle_t *self = user_data;
 
 	_lps22hh_tx_complete(self, i2c_tx_status_map(status));

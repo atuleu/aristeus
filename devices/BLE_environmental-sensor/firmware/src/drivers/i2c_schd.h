@@ -63,15 +63,9 @@ sl_status_t i2c_tx_status_map(i2c_tx_status_t);
  * @brief Callback type for I2C transmission operations.
  *
  * @param status     Status of the I2C transmission operation.
- * @param buffer Pointer to the data buffer involved in the operation. Only
- *        valid for succesful read operation, NULL otherwise.
- * @param len Length of the data buffer involved in the operation. Only valid
- *        for succesful read operation, 0 otherwise.
  * @param user_data user defined context data for the callback.
  */
-typedef void (*i2c_tx_callback_t)(
-    i2c_tx_status_t status, const uint8_t *buffer, uint8_t len, void *user_data
-);
+typedef void (*i2c_tx_callback_t)(i2c_tx_status_t status, void *user_data);
 
 /**
  * Schedule an I2C receive operation.

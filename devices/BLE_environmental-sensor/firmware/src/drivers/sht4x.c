@@ -189,11 +189,7 @@ void _sht4x_parse_data(sht4x_handle_t *self, sht4x_blocking_result_t *res) {
 }
 
 // callback when receiving the command readout.
-void _sht4x_on_i2c_read_complete(
-    i2c_tx_status_t status, const uint8_t *buffer, uint8_t len, void *user_data
-) {
-	(void)buffer;
-	(void)len;
+void _sht4x_on_i2c_read_complete(i2c_tx_status_t status, void *user_data) {
 	sht4x_handle_t         *self = user_data;
 	sht4x_blocking_result_t res;
 	res.status = i2c_tx_status_map(status);
@@ -245,11 +241,7 @@ void _sht4x_on_timer_timeout(
 }
 
 // Callback on the write TX that starts a timeout.
-void _sht4x_on_i2c_write_complete(
-    i2c_tx_status_t status, const uint8_t *buffer, uint8_t len, void *user_data
-) {
-	(void)buffer;
-	(void)len;
+void _sht4x_on_i2c_write_complete(i2c_tx_status_t status, void *user_data) {
 	sht4x_handle_t *self = user_data;
 	if (status != I2C_TX_OK) {
 		app_log_debug(

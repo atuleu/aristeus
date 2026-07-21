@@ -225,25 +225,17 @@ void _i2c_schd_complete_tx(
 ) {
 	i2c_tx_callback_t callback;
 	void             *user_data;
-	const uint8_t    *buffer;
-	uint8_t           len;
 	CORE_ATOMIC_SECTION({
 		callback         = tx->callback;
 		user_data        = tx->user_data;
-		buffer           = tx->read_buffer;
-		len              = tx->read_len;
 		self->current_tx = NULL;
 		self->head       = (self->head + 1) & I2C_SCHEDULER_QUEUE_MASK;
 	});
 	if (callback == NULL) {
 		return;
 	}
-	if (status != I2C_TX_OK) {
-		buffer = NULL;
-		len    = 0;
-	}
 
-	callback(status, buffer, len, user_data);
+	callback(status, user_data);
 }
 
 void _i2c_schd_on_timeout(
