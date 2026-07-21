@@ -1,5 +1,4 @@
 #include "i2c_schd.h"
-#include "app_log.h"
 #include "sl_core.h"
 #include "sl_i2c.h"
 #include "sl_sleeptimer.h"

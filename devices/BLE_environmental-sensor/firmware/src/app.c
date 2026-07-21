@@ -47,7 +47,6 @@
 #include "pin_config.h"
 #include "sl_core.h"
 #include "sl_device_gpio.h"
-#include "sl_i2c.h"
 #include "types.h"
 
 #include <drivers/sht4x.h>
@@ -133,8 +132,6 @@ void sht4x_read_callback(
 
 	// we need to do something
 	app_proceed();
-
-	lps22hh_oneshot(&app.lps22hh_sensor, &lps22h_read_callback, NULL);
 }
 
 void start_sensor_readout(
@@ -152,7 +149,12 @@ void start_sensor_readout(
 	    NULL
 	);
 	if (s != SL_STATUS_OK) {
-		app_log_error("Could not start sensor reading: 0x%04lX" APP_LOG_NL, s);
+		app_log_error("Could not start SHT4X reading: 0x%04lX" APP_LOG_NL, s);
+	}
+
+	s = lps22hh_oneshot(&app.lps22hh_sensor, &lps22h_read_callback, NULL);
+	if (s != SL_STATUS_OK) {
+		app_log_error("Could not start LPS22HH reading: 0x%04lX" APP_LOG_NL, s);
 	}
 };
 
