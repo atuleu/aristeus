@@ -11,7 +11,7 @@ typedef uint16_t humidity_t;
 /// Pressure in 0.1 Pa increment, following GATT specification, 0xFFFFFFFF is
 /// NaN
 typedef uint32_t pressure_t;
-/// CO2 Concentration i 1PPM, following GATT specification. 0xFFFE: saturation,
+/// CO2 Concentration in 1PPM, following GATT specification. 0xFFFE: saturation,
 /// 0xFFFF NaN
 typedef uint16_t co2_concentration_t;
 
