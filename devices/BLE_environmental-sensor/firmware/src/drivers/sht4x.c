@@ -89,7 +89,8 @@ void _sht4x_error_cmd(sht4x_handle_t *self, sl_status_t status) {
 		callback.soft_reset(status, user_data);
 		break;
 	default:
-		callback.data(status, 0xffff, 0xffff, user_data);
+		callback
+		    .data(status, GATT_TEMPERATURE_NAN, GATT_HUMIDITY_NAN, user_data);
 	}
 }
 
@@ -175,7 +176,7 @@ void _sht4x_parse_data(sht4x_handle_t *self, sht4x_blocking_result_t *res) {
 			    ((uint16_t)self->read_buffer[1])
 			);
 		} else {
-			res->data.th_readout.temperature = 0xffff;
+			res->data.th_readout.temperature = GATT_TEMPERATURE_NAN;
 		}
 		if (dataBOk) {
 			res->data.th_readout.humidity = _sht4x_convert_humidity(
@@ -183,7 +184,7 @@ void _sht4x_parse_data(sht4x_handle_t *self, sht4x_blocking_result_t *res) {
 			    ((uint16_t)self->read_buffer[4])
 			);
 		} else {
-			res->data.th_readout.humidity = 0xffff;
+			res->data.th_readout.humidity = GATT_HUMIDITY_NAN;
 		}
 	}
 }

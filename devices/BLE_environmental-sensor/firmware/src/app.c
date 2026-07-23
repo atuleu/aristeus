@@ -71,11 +71,13 @@ static app_handle_t app = {
     .is_advertising         = false,
     .data_ready = {.port = LPS22DF_INT_PORT, .pin = LPS22DF_INT_PIN},
     .current_data_point =
-        {.date        = 0,
-         .temperature = 0xffff,
-         .humidity    = 0xffff,
-         .pressure    = 0xffffffff,
-         .c02         = 0xffff},
+        {
+            .date        = 0,
+            .temperature = GATT_TEMPERATURE_NAN,
+            .humidity    = GATT_HUMIDITY_NAN,
+            .pressure    = GATT_PRESSURE_NAN,
+            .c02         = GATT_CO2_NAN,
+        },
     .new_lps22hh_data = false,
     .new_sht4x_data   = false
 };
@@ -325,8 +327,8 @@ void sl_bt_on_event(sl_bt_msg_t *evt) {
 		// Generate data for advertising
 		sc = app_set_legacy_advertiser_data(
 		    app.advertising_set_handle,
-		    0xffff,
-		    0xffff
+		    GATT_TEMPERATURE_NAN,
+		    GATT_HUMIDITY_NAN
 		);
 		app_assert_status(sc);
 
@@ -362,8 +364,8 @@ void sl_bt_on_event(sl_bt_msg_t *evt) {
 		// Generate data for advertising
 		sc = app_set_legacy_advertiser_data(
 		    app.advertising_set_handle,
-		    0xffff,
-		    0xffff
+		    GATT_TEMPERATURE_NAN,
+		    GATT_HUMIDITY_NAN
 		);
 
 		app_assert_status(sc);

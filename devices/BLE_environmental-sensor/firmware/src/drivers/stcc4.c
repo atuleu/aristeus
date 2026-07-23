@@ -212,9 +212,8 @@ sl_status_t _stcc4_read_serial_number_blocking(
 	if (crc_ok == false) {
 		return SL_STATUS_INVALID_COUNT;
 	}
-	*serial_number =
-	    (((uint32_t)buffer[3]) >> 24) | (((uint32_t)buffer[2]) >> 16) |
-	    (((uint32_t)buffer[1]) >> 8) | (((uint32_t)buffer[0]) >> 0);
+	*serial_number = ((uint32_t)buffer[3] << 24) | ((uint32_t)buffer[2] << 16) |
+	                 ((uint32_t)buffer[1] << 8) | ((uint32_t)buffer[0] << 0);
 	return SL_STATUS_OK;
 }
 
@@ -320,12 +319,16 @@ void _stcc4_complete_read_sequence(
 void _stcc4_on_read_measurement(i2c_tx_status_t status, void *user_data) {
 	stcc4_handle_t *self = user_data;
 	if (status != I2C_TX_OK) {
-		_stcc4_complete_read_sequence(self, SL_STATUS_BUS_ERROR, 0xffff);
+		_stcc4_complete_read_sequence(self, SL_STATUS_BUS_ERROR, GATT_CO2_NAN);
 		return;
 	}
 
 	if (_stcc4_check_crc_word(self->buffer) == false) {
-		_stcc4_complete_read_sequence(self, SL_STATUS_INVALID_COUNT, 0xffff);
+		_stcc4_complete_read_sequence(
+		    self,
+		    SL_STATUS_INVALID_COUNT,
+		    GATT_CO2_NAN
+		);
 		return;
 	}
 
@@ -333,8 +336,8 @@ void _stcc4_on_read_measurement(i2c_tx_status_t status, void *user_data) {
 	    ((uint16_t)self->buffer[0] << 8) | ((uint16_t)self->buffer[1]);
 
 	// check for saturation
-	if (pressure_ppm == 0xffff) {
-		pressure_ppm = 0xfffe;
+	if (pressure_ppm == GATT_CO2_NAN) {
+		pressure_ppm = GATT_CO2_MAX;
 	}
 
 	_stcc4_complete_read_sequence(self, SL_STATUS_OK, pressure_ppm);
@@ -358,7 +361,7 @@ void _stcc4_on_measure_single_shot(i2c_tx_status_t status, void *user_data) {
 	);
 
 	if (command_status != SL_STATUS_OK) {
-		_stcc4_complete_read_sequence(self, command_status, 0xffff);
+		_stcc4_complete_read_sequence(self, command_status, GATT_CO2_NAN);
 	}
 }
 
@@ -382,14 +385,14 @@ void _stcc4_on_set_pressure_compensation(
 	);
 
 	if (command_status != SL_STATUS_OK) {
-		_stcc4_complete_read_sequence(self, command_status, 0xffff);
+		_stcc4_complete_read_sequence(self, command_status, GATT_CO2_NAN);
 	}
 }
 
 void _stcc4_on_set_rht_compensation(i2c_tx_status_t status, void *user_data) {
 	stcc4_handle_t *self = user_data;
 	if (status != I2C_TX_OK) {
-		_stcc4_complete_read_sequence(self, SL_STATUS_BUS_ERROR, 0xffff);
+		_stcc4_complete_read_sequence(self, SL_STATUS_BUS_ERROR, GATT_CO2_NAN);
 		return;
 	}
 	uint16_t pressure;
@@ -417,14 +420,14 @@ void _stcc4_on_set_rht_compensation(i2c_tx_status_t status, void *user_data) {
 	    self
 	);
 	if (command_status != SL_STATUS_OK) {
-		_stcc4_complete_read_sequence(self, command_status, 0xffff);
+		_stcc4_complete_read_sequence(self, command_status, GATT_CO2_NAN);
 	}
 }
 
 void _stcc4_on_exit_sleepmode(i2c_tx_status_t status, void *user_data) {
 	stcc4_handle_t *self = user_data;
 	if (status != I2C_TX_OK) {
-		_stcc4_complete_read_sequence(self, SL_STATUS_BUS_ERROR, 0xffff);
+		_stcc4_complete_read_sequence(self, SL_STATUS_BUS_ERROR, GATT_CO2_NAN);
 		return;
 	}
 
@@ -455,7 +458,7 @@ void _stcc4_on_exit_sleepmode(i2c_tx_status_t status, void *user_data) {
 	    self
 	);
 	if (command_status != SL_STATUS_OK) {
-		_stcc4_complete_read_sequence(self, command_status, 0xffff);
+		_stcc4_complete_read_sequence(self, command_status, GATT_CO2_NAN);
 	}
 }
 
@@ -482,7 +485,8 @@ sl_status_t stcc4_start_read_sequence(
 	if (self == NULL) {
 		return SL_STATUS_NULL_POINTER;
 	}
-	if (temperature == -1 || humidity == 0xffff || pressure == 0xffffffff) {
+	if (temperature == GATT_TEMPERATURE_NAN || humidity == GATT_HUMIDITY_NAN ||
+	    pressure == GATT_PRESSURE_NAN) {
 		return SL_STATUS_INVALID_PARAMETER;
 	}
 

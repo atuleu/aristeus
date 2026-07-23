@@ -71,7 +71,7 @@ sl_status_t sht4x_read_serial_number(
  * @param status Status of the read operation. SL_STATUS_OK if the read
  *        operation was successful, and both CRC checks passed. Otherwise, an
  *        error code indicating the failure reason.
- * @param temperature Temperature read from the sensor. is 0xFFFF if read or CRC
+ * @param temperature Temperature read from the sensor. is 0x8000 if read or CRC
  *        check failed.
  * @param humidity Humidity read from the sensor. is 0xFFFF if read or CRC check
  *        failed.
@@ -160,7 +160,7 @@ typedef struct {
 
 		/// Temperature and humidity read from the sensor. Valid only if the
 		/// operation was sht4x_read_data_blocking. If the operation failed,
-		/// these values are 0xffff.
+		/// these values are respectively 0x8000 and 0xFFFF.
 		struct __attribute__((packed)) {
 			temperature_t temperature;
 			humidity_t    humidity;

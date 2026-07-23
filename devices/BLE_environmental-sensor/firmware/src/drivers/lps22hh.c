@@ -74,7 +74,7 @@ void _lps22hh_oneshot_read_cb(i2c_tx_status_t status, void *user_data) {
 			_lps22hh_oneshot_complete(
 			    self,
 			    i2c_tx_status_map(status),
-			    0xffffffff
+			    GATT_PRESSURE_NAN
 			);
 		}
 		CORE_EXIT_ATOMIC();
@@ -100,7 +100,11 @@ void _lps22hh_oneshot_read_cb(i2c_tx_status_t status, void *user_data) {
 	                        ((uint32_t)self->read_buffer[0]);
 	// data is 24bit signed in 2 complement, we do not support negative pressure
 	if ((pressure_data & 0x00800000) != 0x00) {
-		_lps22hh_oneshot_complete(self, SL_STATUS_INVALID_RANGE, 0xffffffff);
+		_lps22hh_oneshot_complete(
+		    self,
+		    SL_STATUS_INVALID_RANGE,
+		    GATT_PRESSURE_NAN
+		);
 		return;
 	}
 
@@ -116,7 +120,11 @@ void _lps22hh_oneshot_write_cb(i2c_tx_status_t status, void *user_data) {
 	}
 	// we could not write the command, terminate the async call
 	lps22hh_handle_t *self = user_data;
-	_lps22hh_oneshot_complete(self, i2c_tx_status_map(status), 0xffffffff);
+	_lps22hh_oneshot_complete(
+	    self,
+	    i2c_tx_status_map(status),
+	    GATT_PRESSURE_NAN
+	);
 }
 
 sl_status_t lps22hh_oneshot(
@@ -309,7 +317,11 @@ void lps22hh_process_action(lps22hh_handle_t *self) {
 		if (self->oneshot_tries < LPS22HH_ONESHOT_MAXTRIALS) {
 			app_proceed();
 		} else {
-			_lps22hh_oneshot_complete(self, SL_STATUS_BUS_ERROR, 0xffffffff);
+			_lps22hh_oneshot_complete(
+			    self,
+			    SL_STATUS_BUS_ERROR,
+			    GATT_PRESSURE_NAN
+			);
 			return;
 		}
 	} else {
