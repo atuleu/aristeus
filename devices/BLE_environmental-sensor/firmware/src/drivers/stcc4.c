@@ -71,12 +71,13 @@ void _stcc4_on_command_write(i2c_tx_status_t status, void *user_data) {
 	stcc4_handle_t *self = user_data;
 	if (self->buffer[0] == 0x00) {
 		app_log_debug(
-		    "Got NACK status on exit sleep mode 0x%02X" APP_LOG_NL,
+		    "Got NACK status on exit sleep mode 0x%02X." APP_LOG_NL,
 		    status
 		);
 	} else if (status != I2C_TX_OK ||
 	           (self->read_len == 0 && self->read_delay_ms == 0)) {
 		_stcc4_complete_tx(status, self);
+		return;
 	}
 
 	sl_status_t command_status;
@@ -123,7 +124,7 @@ sl_status_t _stcc4_send_command(
 
 	CORE_DECLARE_IRQ_STATE;
 	CORE_ENTER_ATOMIC();
-	if (self->tx_callback == NULL) {
+	if (self->tx_callback != NULL) {
 		CORE_EXIT_ATOMIC();
 		return SL_STATUS_BUSY;
 	}
@@ -132,7 +133,7 @@ sl_status_t _stcc4_send_command(
 	self->read_delay_ms = read_delay_ms;
 	self->read_len      = read_len;
 	CORE_EXIT_ATOMIC();
-	self->buffer[0] = cmd >> 16;
+	self->buffer[0] = cmd >> 8;
 	if (command_len > 1) {
 		self->buffer[1] = cmd & 0xff;
 	}
@@ -164,7 +165,7 @@ sl_status_t _stcc4_send_command_blocking(
 
 	CORE_DECLARE_IRQ_STATE;
 	CORE_ENTER_ATOMIC();
-	if (self->read_callback != NULL) {
+	if (self->read_callback != NULL || self->tx_callback != NULL) {
 		CORE_EXIT_ATOMIC();
 		return SL_STATUS_BUSY;
 	}
@@ -188,18 +189,13 @@ sl_status_t _stcc4_send_command_blocking(
 	);
 }
 
-sl_status_t _stcc4_check_crc(const uint8_t *buffer, uint8_t len) {
+// checks a 16 bit word CRC value.
+bool _stcc4_check_crc_word(const uint8_t *buffer) {
 	uint8_t crc = 0xff;
-	for (size_t i = 0; i < len; ++i) {
+	for (size_t i = 0; i < 3; ++i) {
 		crc = CRC8_AppendByte(crc, 0x31, buffer[i]);
-		if ((i % 3) == 0) {
-			if (crc != 0x00) {
-				return SL_STATUS_INVALID_COUNT;
-			}
-			crc = 0xff;
-		}
 	}
-	return SL_STATUS_OK;
+	return crc == 0x00;
 }
 
 sl_status_t _stcc4_read_serial_number_blocking(
@@ -211,12 +207,14 @@ sl_status_t _stcc4_read_serial_number_blocking(
 	if (status != SL_STATUS_OK) {
 		return status;
 	}
-	status = _stcc4_check_crc(buffer, 6);
-	if (status != SL_STATUS_OK) {
-		return status;
+	bool crc_ok =
+	    _stcc4_check_crc_word(buffer) && _stcc4_check_crc_word(&buffer[3]);
+	if (crc_ok == false) {
+		return SL_STATUS_INVALID_COUNT;
 	}
-	*serial_number = ((uint32_t)buffer[0] >> 24) | ((uint32_t)buffer[1] >> 16) |
-	                 ((uint32_t)buffer[2] >> 8) | ((uint32_t)buffer[3] >> 0);
+	*serial_number =
+	    (((uint32_t)buffer[3]) >> 24) | (((uint32_t)buffer[2]) >> 16) |
+	    (((uint32_t)buffer[1]) >> 8) | (((uint32_t)buffer[0]) >> 0);
 	return SL_STATUS_OK;
 }
 
@@ -326,23 +324,20 @@ void _stcc4_on_read_measurement(i2c_tx_status_t status, void *user_data) {
 		return;
 	}
 
-	uint8_t crc = 0xff;
-	crc         = CRC8_AppendByte(crc, 0x31, self->buffer[0]);
-	crc         = CRC8_AppendByte(crc, 0x31, self->buffer[1]);
-	crc         = CRC8_AppendByte(crc, 0x31, self->buffer[2]);
-	if (crc != 0x00) {
+	if (_stcc4_check_crc_word(self->buffer) == false) {
 		_stcc4_complete_read_sequence(self, SL_STATUS_INVALID_COUNT, 0xffff);
-	} else {
-		uint16_t pressure_ppm =
-		    ((uint16_t)self->buffer[0] << 8) | ((uint16_t)self->buffer[1]);
-
-		// check for saturation
-		if (pressure_ppm == 0xffff) {
-			pressure_ppm = 0xfffe;
-		}
-
-		_stcc4_complete_read_sequence(self, SL_STATUS_OK, pressure_ppm);
+		return;
 	}
+
+	uint16_t pressure_ppm =
+	    ((uint16_t)self->buffer[0] << 8) | ((uint16_t)self->buffer[1]);
+
+	// check for saturation
+	if (pressure_ppm == 0xffff) {
+		pressure_ppm = 0xfffe;
+	}
+
+	_stcc4_complete_read_sequence(self, SL_STATUS_OK, pressure_ppm);
 }
 
 void _stcc4_on_measure_single_shot(i2c_tx_status_t status, void *user_data) {
@@ -406,7 +401,7 @@ void _stcc4_on_set_rht_compensation(i2c_tx_status_t status, void *user_data) {
 		pressure = self->pressure / 20;
 	}
 
-	self->buffer[2] = pressure >> 16;
+	self->buffer[2] = pressure >> 8;
 	self->buffer[3] = pressure & 0xff;
 	self->buffer[4] = 0xff;
 	self->buffer[4] = CRC8_AppendByte(self->buffer[4], 0x31, self->buffer[2]);
@@ -438,13 +433,13 @@ void _stcc4_on_exit_sleepmode(i2c_tx_status_t status, void *user_data) {
 
 	uint16_t humidity = ((float)self->humidity + 60.0f) / 1250.0f * 65535.0f;
 
-	self->buffer[2] = temperature >> 16;
+	self->buffer[2] = temperature >> 8;
 	self->buffer[3] = temperature & 0xff;
 	self->buffer[4] = 0xff;
 	self->buffer[4] = CRC8_AppendByte(self->buffer[4], 0x31, self->buffer[2]);
 	self->buffer[4] = CRC8_AppendByte(self->buffer[4], 0x31, self->buffer[3]);
 
-	self->buffer[5] = humidity >> 16;
+	self->buffer[5] = humidity >> 8;
 	self->buffer[6] = humidity & 0xff;
 	self->buffer[7] = 0xff;
 	self->buffer[7] = CRC8_AppendByte(self->buffer[7], 0x31, self->buffer[5]);
@@ -493,7 +488,7 @@ sl_status_t stcc4_start_read_sequence(
 
 	CORE_DECLARE_IRQ_STATE;
 	CORE_ENTER_ATOMIC();
-	if (self->read_callback != NULL) {
+	if (self->read_callback != NULL || self->tx_callback != NULL) {
 		CORE_EXIT_ATOMIC();
 		return SL_STATUS_BUSY;
 	}
