@@ -71,6 +71,38 @@
 // [TIMER4]$
 
 // $[USART0]
+// USART0 CLK on PC01
+#ifndef USART0_CLK_PORT                         
+#define USART0_CLK_PORT                          SL_GPIO_PORT_C
+#endif
+#ifndef USART0_CLK_PIN                          
+#define USART0_CLK_PIN                           1
+#endif
+
+// USART0 CS on PC03
+#ifndef USART0_CS_PORT                          
+#define USART0_CS_PORT                           SL_GPIO_PORT_C
+#endif
+#ifndef USART0_CS_PIN                           
+#define USART0_CS_PIN                            3
+#endif
+
+// USART0 RX on PC02
+#ifndef USART0_RX_PORT                          
+#define USART0_RX_PORT                           SL_GPIO_PORT_C
+#endif
+#ifndef USART0_RX_PIN                           
+#define USART0_RX_PIN                            2
+#endif
+
+// USART0 TX on PC00
+#ifndef USART0_TX_PORT                          
+#define USART0_TX_PORT                           SL_GPIO_PORT_C
+#endif
+#ifndef USART0_TX_PIN                           
+#define USART0_TX_PIN                            0
+#endif
+
 // [USART0]$
 
 // $[USART1]
@@ -149,11 +181,11 @@
 
 
 
-#ifndef LPS22DF_INT_PORT                        
-#define LPS22DF_INT_PORT                         SL_GPIO_PORT_B
+#ifndef LPS22HH_INT_PORT                        
+#define LPS22HH_INT_PORT                         SL_GPIO_PORT_B
 #endif
-#ifndef LPS22DF_INT_PIN                         
-#define LPS22DF_INT_PIN                          1
+#ifndef LPS22HH_INT_PIN                         
+#define LPS22HH_INT_PIN                          1
 #endif
 
 

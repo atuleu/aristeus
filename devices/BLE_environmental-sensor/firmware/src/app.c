@@ -44,6 +44,7 @@
 
 #include "drivers/i2c_schd.h"
 #include "drivers/lps22hh.h"
+#include "drivers/stcc4.h"
 #include "pin_config.h"
 #include "sl_core.h"
 #include "sl_device_gpio.h"
@@ -59,17 +60,19 @@ typedef struct app_handle {
 	sht4x_handle_t               sht4x_sensor;
 	const sl_gpio_t              data_ready;
 	lps22hh_handle_t             lps22hh_sensor;
+	stcc4_handle_t               stcc4_sensor;
 
 	volatile data_point_t current_data_point;
 	volatile bool         new_sht4x_data;
 	volatile bool         new_lps22hh_data;
+	volatile bool         new_stcc4_data;
 
 } app_handle_t;
 
 static app_handle_t app = {
     .advertising_set_handle = 0xff,
     .is_advertising         = false,
-    .data_ready = {.port = LPS22DF_INT_PORT, .pin = LPS22DF_INT_PIN},
+    .data_ready = {.port = LPS22HH_INT_PORT, .pin = LPS22HH_INT_PIN},
     .current_data_point =
         {
             .date        = 0,
@@ -79,7 +82,8 @@ static app_handle_t app = {
             .c02         = GATT_CO2_NAN,
         },
     .new_lps22hh_data = false,
-    .new_sht4x_data   = false
+    .new_sht4x_data   = false,
+    .new_stcc4_data   = false,
 };
 
 // The advertising set handle allocated from Bluetooth stack.
@@ -136,6 +140,22 @@ void _app_on_sht4x_readout(
 	app_proceed();
 }
 
+void _app_on_stcc4_readout(
+    sl_status_t status, co2_concentration_t co2, void *user_data
+) {
+	(void)user_data;
+	if (status != SL_STATUS_OK) {
+		app_log_warning("STCC4 readout failure: 0x%04lX." APP_LOG_NL, status);
+		return;
+	}
+	app_log_info("Got c02 concentration: %dPPM." APP_LOG_NL, co2);
+	CORE_ATOMIC_SECTION({
+		app.current_data_point.c02 = co2;
+		app.new_stcc4_data         = true;
+	});
+	app_proceed();
+}
+
 void start_sensor_readout(
     sl_sleeptimer_timer_handle_t *timer, void *user_data
 ) {
@@ -186,9 +206,16 @@ void app_init(void) {
 		return;
 	}
 
+	stcc4_init_args_t args = {.i2c_bus = &app.i2c0, .address_pin_set = false};
+	status                 = stcc4_init(&app.stcc4_sensor, &args);
+	if (status != SL_STATUS_OK) {
+		app_log_warning("No loop started" APP_LOG_NL);
+		return;
+	}
+
 	sl_sleeptimer_start_periodic_timer_ms(
 	    &app.sensor_timer,
-	    1000,
+	    2000,
 	    &start_sensor_readout,
 	    NULL,
 	    0,
@@ -278,23 +305,38 @@ void app_process_action(void) {
 
 	lps22hh_process_action(&app.lps22hh_sensor);
 
-	bool need_update;
-	CORE_ATOMIC_SECTION({
-		need_update          = app.new_lps22hh_data || app.new_sht4x_data;
+	bool need_update = false;
+	CORE_DECLARE_IRQ_STATE;
+	CORE_ENTER_ATOMIC();
+	if (app.new_lps22hh_data == true && app.new_sht4x_data == true) {
+		CORE_EXIT_ATOMIC();
+		sl_status_t status = stcc4_start_read_sequence(
+		    &app.stcc4_sensor,
+		    app.current_data_point.temperature,
+		    app.current_data_point.humidity,
+		    app.current_data_point.pressure,
+		    &_app_on_stcc4_readout,
+		    NULL
+		);
+		if (status != SL_STATUS_OK) {
+			app_log_error(
+			    "Could not start c02 readout: 0x%04lX." APP_LOG_NL,
+			    status
+			);
+		}
+		CORE_ENTER_ATOMIC();
 		app.new_lps22hh_data = false;
 		app.new_sht4x_data   = false;
-	});
+		need_update          = true;
+	}
+	need_update        = need_update || app.new_stcc4_data;
+	app.new_stcc4_data = false;
+	CORE_EXIT_ATOMIC();
 
 	if (need_update == false) {
 		return;
 	}
 
-	/////////////////////////////////////////////////////////////////////////////
-	// Put your additional application code here! This is will run each time
-	// app_proceed() is called.
-	//
-	// Do not call blocking functions from here!
-	/////////////////////////////////////////////////////////////////////////////
 	if (app.is_advertising == true) {
 		sl_status_t sc = app_set_legacy_advertiser_data(
 		    app.advertising_set_handle,

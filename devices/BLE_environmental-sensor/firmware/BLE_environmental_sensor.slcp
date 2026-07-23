@@ -96,6 +96,11 @@ component:
 - package: simplicity_sdk
   vendor: silabs
   id: sl_main
+- package: simplicity_sdk
+  instance:
+  - spi0
+  vendor: silabs
+  id: spidrv
 autoselected_components:
 - package: simplicity_sdk
   vendor: silabs
@@ -289,6 +294,9 @@ autoselected_components:
 - package: simplicity_sdk
   vendor: silabs
   id: emlib_timer
+- package: simplicity_sdk
+  vendor: silabs
+  id: emlib_usart
 - package: simplicity_sdk
   vendor: silabs
   id: enum
@@ -586,6 +594,9 @@ autoselected_components:
 - package: simplicity_sdk
   vendor: silabs
   id: slist
+- package: simplicity_sdk
+  vendor: silabs
+  id: spidrv_core
 - package: simplicity_sdk
   vendor: silabs
   id: status

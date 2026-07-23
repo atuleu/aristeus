@@ -15,8 +15,6 @@ typedef struct stcc4_handle stcc4_handle_t;
 typedef struct stcc4_init_args {
 	i2c_schd_handle_t *i2c_bus;
 	bool               address_pin_set;
-	const sl_gpio_t    boost_pin;
-
 } stcc4_init_args_t;
 
 sl_status_t stcc4_init(stcc4_handle_t *self, stcc4_init_args_t *args);
@@ -37,7 +35,6 @@ sl_status_t stcc4_start_read_sequence(
 struct stcc4_handle {
 	i2c_schd_handle_t *i2c_bus;
 	uint8_t            address;
-	sl_gpio_t          boost_pin;
 
 	uint8_t                    buffer[12];
 	volatile i2c_tx_callback_t tx_callback;

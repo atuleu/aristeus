@@ -43,6 +43,7 @@ target_compile_options(BLE_environmental_sensor PUBLIC
 )
 
 target_link_options(BLE_environmental_sensor PUBLIC
+	-Wl,--print-memory-usage
     # Set additional linker flags here
 )
 
@@ -66,6 +67,18 @@ add_custom_command(TARGET BLE_environmental_sensor
     COMMAND ${CMAKE_OBJCOPY} ${OBJCOPY_SREC_CMD} "$<TARGET_FILE:BLE_environmental_sensor>" "$<TARGET_FILE_DIR:BLE_environmental_sensor>/$<TARGET_FILE_BASE_NAME:BLE_environmental_sensor>.s37"
     COMMAND ${CMAKE_OBJCOPY} ${OBJCOPY_IHEX_CMD} "$<TARGET_FILE:BLE_environmental_sensor>" "$<TARGET_FILE_DIR:BLE_environmental_sensor>/$<TARGET_FILE_BASE_NAME:BLE_environmental_sensor>.hex"
     COMMAND ${CMAKE_OBJCOPY} ${OBJCOPY_BIN_CMD}  "$<TARGET_FILE:BLE_environmental_sensor>" "$<TARGET_FILE_DIR:BLE_environmental_sensor>/$<TARGET_FILE_BASE_NAME:BLE_environmental_sensor>.bin"
+)
+
+
+
+find_program(CMAKE_SIZE_UTIL NAMES arm-none-eabi-size)
+
+# Attach the size reporting tool to run after the executable is linked
+add_custom_target(PrintMemoryUsage ALL
+    COMMAND ${CMAKE_SIZE_UTIL} --format=sysv $<TARGET_FILE:BLE_environmental_sensor>
+    COMMENT "Calculating memory usage for $<TARGET_FILE_NAME:BLE_environmental_sensor>..."
+	DEPENDS BLE_environmental_sensor
+
 )
 
 # Run post-build pipeline to perform additional post-processing
