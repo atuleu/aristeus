@@ -44,10 +44,12 @@
 
 #include "drivers/i2c_schd.h"
 #include "drivers/lps22hh.h"
+#include "drivers/spiflash.h"
 #include "drivers/stcc4.h"
 #include "pin_config.h"
 #include "sl_core.h"
 #include "sl_device_gpio.h"
+#include "sl_spidrv_instances.h"
 #include "types.h"
 
 #include <drivers/sht4x.h>
@@ -72,7 +74,7 @@ typedef struct app_handle {
 static app_handle_t app = {
     .advertising_set_handle = 0xff,
     .is_advertising         = false,
-    .data_ready = {.port = LPS22HH_INT_PORT, .pin = LPS22HH_INT_PIN},
+    .data_ready = {.port = LPS22DF_INT_PORT, .pin = LPS22DF_INT_PIN},
     .current_data_point =
         {
             .date        = 0,
@@ -187,7 +189,14 @@ void app_init(void) {
 	// during start-up.                                    //
 	/////////////////////////////////////////////////////////////////////////////
 
-	sl_status_t status = i2c_schd_init(&app.i2c0, sl_i2c_i2c0_handle);
+	sl_status_t status;
+
+	status = spiflash_init(sl_spidrv_spi0_handle);
+	app_assert_status(status);
+
+	spiflash_enter_deepsleep(NULL, NULL);
+
+	status = i2c_schd_init(&app.i2c0, sl_i2c_i2c0_handle);
 	app_assert_status(status);
 
 	status = sht4x_init(&app.sht4x_sensor, &app.i2c0, SHT4X_BASE_ADDR);

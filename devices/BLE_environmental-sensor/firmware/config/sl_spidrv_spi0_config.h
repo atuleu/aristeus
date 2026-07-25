@@ -38,7 +38,7 @@
 
 // <o SL_SPIDRV_SPI0_BITRATE> SPI bitrate
 // <i> Default: 1000000
-#define SL_SPIDRV_SPI0_BITRATE           1000000
+#define SL_SPIDRV_SPI0_BITRATE           5000000
 
 // <o SL_SPIDRV_SPI0_FRAME_LENGTH> SPI frame length <4-16>
 // <i> Default: 8
@@ -64,7 +64,7 @@
 // <o SL_SPIDRV_SPI0_CS_CONTROL> SPI master chip select (CS) control scheme.
 // <spidrvCsControlAuto=> CS controlled by the SPI driver
 // <spidrvCsControlApplication=> CS controlled by the application
-#define SL_SPIDRV_SPI0_CS_CONTROL        spidrvCsControlAuto
+#define SL_SPIDRV_SPI0_CS_CONTROL        spidrvCsControlApplication
 
 // <o SL_SPIDRV_SPI0_SLAVE_START_MODE> SPI slave transfer start scheme
 // <spidrvSlaveStartImmediate=> Transfer starts immediately

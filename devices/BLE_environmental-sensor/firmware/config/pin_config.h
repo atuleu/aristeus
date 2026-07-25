@@ -181,11 +181,11 @@
 
 
 
-#ifndef LPS22HH_INT_PORT                        
-#define LPS22HH_INT_PORT                         SL_GPIO_PORT_B
+#ifndef LPS22DF_INT_PORT                        
+#define LPS22DF_INT_PORT                         SL_GPIO_PORT_B
 #endif
-#ifndef LPS22HH_INT_PIN                         
-#define LPS22HH_INT_PIN                          1
+#ifndef LPS22DF_INT_PIN                         
+#define LPS22DF_INT_PIN                          1
 #endif
 
 
