@@ -45,16 +45,16 @@ struct spiflash_handle {
 static struct spiflash_handle self;
 
 SL_ENUM(spiflash_command_t){
-    mx25_cmd_read_id                = 0x9f,
-    mx25_cmd_read                   = 0x03,
-    mx25_cmd_wren                   = 0x06,
-    mx25_cmd_read_status_register   = 0x05,
-    mx25_cmd_program_page           = 0x02,
-    mx25_cmd_sector_erase           = 0x20,
-    mx25_cmd_sector_block_erase_32k = 0x52,
-    mx25_cmd_sector_block_erase_64k = 0xd8,
-    mx25_cmd_sector_chip_erase      = 0x60,
-    mx25_cmd_deep_sleep             = 0xb9,
+    mx25_cmd_read_id              = 0x9f,
+    mx25_cmd_read                 = 0x03,
+    mx25_cmd_wren                 = 0x06,
+    mx25_cmd_read_status_register = 0x05,
+    mx25_cmd_program_page         = 0x02,
+    mx25_cmd_sector_erase         = 0x20,
+    mx25_cmd_block_erase_32k      = 0x52,
+    mx25_cmd_block_erase_64k      = 0xd8,
+    mx25_cmd_chip_erase           = 0x60,
+    mx25_cmd_deep_sleep           = 0xb9,
 };
 
 #define _spiflash_CS_low()                                                     \
@@ -233,7 +233,8 @@ sl_status_t spiflash_read(
     spiflash_op_callback_t callback,
     void                  *user_data
 ) {
-	if (address >= SPIFLASH_MAX_ADDRESS) {
+	if (address > SPIFLASH_MAX_ADDRESS ||
+	    len > (SPIFLASH_MAX_ADDRESS + 1 - address)) {
 		return SL_STATUS_INVALID_RANGE;
 	}
 	return _spiflash_start_op(
@@ -253,7 +254,8 @@ sl_status_t spiflash_write(
     spiflash_op_callback_t callback,
     void                  *user_data
 ) {
-	if (address >= SPIFLASH_MAX_ADDRESS) {
+	if (address > SPIFLASH_MAX_ADDRESS ||
+	    address > (SPIFLASH_MAX_ADDRESS + 1 - address)) {
 		return SL_STATUS_INVALID_RANGE;
 	}
 	if ((address & 0xff) != ((address + len) & 0xff)) {
@@ -386,7 +388,7 @@ void _spiflash_poll(_spiflash_polling_mode_t mode, uint32_t ticks) {
 	    0
 	);
 	if (status != SL_STATUS_OK) {
-		_spiflash_complete_op(SL_STATUS_INITIALIZATION);
+		_spiflash_complete_op(SL_STATUS_FAIL);
 	}
 }
 
@@ -406,6 +408,7 @@ void _spiflash_on_poll_timeout(
 	    _spiflash_on_poll_status
 	);
 	if (err != ECODE_EMDRV_SPIDRV_OK) {
+		_spiflash_CS_high();
 		_spiflash_complete_op(SL_STATUS_BUS_ERROR);
 	}
 }
@@ -419,7 +422,9 @@ void _spiflash_on_poll_status(
 
 	if (transferStatus != ECODE_EMDRV_SPIDRV_OK) {
 		_spiflash_complete_op(SL_STATUS_TRANSMIT);
+		return;
 	}
+
 	switch (self.poll) {
 	case _spiflash_poll_wel_set:
 		if ((self.command_buffer[1] & 0x02) == 0x00) {
@@ -438,10 +443,11 @@ void _spiflash_on_poll_status(
 		}
 		break;
 	case _spiflash_poll_none:
-		app_log_error("[spiflash] spurious poll status call." APP_LOG_NL);
-		return;
 	default:
-		_spiflash_complete_op(SL_STATUS_INVALID_STATE);
+		app_log_error("[spiflash] spurious poll status call." APP_LOG_NL);
+		if (self.operation != _spiflash_op_none) {
+			_spiflash_complete_op(SL_STATUS_INVALID_STATE);
+		}
 		return;
 	}
 }
@@ -577,7 +583,7 @@ void _spiflash_on_cmd_done(
 		    0
 		);
 		if (status != SL_STATUS_OK) {
-			_spiflash_complete_op(SL_STATUS_INITIALIZATION);
+			_spiflash_complete_op(SL_STATUS_FAIL);
 			return;
 		}
 		break;
@@ -615,21 +621,21 @@ uint8_t _spiflash_erase_config() {
 		self.poll_ticks        = sl_sleeptimer_ms_to_tick(60);
 		return 4;
 	case SPIFLASH_32K:
-		self.command_buffer[0] = mx25_cmd_sector_block_erase_32k;
+		self.command_buffer[0] = mx25_cmd_block_erase_32k;
 		self.command_buffer[1] = (self.address >> 16) & 0xff;
 		self.command_buffer[2] = (self.address >> 8) & 0xff;
 		self.command_buffer[3] = (self.address >> 0) & 0xff;
 		sl_sleeptimer_ms32_to_tick(400, &self.poll_ticks);
 		return 4;
 	case SPIFLASH_64K:
-		self.command_buffer[0] = mx25_cmd_sector_block_erase_64k;
+		self.command_buffer[0] = mx25_cmd_block_erase_64k;
 		self.command_buffer[1] = (self.address >> 16) & 0xff;
 		self.command_buffer[2] = (self.address >> 8) & 0xff;
 		self.command_buffer[3] = (self.address >> 0) & 0xff;
 		sl_sleeptimer_ms32_to_tick(800, &self.poll_ticks);
 		return 4;
 	case SPIFLASH_1M:
-		self.command_buffer[0] = mx25_cmd_sector_chip_erase;
+		self.command_buffer[0] = mx25_cmd_chip_erase;
 		sl_sleeptimer_ms32_to_tick(15000, &self.poll_ticks);
 		return 1;
 	default:
@@ -665,10 +671,15 @@ sl_status_t _spiflash_check_erase(uint32_t address, uint32_t length) {
 	default:
 		return SL_STATUS_INVALID_COUNT;
 	}
+	// check address boundary
+	if (address > (SPIFLASH_MAX_ADDRESS & ~(length - 1))) {
+		return SL_STATUS_INVALID_RANGE;
+	}
 	// check alignement
 	if ((address & (length - 1)) != 0) {
 		return SL_STATUS_INVALID_PARAMETER;
 	}
+
 	return SL_STATUS_OK;
 }
 
@@ -687,7 +698,7 @@ spiflash_enter_deepsleep(spiflash_op_callback_t callback, void *user_data) {
 	CORE_ENTER_ATOMIC();
 	if (self.in_deepsleep == true) {
 		CORE_EXIT_ATOMIC();
-		return SL_STATUS_OK;
+		return SL_STATUS_ALREADY_INITIALIZED;
 	}
 	sl_status_t status = _spiflash_start_op(
 	    _spiflash_op_deepsleep,

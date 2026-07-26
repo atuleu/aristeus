@@ -46,13 +46,16 @@
 #include "drivers/lps22hh.h"
 #include "drivers/spiflash.h"
 #include "drivers/stcc4.h"
+#include "em_logger.h"
 #include "pin_config.h"
 #include "sl_core.h"
 #include "sl_device_gpio.h"
+#include "sl_power_manager.h"
+#include "sl_power_manager_debug.h"
 #include "sl_spidrv_instances.h"
 #include "types.h"
-
 #include <drivers/sht4x.h>
+#include <stdio.h>
 
 typedef struct app_handle {
 	uint8_t                      advertising_set_handle;
@@ -164,6 +167,8 @@ void start_sensor_readout(
 	(void)timer;
 	(void)user_data;
 
+	em_logger_print();
+
 	app.current_data_point.date = sl_sleeptimer_get_time();
 
 	sl_status_t s = sht4x_read_data(
@@ -191,10 +196,12 @@ void app_init(void) {
 
 	sl_status_t status;
 
-	status = spiflash_init(sl_spidrv_spi0_handle);
-	app_assert_status(status);
+	em_logger_init();
 
-	spiflash_enter_deepsleep(NULL, NULL);
+	/* status = spiflash_init(sl_spidrv_spi0_handle); */
+	/* app_assert_status(status); */
+
+	// spiflash_enter_deepsleep(NULL, NULL);
 
 	status = i2c_schd_init(&app.i2c0, sl_i2c_i2c0_handle);
 	app_assert_status(status);

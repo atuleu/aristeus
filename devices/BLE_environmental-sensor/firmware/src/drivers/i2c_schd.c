@@ -1,6 +1,7 @@
 #include "i2c_schd.h"
 #include "sl_core.h"
 #include "sl_i2c.h"
+#include "sl_power_manager.h"
 #include "sl_sleeptimer.h"
 #include "sl_status.h"
 #include <stdint.h>
@@ -250,6 +251,8 @@ void _i2c_schd_on_timeout(
 	if (tx == NULL) {
 		return;
 	}
+	sl_power_manager_remove_em_requirement(SL_POWER_MANAGER_EM1);
+
 	self->stuck_flag = true;
 	_i2c_schd_complete_tx(self, tx, I2C_TX_TIMEOUT);
 };
@@ -267,6 +270,7 @@ _i2c_schd_on_i2c_complete(sl_i2c_handle_t *i2c_bus, void *user_data) {
 	if (tx == NULL) {
 		return SL_STATUS_OK;
 	}
+	sl_power_manager_remove_em_requirement(SL_POWER_MANAGER_EM1);
 
 	_i2c_schd_complete_tx(self, tx, I2C_TX_OK);
 	return SL_STATUS_OK;
@@ -296,7 +300,6 @@ sl_status_t _i2c_schd_on_i2c_event(
 	    e == SL_I2C_EVENT_IDLE) {
 		return SL_STATUS_OK;
 	}
-
 	(void)i2c_bus;
 	i2c_schd_handle_t *self = user_data;
 	i2c_tx_handle_t   *tx;
@@ -305,9 +308,11 @@ sl_status_t _i2c_schd_on_i2c_event(
 		self->current_tx = NULL;
 	});
 	sl_sleeptimer_stop_timer(&self->timer);
+
 	if (tx == NULL) {
 		return SL_STATUS_OK;
 	}
+	sl_power_manager_remove_em_requirement(SL_POWER_MANAGER_EM1);
 
 	_i2c_schd_complete_tx(
 	    self,
@@ -336,7 +341,7 @@ void _i2c_schd_start_tx(i2c_schd_handle_t *self, i2c_tx_handle_t *tx) {
 		_i2c_schd_complete_tx(self, tx, I2C_TX_START_ERROR);
 		return;
 	}
-
+	sl_power_manager_add_em_requirement(SL_POWER_MANAGER_EM1);
 	if (tx->write_buffer == NULL) {
 		status = sl_i2c_leader_receive_non_blocking(
 		    self->i2c_bus,
@@ -367,6 +372,7 @@ void _i2c_schd_start_tx(i2c_schd_handle_t *self, i2c_tx_handle_t *tx) {
 
 	if (status != SL_STATUS_OK) {
 		sl_sleeptimer_stop_timer(&self->timer);
+		sl_power_manager_remove_em_requirement(SL_POWER_MANAGER_EM1);
 		_i2c_schd_complete_tx(self, tx, I2C_TX_START_ERROR);
 	}
 }
