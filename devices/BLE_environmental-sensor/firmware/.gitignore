@@ -6,3 +6,4 @@ cmake_llvm/
 build/
 .cache/
 autogen
+/build-test/
