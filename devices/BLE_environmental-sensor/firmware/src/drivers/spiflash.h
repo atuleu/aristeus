@@ -1,7 +1,5 @@
 #pragma once
 
-#include "sl_device_gpio.h"
-#include "sl_sleeptimer.h"
 #include "spidrv.h"
 #include <stdint.h>
 #ifdef __cplusplus
@@ -13,6 +11,9 @@ extern "C" {
 #define SPIFLASH_64K 0x10000
 #define SPIFLASH_1M  0x100000
 
+#define SPIFLASH_SIZE SPIFLASH_1M
+
+#define SPIFLASH_MAX_ADDRESS 0x0FFFFF
 sl_status_t spiflash_init(SPIDRV_Handle_t spi);
 
 typedef void (*spiflash_op_callback_t)(sl_status_t, void *user_data);

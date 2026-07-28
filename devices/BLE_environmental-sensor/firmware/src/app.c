@@ -187,21 +187,34 @@ void start_sensor_readout(
 	}
 };
 
+void _app_on_spiflash_deepsleep(sl_status_t status, void *user_data) {
+	(void)user_data;
+	if (status == SL_STATUS_OK) {
+		app_log_info("[spiflash] deep sleep successful." APP_LOG_NL);
+	} else {
+		app_log_warning(
+		    "[spiflash] deep sleep error: 0x%04lX." APP_LOG_NL,
+		    status
+		);
+	}
+}
+
 // Application Init.
 void app_init(void) {
-	/////////////////////////////////////////////////////////////////////////////
-	// Put your additional application init code here! // This is called once
-	// during start-up.                                    //
-	/////////////////////////////////////////////////////////////////////////////
+	////////////////////////////////////////////////////////////////////////////
+	// Put your additional application init code here!
+	//
+	// This is called once during start-up.
+	////////////////////////////////////////////////////////////////////////////
 
 	sl_status_t status;
 
 	em_logger_init();
 
-	/* status = spiflash_init(sl_spidrv_spi0_handle); */
-	/* app_assert_status(status); */
+	status = spiflash_init(sl_spidrv_spi0_handle);
+	app_assert_status(status);
 
-	// spiflash_enter_deepsleep(NULL, NULL);
+	spiflash_enter_deepsleep(&_app_on_spiflash_deepsleep, NULL);
 
 	status = i2c_schd_init(&app.i2c0, sl_i2c_i2c0_handle);
 	app_assert_status(status);

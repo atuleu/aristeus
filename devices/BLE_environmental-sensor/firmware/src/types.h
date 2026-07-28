@@ -1,7 +1,7 @@
 #pragma once
 
 #include "sl_sleeptimer.h"
-#include <sys/reent.h>
+#include <stdint.h>
 
 /// Temperature value in 0.01°C increment, as per GATT specification 0x8000 is
 /// NaN

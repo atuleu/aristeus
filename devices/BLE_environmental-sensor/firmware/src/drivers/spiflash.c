@@ -2,6 +2,7 @@
 #include "app_log.h"
 #include "ecode.h"
 #include "sl_core.h"
+#include "sl_device_gpio.h"
 #include "sl_enum.h"
 #include "sl_gpio.h"
 #include "sl_sleeptimer.h"
@@ -139,7 +140,7 @@ sl_status_t spiflash_init(SPIDRV_Handle_t spi) {
 	self.poll       = _spiflash_poll_none;
 	self.poll_ticks = 0;
 
-	sl_gpio_set_pin_mode(&self.cs_pin, SL_GPIO_PIN_DIRECTION_OUT, false);
+	sl_gpio_set_pin_mode(&self.cs_pin, SL_GPIO_MODE_PUSH_PULL, 1);
 	_spiflash_CS_high();
 
 	uint8_t     buffer[3];
@@ -182,8 +183,6 @@ sl_status_t _spiflash_wakeup() {
 	    0
 	);
 }
-
-#define SPIFLASH_MAX_ADDRESS 0x0FFFFF
 
 sl_status_t _spiflash_start_op(
     _spiflash_operation_t  op,

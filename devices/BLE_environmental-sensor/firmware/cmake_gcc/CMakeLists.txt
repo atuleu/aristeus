@@ -11,6 +11,7 @@ project(
 # Include the definition of the slc_BLE_environmental_sensor target,
 # which contains the content of the SLC project
 include(BLE_environmental_sensor.cmake)
+set_property(TARGET slc PROPERTY C_STANDARD 23)
 
 add_executable(BLE_environmental_sensor
     # Add additional sources here
@@ -31,7 +32,11 @@ add_executable(BLE_environmental_sensor
 	${PROJECT_SOURCE_DIR}/../src/utils/crc8.h
 	${PROJECT_SOURCE_DIR}/../src/em_logger.h
 	${PROJECT_SOURCE_DIR}/../src/em_logger.c
+	${PROJECT_SOURCE_DIR}/../src/journal.h
+	${PROJECT_SOURCE_DIR}/../src/journal.c
+
 )
+set_property(TARGET BLE_environmental_sensor PROPERTY C_STANDARD 23)
 
 target_include_directories(BLE_environmental_sensor PUBLIC
 	${PROJECT_SOURCE_DIR}/../src
