@@ -15,6 +15,11 @@ sl_status_t journal_init(SPIDRV_Handle_t spi);
 typedef uint32_t journal_index_t;
 
 #define JOURNAL_INDEX_NPOS UINT32_MAX
+#define JOURNAL_READ_CHUNK 16
+#ifndef JOURNAL_SIZE
+#define JOURNAL_SIZE                                                           \
+	((journal_index_t)(SPIFLASH_SIZE / sizeof(journal_record_t)))
+#endif // jOURNAL_SIZE
 
 sl_status_t journal_add_record(const data_point_t *dp);
 

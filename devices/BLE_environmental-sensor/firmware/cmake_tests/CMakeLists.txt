@@ -3,7 +3,7 @@ cmake_minimum_required(VERSION 3.10)
 project(firmware-tests C CXX)
 
 # GoogleTest requires at least C++17
-set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # GoogleTest requires at least C++17
@@ -38,6 +38,8 @@ target_include_directories(simplicity-mock PUBLIC ${PROJECT_SOURCE_DIR}/src)
 add_executable(firmware-tests #
 	${PROJECT_SOURCE_DIR}/../src/journal.h
 	${PROJECT_SOURCE_DIR}/../src/journal.c
+	${PROJECT_SOURCE_DIR}/../src/journal_record.h
+	${PROJECT_SOURCE_DIR}/../src/journal_record.c
 	${PROJECT_SOURCE_DIR}/../src/utils/crc8.c
 	tests/journal_tests.cpp #
 )

@@ -1,13 +1,13 @@
 #include "journal.h"
 #include "app_log.h"
 #include "drivers/spiflash.h"
+#include "journal_record.h"
 #include "sl_core.h"
 #include "sl_enum.h"
 #include "sl_sleeptimer.h"
 #include "sl_status.h"
 #include "spidrv.h"
 #include "types.h"
-#include "utils/crc8.h"
 #include <stddef.h>
 #include <stdint.h>
 
@@ -66,88 +66,6 @@ SL_ENUM(journal_operation_t){
     journal_op_find,
     journal_op_read,
 };
-
-typedef struct __attribute__((packed)) journal_record_header {
-	sl_sleeptimer_timestamp_t timestamp;
-	uint8_t                   crc;
-
-} journal_record_header_t;
-
-static_assert(sizeof(journal_record_header_t) == 5, "incorrect header size");
-
-typedef struct __attribute__((packed)) journal_record_data {
-	temperature_t       temperature;
-	humidity_t          humidity;
-	pressure_t          pressure;
-	co2_concentration_t co2;
-	uint8_t             crc;
-} journal_record_data_t;
-
-static_assert(
-    sizeof(journal_record_data_t) == 11, "incorrect record data size"
-);
-
-typedef struct __attribute__((packed)) journal_record {
-	journal_record_header_t header;
-	journal_record_data_t   data;
-} journal_record_t;
-
-static_assert(sizeof(journal_record_t) == 16, "non aligned record size");
-
-uint8_t _journal_record_compute_crc(const uint8_t *buffer, uint8_t size) {
-	uint8_t crc = 0xff;
-	for (uint8_t i = 0; i < size; ++i) {
-		crc = CRC8_AppendByte(crc, 0x31, buffer[i]);
-	}
-	return crc;
-}
-
-void _journal_record_from_data_point(
-    journal_record_t *r, const data_point_t *dp
-) {
-	r->header.timestamp = dp->date;
-	r->header.crc       = _journal_record_compute_crc(
-        (uint8_t *)&r->header.timestamp,
-        sizeof(journal_record_header_t) - sizeof(uint8_t)
-    );
-	r->data.temperature = dp->temperature;
-	r->data.humidity    = dp->humidity;
-	r->data.pressure    = dp->pressure;
-	r->data.co2         = dp->c02;
-	r->data.crc         = _journal_record_compute_crc(
-        (uint8_t *)&r->data,
-        sizeof(journal_record_data_t) - sizeof(uint8_t)
-    );
-}
-
-void _journal_record_to_data_point(
-    const journal_record_t *r, data_point_t *dp
-) {
-	dp->date        = r->header.timestamp;
-	dp->temperature = r->data.temperature;
-	dp->humidity    = r->data.humidity;
-	dp->pressure    = r->data.pressure;
-	dp->c02         = r->data.co2;
-}
-
-bool _journal_record_header_check_crc(const journal_record_header_t *r) {
-	return _journal_record_compute_crc(
-	           (const uint8_t *)r,
-	           sizeof(journal_record_header_t)
-	       ) == 0;
-}
-
-bool _journal_record_check_crc(const journal_record_t *r) {
-	return _journal_record_header_check_crc(&r->header) &&
-	       _journal_record_compute_crc(
-	           (const uint8_t *)&r->data,
-	           sizeof(journal_record_data_t)
-	       ) == 0;
-}
-
-#define JOURNAL_READ_CHUNK 16
-#define JOURNAL_RECORD_SIZE                                                    \
-	((journal_index_t)(SPIFLASH_SIZE / sizeof(journal_record_t)))
 
 typedef struct journal {
 	journal_input_queue_t queue;
@@ -214,7 +132,7 @@ sl_status_t journal_add_record(const data_point_t *dp) {
 	}
 	CORE_DECLARE_IRQ_STATE;
 	CORE_ENTER_ATOMIC();
-	if (j.next_index >= JOURNAL_RECORD_SIZE ||
+	if (j.next_index >= JOURNAL_SIZE ||
 	    journal_input_queue_add(&j.queue, dp) == false) {
 		CORE_EXIT_ATOMIC();
 		return SL_STATUS_FULL;
@@ -236,7 +154,7 @@ void _journal_may_start_write() {
 		return;
 	}
 
-	if (j.next_index >= JOURNAL_RECORD_SIZE) {
+	if (j.next_index >= JOURNAL_SIZE) {
 		CORE_EXIT_ATOMIC();
 		app_log_error("[journal] no more size on device.");
 		return;
@@ -245,7 +163,7 @@ void _journal_may_start_write() {
 	j.operation = journal_op_write;
 	CORE_EXIT_ATOMIC();
 
-	_journal_record_from_data_point(j.buffer.records, &dp);
+	journal_record_from_data_point(j.buffer.records, &dp);
 
 	sl_status_t status = spiflash_write(
 	    j.next_index * sizeof(journal_record_t),
@@ -280,7 +198,7 @@ sl_status_t journal_read(
     journal_read_callback_t callback,
     void                   *user_data
 ) {
-	if (start >= JOURNAL_RECORD_SIZE || end > JOURNAL_RECORD_SIZE) {
+	if (start >= JOURNAL_SIZE || end > JOURNAL_SIZE) {
 		return SL_STATUS_INVALID_RANGE;
 	}
 	if (start >= end) {
@@ -341,7 +259,7 @@ void _journal_on_read(sl_status_t status, void *user_data) {
 	}
 	for (uint8_t i = 0; i < count; ++i) {
 		const journal_record_t *record = &j.buffer.records[i];
-		if (_journal_record_check_crc(record) == true) {
+		if (journal_record_check_crc(record) == true) {
 			_journal_read_send_data_point(record);
 		}
 	}
@@ -353,7 +271,7 @@ void _journal_on_read(sl_status_t status, void *user_data) {
 
 void _journal_read_send_data_point(const journal_record_t *record) {
 	data_point_t dp;
-	_journal_record_to_data_point(record, &dp);
+	journal_record_to_data_point(record, &dp);
 	journal_read_callback_t callback;
 	void                   *user_data;
 	CORE_ATOMIC_SECTION({
@@ -435,7 +353,7 @@ sl_status_t _journal_read_timestamp(sl_sleeptimer_timestamp_t *ts) {
 		*ts = UINT32_MAX;
 		return SL_STATUS_OK;
 	}
-	if (_journal_record_header_check_crc(&j.find_buffer.header) == false) {
+	if (journal_record_header_check_crc(&j.find_buffer.header) == false) {
 		return SL_STATUS_FLASH_VERIFY_FAILED;
 	}
 	*ts = j.find_buffer.header.timestamp;
@@ -458,7 +376,7 @@ void _journal_on_find(sl_status_t status, void *user_data) {
 	// mitigate wrong CRC
 	if (status != SL_STATUS_OK) {
 		if (j.low == JOURNAL_INDEX_NPOS) {
-			if (j.under_read == (JOURNAL_RECORD_SIZE - 1)) {
+			if (j.under_read == (JOURNAL_SIZE - 1)) {
 				_journal_complete_find(
 				    SL_STATUS_FAIL,
 				    JOURNAL_INDEX_NPOS,
@@ -526,7 +444,7 @@ void _journal_on_find(sl_status_t status, void *user_data) {
 		}
 		j.low        = j.under_read;
 		j.low_ts     = timestamp;
-		j.under_read = JOURNAL_RECORD_SIZE - 1;
+		j.under_read = JOURNAL_SIZE - 1;
 		_journal_find_step(true);
 		return;
 	} else if (j.high == JOURNAL_INDEX_NPOS) {
