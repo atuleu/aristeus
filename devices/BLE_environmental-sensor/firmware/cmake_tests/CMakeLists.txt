@@ -44,6 +44,8 @@ add_executable(firmware-tests #
 	tests/journal_tests.cpp #
 )
 
+# reduce the journal size for unit tests.
+target_compile_definitions(firmware-tests PUBLIC -DJOURNAL_SIZE=16)
 
 
 

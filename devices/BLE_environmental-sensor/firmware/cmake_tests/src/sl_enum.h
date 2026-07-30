@@ -12,5 +12,5 @@ extern "C" {
 	enum name##_enum
 
 #if defined(__cplusplus)
-]
+}
 #endif // __cplusplus

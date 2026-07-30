@@ -16,6 +16,7 @@ typedef uint16_t sl_status_t;
 #define SL_STATUS_FLASH_VERIFY_FAILED 0x0005
 #define SL_STATUS_FAIL                0x0006
 #define SL_STATUS_EMPTY               0x0007
+#define SL_STATUS_INITIALIZATION      0x0008
 
 #ifdef __cplusplus
 }

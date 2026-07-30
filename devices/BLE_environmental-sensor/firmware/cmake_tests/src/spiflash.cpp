@@ -5,12 +5,12 @@
 
 #include <array>
 #include <cstdint>
+#include <iomanip>
+#include <iostream>
 #include <mutex>
 #include <thread>
 
 #include "sl_status.h"
-
-#include "spidrv.h"
 
 class MockSPIFlash {
 public:
@@ -86,6 +86,19 @@ public:
 	void setMemory(std::span<const uint8_t> bytes) {
 		memcpy(data.data(), bytes.data(), bytes.size());
 		memset(data.data() + bytes.size(), 0xff, SPIFLASH_SIZE - bytes.size());
+		size_t end = (bytes.size() + 16) / 16;
+		end *= 16;
+		std::cerr << "memory content";
+		for (size_t i = 0; i < end; ++i) {
+			if (i % 16 == 0) {
+				std::cerr << std::endl
+				          << "0x" << std::setfill('0') << std::setw(6)
+				          << std::hex << i << ": ";
+			}
+			std::cerr << std::hex << std::setw(2) << std::setfill('0')
+			          << (int)data[i] << " ";
+		}
+		std::cerr << std::endl << "..." << std::endl;
 	}
 
 private:
@@ -102,11 +115,6 @@ void spiflash_set_memory(std::span<const uint8_t> bytes) {
 
 extern "C" {
 typedef void (*spiflash_op_callback_t)(sl_status_t, void *);
-
-sl_status_t spiflash_init(SPIDRV_Handle_t spi) {
-	(void)spi;
-	return SL_STATUS_OK;
-}
 
 sl_status_t spiflash_read(
     uint32_t               address,

@@ -1,30 +1,15 @@
 #include "journal.h"
 #include "app_log.h"
 #include "drivers/spiflash.h"
+#include "journal_priv.h"
 #include "journal_record.h"
 #include "sl_core.h"
-#include "sl_enum.h"
 #include "sl_sleeptimer.h"
 #include "sl_status.h"
 #include "spidrv.h"
 #include "types.h"
 #include <stddef.h>
 #include <stdint.h>
-
-#define INPUT_QUEUE_SIZE 32
-#define INPUT_QUEUE_MASK (INPUT_QUEUE_SIZE - 1)
-static_assert(
-    (INPUT_QUEUE_SIZE & INPUT_QUEUE_MASK) == 0,
-    "Input queue size must be a power of two"
-);
-static_assert(
-    INPUT_QUEUE_SIZE <= 256, "Input queue must be smaller than 256 items"
-);
-
-typedef struct journal_input_queue {
-	data_point_t data[INPUT_QUEUE_SIZE];
-	uint8_t      head, tail;
-} journal_input_queue_t;
 
 bool journal_input_queue_empty(journal_input_queue_t *q) {
 	return q->head == q->tail;
@@ -60,43 +45,7 @@ bool journal_input_queue_pop(journal_input_queue_t *q, data_point_t *dp) {
 	return true;
 }
 
-SL_ENUM(journal_operation_t){
-    journal_op_none = 0x00,
-    journal_op_write,
-    journal_op_find,
-    journal_op_read,
-};
-
-typedef struct journal {
-	journal_input_queue_t queue;
-	journal_operation_t   operation;
-
-	union {
-		journal_record_t records[JOURNAL_READ_CHUNK];
-		uint8_t          bytes[JOURNAL_READ_CHUNK * sizeof(journal_record_t)];
-	} buffer;
-
-	journal_index_t           next_index;
-	sl_sleeptimer_timestamp_t last_timestamp;
-
-	void *user_data;
-
-	journal_index_t         read_start;
-	journal_index_t         read_end;
-	journal_read_callback_t read_callback;
-
-	journal_lower_bound_callback_t find_callback;
-	sl_sleeptimer_timestamp_t      low_ts, target;
-	journal_index_t                low, high, under_read;
-	bool                           bad_crc_towards_high;
-
-	union {
-		journal_record_header_t header;
-		uint8_t                 bytes[5];
-	} find_buffer;
-} journal_t;
-
-static journal_t j = {
+journal_t j = {
     .queue =
         {
             .head = 0,
@@ -104,27 +53,6 @@ static journal_t j = {
         },
     .operation = journal_op_none,
 };
-
-void _journal_may_start_write();
-
-void _journal_on_write(sl_status_t status, void *user_data);
-
-void _journal_read_send_data_point(const journal_record_t *record);
-void        _journal_complete_read(sl_status_t status);
-sl_status_t _journal_read_next(bool call_callback);
-void _journal_on_read(sl_status_t status, void *user_data);
-
-void        _journal_on_find(sl_status_t status, void *user_data);
-sl_status_t _journal_find_step(bool call_callback);
-void        _journal_complete_find(
-           sl_status_t status, journal_index_t index, sl_sleeptimer_timestamp_t ts
-       );
-void        _journal_on_find_next_idx(
-           sl_status_t               status,
-           journal_index_t           index,
-           sl_sleeptimer_timestamp_t ts,
-           void                     *user_data
-       );
 
 sl_status_t journal_add_record(const data_point_t *dp) {
 	if (dp->date <= j.last_timestamp || dp->date == UINT32_MAX) {
@@ -138,6 +66,10 @@ sl_status_t journal_add_record(const data_point_t *dp) {
 		return SL_STATUS_FULL;
 	}
 	j.last_timestamp = dp->date;
+	if (j.first_index == JOURNAL_INDEX_NPOS) {
+		j.first_index     = j.next_index;
+		j.first_timestamp = dp->date;
+	}
 	CORE_EXIT_ATOMIC();
 
 	_journal_may_start_write();
@@ -183,12 +115,14 @@ void _journal_may_start_write() {
 
 void _journal_on_write(sl_status_t status, void *user_data) {
 	(void)user_data;
+	CORE_ATOMIC_SECTION({ j.operation = journal_op_none; });
 	if (status != SL_STATUS_OK) {
 		app_log_error(
 		    "[journal] could not write record: 0x%04lX." APP_LOG_NL,
 		    status
 		);
 	}
+
 	_journal_may_start_write();
 }
 
@@ -311,20 +245,45 @@ sl_status_t journal_find_last_before(
 
 	CORE_DECLARE_IRQ_STATE;
 	CORE_ENTER_ATOMIC();
+	if (j.first_index == JOURNAL_INDEX_NPOS) {
+		CORE_EXIT_ATOMIC();
+		return SL_STATUS_EMPTY;
+	}
+
+	if (date <= j.first_timestamp || date <= j.last_timestamp) {
+		CORE_EXIT_ATOMIC();
+		return SL_STATUS_INVALID_RANGE;
+	}
+
+	if (j.next_index == JOURNAL_INDEX_NPOS) {
+		CORE_EXIT_ATOMIC();
+		return SL_STATUS_INITIALIZATION;
+	}
+
 	if (j.operation != journal_op_none) {
 		CORE_EXIT_ATOMIC();
 		return SL_STATUS_BUSY;
 	}
+
 	j.operation = journal_op_find;
 
 	j.find_callback = callback;
 	j.user_data     = user_data;
+	j.low           = j.first_index;
+	j.high          = j.next_index - 1;
 	CORE_EXIT_ATOMIC();
 
+	if (j.last_timestamp < date) {
+		_journal_complete_find(
+		    SL_STATUS_OK,
+		    j.next_index - 1,
+		    j.last_timestamp
+		);
+		return SL_STATUS_OK;
+	}
+
 	j.target               = date;
-	j.low                  = JOURNAL_INDEX_NPOS;
-	j.high                 = JOURNAL_INDEX_NPOS;
-	j.under_read           = 0;
+	j.under_read           = (j.low + j.high) / 2;
 	j.bad_crc_towards_high = true;
 	sl_status_t status     = _journal_find_step(false);
 	if (status != SL_STATUS_OK) {
@@ -375,31 +334,7 @@ void _journal_on_find(sl_status_t status, void *user_data) {
 
 	// mitigate wrong CRC
 	if (status != SL_STATUS_OK) {
-		if (j.low == JOURNAL_INDEX_NPOS) {
-			if (j.under_read == (JOURNAL_SIZE - 1)) {
-				_journal_complete_find(
-				    SL_STATUS_FAIL,
-				    JOURNAL_INDEX_NPOS,
-				    UINT32_MAX
-				);
-				return;
-			}
-			j.under_read += 1;
-			_journal_find_step(true);
-			return;
-		} else if (j.high == JOURNAL_INDEX_NPOS) {
-			if (j.under_read == 0) {
-				_journal_complete_find(
-				    SL_STATUS_FAIL,
-				    JOURNAL_INDEX_NPOS,
-				    UINT32_MAX
-				);
-				return;
-			}
-			j.under_read -= 1;
-			_journal_find_step(true);
-			return;
-		} else if (j.bad_crc_towards_high == true) {
+		if (j.bad_crc_towards_high == true) {
 			if (j.under_read < (j.high - 1)) {
 				j.under_read += 1;
 				_journal_find_step(true);
@@ -426,37 +361,6 @@ void _journal_on_find(sl_status_t status, void *user_data) {
 		}
 	}
 	j.bad_crc_towards_high = true;
-
-	if (j.low == JOURNAL_INDEX_NPOS) {
-		if (timestamp >= j.target) {
-			if (timestamp == UINT32_MAX) {
-				// there will be no smaller than this, but still we found the
-				// last
-				_journal_complete_find(SL_STATUS_EMPTY, j.under_read - 1, 0);
-			} else {
-				_journal_complete_find(
-				    SL_STATUS_FAIL,
-				    JOURNAL_INDEX_NPOS,
-				    UINT32_MAX
-				);
-			}
-			return;
-		}
-		j.low        = j.under_read;
-		j.low_ts     = timestamp;
-		j.under_read = JOURNAL_SIZE - 1;
-		_journal_find_step(true);
-		return;
-	} else if (j.high == JOURNAL_INDEX_NPOS) {
-		if (timestamp < j.target) {
-			_journal_complete_find(SL_STATUS_OK, j.under_read, timestamp);
-			return;
-		}
-		j.high       = j.under_read;
-		j.under_read = (j.high + j.low) / 2;
-		_journal_find_step(true);
-		return;
-	}
 
 	if (timestamp >= j.target) {
 		j.high = j.under_read;
@@ -496,25 +400,167 @@ void _journal_complete_find(
 	_journal_may_start_write();
 }
 
-sl_status_t journal_init(SPIDRV_Handle_t spi) {
-	sl_status_t status = spiflash_init(spi);
-	if (status != SL_STATUS_OK) {
-		app_log_error("[journal] could not initialize spiflash");
-		return status;
-	}
+sl_status_t journal_init() {
 
-	j.queue.head     = 0;
-	j.queue.tail     = 0;
-	j.operation      = journal_op_none;
+	j.queue.head       = 0;
+	j.queue.tail       = 0;
+	j.operation        = journal_op_find;
 	// this will prevent any write before initialization;
-	j.next_index     = JOURNAL_INDEX_NPOS;
-	j.last_timestamp = UINT32_MAX;
-
-	return journal_find_last_before(
-	    UINT32_MAX,
-	    &_journal_on_find_next_idx,
+	j.next_index       = JOURNAL_INDEX_NPOS;
+	j.first_index      = JOURNAL_INDEX_NPOS;
+	j.last_timestamp   = UINT32_MAX;
+	j.first_timestamp  = UINT32_MAX;
+	j.under_read       = 0;
+	sl_status_t status = spiflash_read(
+	    sizeof(journal_record_t),
+	    j.find_buffer.bytes,
+	    sizeof(journal_record_header_t),
+	    &_journal_on_read_first_idx,
 	    NULL
 	);
+	if (status != SL_STATUS_OK) {
+		CORE_ATOMIC_SECTION({ j.operation = journal_op_none; });
+		app_log_error(
+		    "[journal] could not look for first index %ld: 0x%04lX." APP_LOG_NL,
+		    j.under_read,
+		    status
+		);
+	}
+
+	return status;
+}
+
+void _journal_on_read_first_idx(sl_status_t status, void *user_data) {
+	(void)user_data;
+	if (status != SL_STATUS_OK) {
+		app_log_error(
+		    "[journal] could not find first index %ld: 0x%04lX." APP_LOG_NL,
+		    j.under_read,
+		    status
+		);
+		return;
+	}
+	sl_sleeptimer_timestamp_t ts;
+	status = _journal_read_timestamp(&ts);
+	if (status == SL_STATUS_OK) {
+		if (ts == UINT32_MAX) {
+			app_log_info(
+			    "[journal] found erased memory at index %ld." APP_LOG_NL,
+			    j.under_read
+			);
+			// uninitialized memory
+			// disable search as we are empty.
+			j.first_index     = JOURNAL_INDEX_NPOS;
+			j.first_timestamp = UINT32_MAX;
+			// enable write at index under_read, (previous could have bad CRC
+			j.next_index      = j.under_read;
+			j.last_timestamp  = 0;
+			CORE_ATOMIC_SECTION({ j.operation = journal_op_none; });
+			return;
+		}
+		j.first_index     = j.under_read;
+		j.first_timestamp = j.find_buffer.header.timestamp;
+		j.under_read      = JOURNAL_SIZE - 1;
+		status            = spiflash_read(
+            j.under_read * sizeof(journal_record_t),
+            j.find_buffer.bytes,
+            sizeof(journal_record_header_t),
+            &_journal_on_read_last_idx,
+            NULL
+        );
+
+		if (status != SL_STATUS_OK) {
+			CORE_ATOMIC_SECTION({ j.operation = journal_op_none; });
+			app_log_error(
+			    "[journal] could not look for last index %ld: "
+			    "0x%04lX." APP_LOG_NL,
+			    j.under_read,
+			    status
+			);
+		}
+		return;
+	}
+	// bad CRC path
+	j.under_read += 1;
+	if (j.under_read >= JOURNAL_SIZE) {
+		app_log_error("[journal] memory is initialized with bad memory");
+		CORE_ATOMIC_SECTION({ j.operation = journal_op_none; });
+		return;
+	}
+	status = spiflash_read(
+	    sizeof(journal_record_t) * j.under_read,
+	    j.find_buffer.bytes,
+	    sizeof(journal_record_header_t),
+	    _journal_on_read_first_idx,
+	    NULL
+	);
+	if (status != SL_STATUS_OK) {
+		CORE_ATOMIC_SECTION({ j.operation = journal_op_none; });
+		app_log_error(
+		    "[journal] could not lookup first index %ld: 0x%04lX." APP_LOG_NL,
+		    j.under_read,
+		    status
+		);
+	}
+	return;
+}
+
+void _journal_on_read_last_idx(sl_status_t status, void *user_data) {
+	(void)user_data;
+	if (status != SL_STATUS_OK) {
+		app_log_error(
+		    "[journal] could not read last index %ld: 0x%04lX." APP_LOG_NL,
+		    j.under_read,
+		    status
+		);
+		CORE_ATOMIC_SECTION({ j.operation = journal_op_none; });
+		return;
+	}
+	sl_sleeptimer_timestamp_t ts;
+	status = _journal_read_timestamp(&ts);
+	if (status == SL_STATUS_OK) {
+		if (ts != UINT32_MAX) {
+			j.last_timestamp = ts;
+			j.next_index     = JOURNAL_SIZE;
+
+			CORE_ATOMIC_SECTION({ j.operation = journal_op_none; });
+			return;
+		}
+		j.high          = j.under_read;
+		j.target        = UINT32_MAX;
+		j.under_read    = (j.high + j.low) / 2;
+		j.find_callback = _journal_on_find_next_idx;
+		j.user_data     = NULL;
+		status          = _journal_find_step(false);
+		if (status != SL_STATUS_OK) {
+			CORE_ATOMIC_SECTION({ j.operation = journal_op_none; });
+			app_log_error(
+			    "[journal] could not find for last written index: "
+			    "0x%04lX." APP_LOG_NL,
+			    status
+			);
+		}
+		return;
+	}
+
+	// bad crc path
+	j.under_read -= 1;
+	status = spiflash_read(
+	    j.under_read * sizeof(journal_record_t),
+	    j.find_buffer.bytes,
+	    sizeof(journal_record_header_t),
+	    &_journal_on_read_last_idx,
+	    NULL
+	);
+	if (status != SL_STATUS_OK) {
+		CORE_ATOMIC_SECTION({ j.operation = journal_op_none; });
+		app_log_error(
+		    "could not look up for last index %ld: 0x%04lX.",
+		    j.under_read,
+		    status
+		);
+	}
+	return;
 }
 
 void _journal_on_find_next_idx(
@@ -525,17 +571,19 @@ void _journal_on_find_next_idx(
 ) {
 	(void)status;
 	(void)user_data;
-	if (status != SL_STATUS_OK && status != SL_STATUS_EMPTY) {
+	if (status != SL_STATUS_OK) {
 		app_log_error(
 		    "[journal] could not find starting index from flash: "
 		    "0x%04lX." APP_LOG_NL,
 		    status
 		);
+		j.next_index     = JOURNAL_INDEX_NPOS;
+		j.last_timestamp = UINT32_MAX;
 		return;
 	}
 	j.last_timestamp = timestamp;
 	j.next_index     = index + 1;
-	app_log_error(
+	app_log_info(
 	    "[journal] found next index at %ld for times > %ld." APP_LOG_NL,
 	    j.next_index,
 	    j.last_timestamp

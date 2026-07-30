@@ -2,7 +2,6 @@
 
 #include "sl_sleeptimer.h"
 #include "sl_status.h"
-#include "spidrv.h"
 #include "types.h"
 #include <stdint.h>
 
@@ -10,7 +9,7 @@
 extern "C" {
 #endif //__cplusplus
 
-sl_status_t journal_init(SPIDRV_Handle_t spi);
+sl_status_t journal_init();
 
 typedef uint32_t journal_index_t;
 

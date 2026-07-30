@@ -1,6 +1,5 @@
 #pragma once
 
-#include "spidrv.h"
 #if defined(__cplusplus)
 extern "C" {
 #endif // __cplusplus
