@@ -4,13 +4,14 @@
 extern "C" {
 #endif // __cplusplus
 
-#define app_log_debug_level(level, fmt, ...)
-#define app_log_error(fmt, ...)
-#define app_log_warning(fmt, ...)
-#define app_log_info(fmt, ...)
-#define app_log_debug(fmt, ...)
-#define app_log_trace(fmt, ...)
+#define APP_LOG_NL "\n"
+
+void app_log_error(const char *fmt, ...);
+void app_log_warning(const char *fmt, ...);
+void app_log_info(const char *fmt, ...);
+void app_log_debug(const char *fmt, ...);
+void app_log_trace(const char *fmt, ...);
 
 #if defined(__cplusplus)
-]
+}
 #endif // __cplusplus
