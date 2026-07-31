@@ -11,6 +11,17 @@ set(CMAKE_C_STANDARD 23)
 set(CMAKE_C_STANDARD_REQUIRED ON)
 
 include(FetchContent)
+
+if(FIRMWARE_TESTS_COVERAGE)
+	find_program(LCOV_EXECUTABLE NAMES lcov REQUIRED)
+	find_program(GENHTML_EXECUTABLE NAMES genhtml REQUIRED)
+	if(NOT CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+		message(FATAL_ERROR "Coverage instrumentation is only available for GNU or Clang toolchains")
+	endif()
+endif()
+
+option(FIRMWARE_TESTS_COVERAGE "Enable coverage instrumentation for cmake_tests" OFF)
+
 FetchContent_Declare(
   googletest
   URL https://github.com/google/googletest/archive/03597a01ee50ed33e9dfd640b249b4be3799d395.zip
@@ -48,8 +59,38 @@ add_executable(firmware-tests #
 # reduce the journal size for unit tests.
 target_compile_definitions(firmware-tests PUBLIC -DJOURNAL_SIZE=16)
 
+if(FIRMWARE_TESTS_COVERAGE)
+	target_compile_options(firmware-tests PRIVATE --coverage -O0 -g)
+	set_property(TARGET firmware-tests APPEND_STRING PROPERTY LINK_FLAGS " --coverage")
+endif()
+
 
 
 target_link_libraries(firmware-tests GTest::gtest_main GTest::gmock simplicity-mock)
 gtest_discover_tests(firmware-tests)
 add_dependencies(check firmware-tests)
+
+if(FIRMWARE_TESTS_COVERAGE)
+	add_custom_target(coverage
+		COMMAND ${LCOV_EXECUTABLE} --zerocounters --directory .
+		COMMAND ${CMAKE_CTEST_COMMAND} --output-on-failure || true
+		COMMAND ${LCOV_EXECUTABLE}
+			--capture
+			--directory .
+			--output-file coverage.info
+			--rc branch_coverage=1
+			--ignore-errors mismatch
+		COMMAND ${LCOV_EXECUTABLE} --remove coverage.info
+			'/usr/*'
+			'*/_deps/*'
+			--output-file coverage.filtered.info
+			--rc branch_coverage=1
+		COMMAND ${GENHTML_EXECUTABLE}
+			coverage.filtered.info
+			--output-directory coverage/html
+		COMMAND xdg-open coverage/html/index.html
+		WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+		DEPENDS firmware-tests
+		COMMENT "Running tests and generating code coverage report"
+	)
+endif()
