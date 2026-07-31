@@ -6,7 +6,6 @@
 #include "sl_core.h"
 #include "sl_sleeptimer.h"
 #include "sl_status.h"
-#include "spidrv.h"
 #include "types.h"
 #include <stddef.h>
 #include <stdint.h>
@@ -17,6 +16,13 @@ bool journal_input_queue_empty(journal_input_queue_t *q) {
 
 bool journal_input_queue_full(journal_input_queue_t *q) {
 	return ((q->head + 1) & INPUT_QUEUE_MASK) == q->tail;
+}
+
+uint8_t journal_input_queue_remaining(journal_input_queue_t *q) {
+	if (q->tail > q->head) {
+		return q->head - q->tail + INPUT_QUEUE_SIZE;
+	}
+	return q->head - q->tail;
 }
 
 bool journal_input_queue_add(journal_input_queue_t *q, const data_point_t *dp) {
@@ -60,10 +66,14 @@ sl_status_t journal_add_record(const data_point_t *dp) {
 	}
 	CORE_DECLARE_IRQ_STATE;
 	CORE_ENTER_ATOMIC();
-	if (j.next_index >= JOURNAL_SIZE ||
-	    journal_input_queue_add(&j.queue, dp) == false) {
+	if (j.next_index + journal_input_queue_remaining(&j.queue) >=
+	    JOURNAL_SIZE) {
 		CORE_EXIT_ATOMIC();
 		return SL_STATUS_FULL;
+	}
+	if (journal_input_queue_add(&j.queue, dp) == false) {
+		CORE_EXIT_ATOMIC();
+		return SL_STATUS_BUSY;
 	}
 	j.last_timestamp = dp->date;
 	if (j.first_index == JOURNAL_INDEX_NPOS) {
@@ -80,21 +90,35 @@ void _journal_may_start_write() {
 	data_point_t dp;
 	CORE_DECLARE_IRQ_STATE;
 	CORE_ENTER_ATOMIC();
-	if (j.operation != journal_op_none ||
-	    journal_input_queue_pop(&j.queue, &dp) == false) {
+	if (j.operation != journal_op_none) {
 		CORE_EXIT_ATOMIC();
+		app_log_debug("[journal] attempting a write: BUSY" APP_LOG_NL);
+		return;
+	}
+	if (journal_input_queue_pop(&j.queue, &dp) == false) {
+		CORE_EXIT_ATOMIC();
+		app_log_debug(
+		    "[journal] attempting a write: none, current operation: "
+		    "%d" APP_LOG_NL,
+		    j.operation
+		);
 		return;
 	}
 
 	if (j.next_index >= JOURNAL_SIZE) {
 		CORE_EXIT_ATOMIC();
-		app_log_error("[journal] no more size on device.");
+		app_log_error("[journal] no more size on device." APP_LOG_NL);
 		return;
 	}
 
 	j.operation = journal_op_write;
 	CORE_EXIT_ATOMIC();
 
+	app_log_info(
+	    "[journal] writing at %ld ts=%ld." APP_LOG_NL,
+	    j.next_index,
+	    dp.date
+	);
 	journal_record_from_data_point(j.buffer.records, &dp);
 
 	sl_status_t status = spiflash_write(
@@ -122,7 +146,6 @@ void _journal_on_write(sl_status_t status, void *user_data) {
 		    status
 		);
 	}
-
 	_journal_may_start_write();
 }
 
@@ -195,12 +218,18 @@ void _journal_on_read(sl_status_t status, void *user_data) {
 		const journal_record_t *record = &j.buffer.records[i];
 		if (journal_record_check_crc(record) == true) {
 			_journal_read_send_data_point(record);
+		} else {
+			app_log_warning(
+			    "[journal] Bad CRC at address %d." APP_LOG_NL,
+			    j.read_start + i
+			);
 		}
 	}
 	j.read_start += count;
 	if (j.read_start < j.read_end) {
 		_journal_read_next(true);
 	}
+	_journal_complete_read(SL_STATUS_OK);
 }
 
 void _journal_read_send_data_point(const journal_record_t *record) {
@@ -250,7 +279,7 @@ sl_status_t journal_find_last_before(
 		return SL_STATUS_EMPTY;
 	}
 
-	if (date <= j.first_timestamp || date <= j.last_timestamp) {
+	if (date <= j.first_timestamp) {
 		CORE_EXIT_ATOMIC();
 		return SL_STATUS_INVALID_RANGE;
 	}
@@ -412,7 +441,7 @@ sl_status_t journal_init() {
 	j.first_timestamp  = UINT32_MAX;
 	j.under_read       = 0;
 	sl_status_t status = spiflash_read(
-	    sizeof(journal_record_t),
+	    sizeof(journal_record_t) * j.under_read,
 	    j.find_buffer.bytes,
 	    sizeof(journal_record_header_t),
 	    &_journal_on_read_first_idx,
@@ -459,9 +488,14 @@ void _journal_on_read_first_idx(sl_status_t status, void *user_data) {
 			return;
 		}
 		j.first_index     = j.under_read;
-		j.first_timestamp = j.find_buffer.header.timestamp;
-		j.under_read      = JOURNAL_SIZE - 1;
-		status            = spiflash_read(
+		j.first_timestamp = ts;
+		app_log_info(
+		    "[journal] found first index at %d with ts=%ld." APP_LOG_NL,
+		    j.first_index,
+		    j.first_timestamp
+		);
+		j.under_read = JOURNAL_SIZE - 1;
+		status       = spiflash_read(
             j.under_read * sizeof(journal_record_t),
             j.find_buffer.bytes,
             sizeof(journal_record_header_t),

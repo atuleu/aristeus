@@ -83,6 +83,8 @@ if(FIRMWARE_TESTS_COVERAGE)
 		COMMAND ${LCOV_EXECUTABLE} --remove coverage.info
 			'/usr/*'
 			'*/_deps/*'
+			'*/cmake_tests/*'
+			'*/src/utils/*'
 			--output-file coverage.filtered.info
 			--rc branch_coverage=1
 		COMMAND ${GENHTML_EXECUTABLE}

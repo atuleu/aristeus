@@ -36,8 +36,8 @@ SL_ENUM(journal_operation_t){
 };
 
 typedef struct journal {
-	journal_input_queue_t queue;
-	journal_operation_t   operation;
+	journal_input_queue_t        queue;
+	volatile journal_operation_t operation;
 
 	union {
 		journal_record_t records[JOURNAL_READ_CHUNK];
@@ -53,10 +53,11 @@ typedef struct journal {
 	journal_index_t         read_end;
 	journal_read_callback_t read_callback;
 
-	journal_lower_bound_callback_t find_callback;
-	sl_sleeptimer_timestamp_t      low_ts, target;
-	journal_index_t                low, high, under_read;
-	bool                           bad_crc_towards_high;
+	journal_lower_bound_callback_t     find_callback;
+	sl_sleeptimer_timestamp_t          target;
+	volatile sl_sleeptimer_timestamp_t low_ts;
+	volatile journal_index_t       low, high, under_read;
+	volatile bool                  bad_crc_towards_high;
 
 	union {
 		journal_record_header_t header;
