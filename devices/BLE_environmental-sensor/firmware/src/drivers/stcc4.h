@@ -10,19 +10,61 @@
 extern "C" {
 #endif
 
+/**
+ * @brief Handle for the STCC4 driver. It is considered opaque and should not be
+ * accessed directly.
+ */
 typedef struct stcc4_handle stcc4_handle_t;
 
+/**
+ * Initialization arguments for the STCC4 driver.
+ */
 typedef struct stcc4_init_args {
 	i2c_schd_handle_t *i2c_bus;
 	bool               address_pin_set;
 } stcc4_init_args_t;
 
+/**
+ * Synchronously initialize the STCC4 driver. This function will block until the
+ * initialization is complete.
+ *
+ * @param self Pointer to the STCC4 handle to initialize.
+ * @param args Pointer to the initialization arguments.
+ *
+ * @return SL_STATUS_OK if the initialization was successful, or an error code
+ *         otherwise.
+ */
 sl_status_t stcc4_init(stcc4_handle_t *self, stcc4_init_args_t *args);
 
+/**
+ * Callback for reading the CO2 concentration. This callback is called when the
+ * read sequence is complete, either successfully or with an error.
+ *
+ * @param status The status of the read sequence.
+ * @param concentration The CO2 concentration in ppm, or GATT_CO2_NAN if the
+ *        read failed.
+ * @param user_data The user data passed to the read sequence.
+ *
+ */
 typedef void (*stcc4_readout_callback_t)(
     sl_status_t status, co2_concentration_t concentration, void *user_data
 );
 
+/**
+ * Asynchronously start a read sequence on the STCC4 sensor. This function will
+ * return immediately, and the readout callback will be called when the read
+ * sequence is complete.
+ *
+ * @param self Pointer to the STCC4 handle.
+ * @param temperature The current temperature in 0.01°C.
+ * @param humidity The current relative humidity in 0.1%.
+ * @param pressure The current atmospheric pressure in dPa.
+ * @param callback The callback to call when the read sequence is complete.
+ * @param user_data The user data to pass to the callback.
+ *
+ * @return SL_STATUS_OK if the read sequence was started successfully, or an
+ *         error code otherwise.
+ */
 sl_status_t stcc4_start_read_sequence(
     stcc4_handle_t          *self,
     temperature_t            temperature,
@@ -32,6 +74,11 @@ sl_status_t stcc4_start_read_sequence(
     void                    *user_data
 );
 
+/**
+ * Structure for the STCC4 driver handle given for static initialization
+ * only. This structure is considered opaque and should not be accessed
+ * directly.
+ */
 struct stcc4_handle {
 	i2c_schd_handle_t *i2c_bus;
 	uint8_t            address;

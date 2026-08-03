@@ -71,7 +71,7 @@ void _stcc4_on_command_write(i2c_tx_status_t status, void *user_data) {
 	stcc4_handle_t *self = user_data;
 	if (self->buffer[0] == 0x00) {
 		app_log_debug(
-		    "Got NACK status on exit sleep mode 0x%02X." APP_LOG_NL,
+		    "[STCC4] Got NACK status on exit sleep mode 0x%02X." APP_LOG_NL,
 		    status
 		);
 	} else if (status != I2C_TX_OK ||
@@ -236,7 +236,7 @@ sl_status_t stcc4_init(stcc4_handle_t *self, stcc4_init_args_t *args) {
 	    _stcc4_read_serial_number_blocking(self, &serial_number);
 	if (status != SL_STATUS_OK) {
 		app_log_warning(
-		    "No STCC4 device found at %s.0x%02X, retrying in 80ms" APP_LOG_NL,
+		    "[STCC4] No device found at %s.0x%02X, retrying in 80ms" APP_LOG_NL,
 		    i2c_schd_get_instance_name(self->i2c_bus),
 		    self->address
 		);
@@ -245,15 +245,15 @@ sl_status_t stcc4_init(stcc4_handle_t *self, stcc4_init_args_t *args) {
 	}
 	if (status != SL_STATUS_OK) {
 		app_log_error(
-		    "No STCC4 device found at %s.0x%02X." APP_LOG_NL,
+		    "[STCC4] No device found at %s.0x%02X." APP_LOG_NL,
 		    i2c_schd_get_instance_name(self->i2c_bus),
 		    self->address
 		);
 		return status;
 	}
 
-	app_log_error(
-	    "STCC4 device found at %s.0x%02X. Entering deep-sleep" APP_LOG_NL,
+	app_log_info(
+	    "[STCC4] device found at %s.0x%02X. Entering deep-sleep" APP_LOG_NL,
 	    i2c_schd_get_instance_name(self->i2c_bus),
 	    self->address
 	);
@@ -261,8 +261,8 @@ sl_status_t stcc4_init(stcc4_handle_t *self, stcc4_init_args_t *args) {
 	    _stcc4_send_command_blocking(self, stcc4_enter_sleep_mode, 1, NULL, 0);
 	if (status != SL_STATUS_OK) {
 		app_log_error(
-		    "STCC4 device found at %s.0x%02X. But could not enter deep sleep: "
-		    "0x%04lX" APP_LOG_NL,
+		    "[STCC4] device found at %s.0x%02X. But could not enter deep "
+		    "sleep: 0x%04lX" APP_LOG_NL,
 		    i2c_schd_get_instance_name(self->i2c_bus),
 		    self->address,
 		    status
@@ -276,7 +276,7 @@ void _stcc4_on_enter_sleepmode(i2c_tx_status_t status, void *user_data) {
 	(void)user_data;
 	if (status != I2C_TX_OK) {
 		app_log_error(
-		    "STCC4: could not enter sleepmode: 0x%02X" APP_LOG_NL,
+		    "[STCC4] could not enter sleepmode: 0x%02X" APP_LOG_NL,
 		    status
 		);
 	}
@@ -308,7 +308,7 @@ void _stcc4_complete_read_sequence(
 	);
 	if (sleep_status != SL_STATUS_OK) {
 		app_log_error(
-		    "STCC4: could not schedule sleepmode: 0x%04lX" APP_LOG_NL,
+		    "[STCC4] could not schedule sleepmode: 0x%04lX" APP_LOG_NL,
 		    sleep_status
 		);
 	}
