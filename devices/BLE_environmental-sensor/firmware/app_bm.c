@@ -64,14 +64,3 @@ bool app_is_process_required(void) {
 	CORE_EXIT_CRITICAL();
 	return ret;
 }
-
-// Acquire access to protected variables
-bool app_mutex_acquire(void) {
-	// There are no tasks to protect shared resources from.
-	return true;
-}
-
-// Finish access to protected variables
-void app_mutex_release(void) {
-	// There are no tasks to protect shared resources from.
-}

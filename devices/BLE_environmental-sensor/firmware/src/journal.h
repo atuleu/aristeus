@@ -9,18 +9,18 @@
 extern "C" {
 #endif //__cplusplus
 
-sl_status_t journal_init();
-
-typedef uint32_t journal_index_t;
-
 #define JOURNAL_INDEX_NPOS UINT32_MAX
 #define JOURNAL_READ_CHUNK 16
+
+// allow for injection of the JOURNAL_SIZE for unit test purposes.
 #ifndef JOURNAL_SIZE
 #define JOURNAL_SIZE                                                           \
 	((journal_index_t)(SPIFLASH_SIZE / sizeof(journal_record_t)))
 #endif // jOURNAL_SIZE
 
-void journal_preempt_sleeping(bool preempt);
+sl_status_t journal_init();
+
+typedef uint32_t journal_index_t;
 
 sl_status_t journal_add_record(const data_point_t *dp);
 
@@ -48,6 +48,10 @@ sl_status_t journal_read(
     journal_read_callback_t callback,
     void                   *user_data
 );
+
+sl_status_t journal_erase();
+
+void journal_preempt_sleeping(bool preempt);
 
 #ifdef __cplusplus
 }

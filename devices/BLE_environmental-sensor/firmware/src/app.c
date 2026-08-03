@@ -49,30 +49,13 @@
 #include "em_logger.h"
 #include "pin_config.h"
 #include "sl_core.h"
-#include "sl_device_gpio.h"
 #include "sl_spidrv_instances.h"
 #include "types.h"
 #include <drivers/sht4x.h>
 #include <stdio.h>
+#include <string.h>
 
-typedef struct app_handle {
-	uint8_t                      advertising_set_handle;
-	sl_sleeptimer_timer_handle_t sensor_timer;
-	volatile bool                is_advertising;
-	i2c_schd_handle_t            i2c0;
-	sht4x_handle_t               sht4x_sensor;
-	const sl_gpio_t              data_ready;
-	lps22hh_handle_t             lps22hh_sensor;
-	stcc4_handle_t               stcc4_sensor;
-
-	volatile data_point_t current_data_point;
-	volatile bool         new_sht4x_data;
-	volatile bool         new_lps22hh_data;
-	volatile bool         new_stcc4_data;
-
-} app_handle_t;
-
-static app_handle_t app = {
+app_handle_t app = {
     .advertising_set_handle = 0xff,
     .is_advertising         = false,
     .data_ready = {.port = LPS22DF_INT_PORT, .pin = LPS22DF_INT_PIN},
@@ -90,10 +73,6 @@ static app_handle_t app = {
 };
 
 // The advertising set handle allocated from Bluetooth stack.
-
-sl_status_t app_set_legacy_advertiser_data(
-    uint8_t advertising_set, temperature_t temperature, humidity_t humidity
-);
 
 void _app_on_lps22hh_readout(
     sl_status_t status, pressure_t pressure, void *user_data
@@ -168,7 +147,7 @@ void _app_on_stcc4_readout(
 	app_proceed();
 }
 
-void start_sensor_readout(
+void _app_on_sensor_timer_timeout(
     sl_sleeptimer_timer_handle_t *timer, void *user_data
 ) {
 	(void)timer;
@@ -224,7 +203,7 @@ void app_init(void) {
 	status = spiflash_init(sl_spidrv_spi0_handle);
 	app_assert_status(status);
 
-	spiflash_enter_deepsleep(&_app_on_spiflash_deepsleep, NULL);
+	// spiflash_enter_deepsleep(&_app_on_spiflash_deepsleep, NULL);
 
 	status = i2c_schd_init(&app.i2c0, sl_i2c_i2c0_handle);
 	app_assert_status(status);
@@ -255,7 +234,7 @@ void app_init(void) {
 	sl_sleeptimer_start_periodic_timer_ms(
 	    &app.sensor_timer,
 	    2000,
-	    &start_sensor_readout,
+	    &_app_on_sensor_timer_timeout,
 	    NULL,
 	    0,
 	    0
@@ -263,9 +242,11 @@ void app_init(void) {
 	app_log_info("Started read loop" APP_LOG_NL);
 }
 
-sl_status_t app_set_legacy_advertiser_data(
-    uint8_t advertising_set, temperature_t temperature, humidity_t humidity
-) {
+#define MIN(a, b) ((a) > (b) ? (b) : (a))
+#define MAX(a, b) ((a) > (b) ? (a) : (b))
+
+sl_status_t
+app_set_legacy_advertiser_data(uint8_t advertising_set, const data_point_t *d) {
 	int16_t power;
 	sl_bt_system_get_tx_power_setting(NULL, NULL, NULL, &power, NULL);
 
@@ -275,54 +256,20 @@ sl_status_t app_set_legacy_advertiser_data(
 	adv_data[adv_data_len++] = 0x01; // AD Type: flags
 	adv_data[adv_data_len++] = 0x06; // Discoverable Connectable single mode
 
-	adv_data[adv_data_len++] = 0x0a; // LEN: 10
-	// AD Type: Service data
-	adv_data[adv_data_len++] = 0x16;
-	// BT Homew service
-	adv_data[adv_data_len++] = 0xD2;
-	adv_data[adv_data_len++] = 0xFC;
-	// non encrypted data
-	adv_data[adv_data_len++] = 0x40;
-	// BTHome temperature
 	adv_data[adv_data_len++] = 0x02;
-	adv_data[adv_data_len++] = (temperature >> 8) & 0xff;
-	adv_data[adv_data_len++] = temperature & 0xff;
+	adv_data[adv_data_len++] = 0x0A; // AD Type: Xmit Power
+	adv_data[adv_data_len++] = MIN((uint16_t)255, power / 10);
+	adv_data[adv_data_len++] = sizeof(data_point_t) + 3 + 3;
+	adv_data[adv_data_len++] = 0xff; // AD Type: Manufacturer data
+	adv_data[adv_data_len++] = 0xff;
+	adv_data[adv_data_len++] = 0xff; // non -registered manufacturer
+	adv_data[adv_data_len++] = 0;
+	adv_data[adv_data_len++] = 0;
+	adv_data[adv_data_len++] = 100;
+	memcpy(&adv_data[adv_data_len], d, sizeof(data_point_t));
+	adv_data_len += sizeof(data_point_t);
 
-	// BTHome humidity
-	adv_data[adv_data_len++] = 0x03;
-	adv_data[adv_data_len++] = (humidity >> 8) & 0xff;
-	adv_data[adv_data_len++] = humidity & 0xff;
-
-	adv_data[adv_data_len++] = 0x02; // LEN: 2
-	// AD Type: Tx Power
-	adv_data[adv_data_len++] = 0x0A;
-	// Power in dBm
-	adv_data[adv_data_len++] = power / 10;
-
-	app_assert(adv_data_len < (31 - 5), "adv packet too large");
-
-	size_t name_len;
-
-	sl_status_t sc = sl_bt_gatt_server_read_attribute_value(
-	    gattdb_device_name,
-	    0,
-	    sizeof(adv_data) - adv_data_len - 2,
-	    &name_len,
-	    &adv_data[adv_data_len]
-	);
-
-	app_assert_status_f(sc);
-
-	if (name_len < (29U - adv_data_len)) {
-		adv_data[adv_data_len++] = name_len + 2;
-		adv_data[adv_data_len++] = 0x09;
-		adv_data_len += name_len;
-	} else {
-		adv_data[adv_data_len] = 31 - adv_data_len;
-		adv_data_len++;
-		adv_data[adv_data_len++] = 0x08;
-		adv_data_len             = 31;
-	}
+	app_assert(adv_data_len <= 31, "adv packet too large");
 
 	app_log_debug("[app] new advertised data." APP_LOG_NL);
 
@@ -377,8 +324,7 @@ void app_process_action(void) {
 	if (app.is_advertising == true) {
 		sl_status_t sc = app_set_legacy_advertiser_data(
 		    app.advertising_set_handle,
-		    app.current_data_point.temperature,
-		    app.current_data_point.humidity
+		    (const data_point_t *)&app.current_data_point
 		);
 		app_assert_status_f(sc);
 	}
@@ -406,8 +352,7 @@ void sl_bt_on_event(sl_bt_msg_t *evt) {
 		// Generate data for advertising
 		sc = app_set_legacy_advertiser_data(
 		    app.advertising_set_handle,
-		    GATT_TEMPERATURE_NAN,
-		    GATT_HUMIDITY_NAN
+		    (const data_point_t *)&app.current_data_point
 		);
 		app_assert_status(sc);
 
@@ -443,8 +388,7 @@ void sl_bt_on_event(sl_bt_msg_t *evt) {
 		// Generate data for advertising
 		sc = app_set_legacy_advertiser_data(
 		    app.advertising_set_handle,
-		    GATT_TEMPERATURE_NAN,
-		    GATT_HUMIDITY_NAN
+		    (const data_point_t *)&app.current_data_point
 		);
 
 		app_assert_status(sc);
