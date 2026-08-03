@@ -675,3 +675,38 @@ void journal_preempt_sleeping(bool preempt) {
 	}
 	CORE_EXIT_ATOMIC();
 }
+
+sl_status_t journal_erase() {
+	CORE_DECLARE_IRQ_STATE;
+	CORE_ENTER_ATOMIC();
+	if (j.operation != journal_op_none) {
+		CORE_EXIT_ATOMIC();
+		return SL_STATUS_BUSY;
+	}
+	j.operation = journal_op_erase;
+	CORE_EXIT_ATOMIC();
+
+	sl_status_t status =
+	    spiflash_erase(0, SPIFLASH_SIZE, &_journal_on_erase, NULL);
+
+	if (status == SL_STATUS_OK) {
+		CORE_ATOMIC_SECTION(j.operation = journal_op_none;);
+	}
+
+	return status;
+}
+
+void _journal_on_erase(sl_status_t status, void *user_data) {
+	(void)user_data;
+	CORE_DECLARE_IRQ_STATE;
+	CORE_ENTER_ATOMIC();
+	if (status == SL_STATUS_OK) {
+		j.first_index     = JOURNAL_INDEX_NPOS;
+		j.first_timestamp = UINT32_MAX;
+		j.last_timestamp  = 0;
+		j.next_index      = 0;
+	}
+	j.operation = journal_op_none;
+	CORE_EXIT_ATOMIC();
+	_journal_may_start_write();
+}

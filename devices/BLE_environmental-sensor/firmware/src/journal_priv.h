@@ -34,6 +34,7 @@ SL_ENUM(journal_operation_t){
     journal_op_read,
     journal_op_init,
     journal_op_sleep,
+    journal_op_erase,
 };
 
 typedef struct journal {
@@ -79,6 +80,7 @@ void        _journal_read_send_data_point(const journal_record_t *record);
 void        _journal_complete_read(sl_status_t status);
 sl_status_t _journal_read_next(bool call_callback);
 void        _journal_on_read(sl_status_t status, void *user_data);
+void        _journal_on_erase(sl_status_t status, void *user_data);
 
 void        _journal_on_find(sl_status_t status, void *user_data);
 sl_status_t _journal_find_step(bool call_callback);
