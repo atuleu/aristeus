@@ -33,6 +33,7 @@
 #include "drivers/lps22hh.h"
 #include "drivers/sht4x.h"
 #include "drivers/stcc4.h"
+#include "sl_bt_api.h"
 #include "types.h"
 #include <stdbool.h>
 
@@ -95,4 +96,11 @@ void _app_on_stcc4_readout(
 );
 void _app_on_sensor_timer_timeout(
     sl_sleeptimer_timer_handle_t *timer, void *user_data
+);
+
+void _app_on_gatt_server_user_read_request(
+    sl_bt_evt_gatt_server_user_read_request_t *req
+);
+void _app_on_gatt_server_user_write_request(
+    sl_bt_evt_gatt_server_user_write_request_t *req
 );

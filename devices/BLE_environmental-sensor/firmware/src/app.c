@@ -47,6 +47,7 @@
 #include "drivers/spiflash.h"
 #include "drivers/stcc4.h"
 #include "em_logger.h"
+#include "location.h"
 #include "pin_config.h"
 #include "sl_core.h"
 #include "sl_spidrv_instances.h"
@@ -263,8 +264,11 @@ app_set_legacy_advertiser_data(uint8_t advertising_set, const data_point_t *d) {
 	adv_data[adv_data_len++] = 0xff; // AD Type: Manufacturer data
 	adv_data[adv_data_len++] = 0xff;
 	adv_data[adv_data_len++] = 0xff; // non -registered manufacturer
-	adv_data[adv_data_len++] = 0;
-	adv_data[adv_data_len++] = 0;
+
+	location_t location = location_get();
+
+	adv_data[adv_data_len++] = location.hive_id;
+	adv_data[adv_data_len++] = location.placement;
 	adv_data[adv_data_len++] = 100;
 	memcpy(&adv_data[adv_data_len], d, sizeof(data_point_t));
 	adv_data_len += sizeof(data_point_t);
@@ -408,46 +412,101 @@ void sl_bt_on_event(sl_bt_msg_t *evt) {
 	case sl_bt_evt_gatt_server_user_read_request_id: {
 		sl_bt_evt_gatt_server_user_read_request_t *req =
 		    &evt->data.evt_gatt_server_user_read_request;
-		switch (req->characteristic) {
-		case gattdb_current_time_epoch: {
-			uint32_t time = sl_sleeptimer_get_time();
-			sc            = sl_bt_gatt_server_send_user_read_response(
-                req->connection,
-                req->characteristic,
-                0,
-                sizeof(time),
-                (const uint8_t *)&time,
-                0
-            );
-			app_assert_status(sc);
-			break;
-		}
-		default:
-			app_log_error("unknown characteristic read request");
-		}
-		break;
-	}
-	case sl_bt_evt_gatt_server_user_write_request_id: {
-		sl_bt_evt_gatt_server_user_write_request_t *req =
-		    &evt->data.evt_gatt_server_user_write_request;
-		switch (req->characteristic) {
-		case gattdb_current_time_epoch: {
-			sl_bt_gatt_server_send_user_write_response(
-			    req->connection,
-			    req->characteristic,
-			    0 // TODO: use success enum.
-			);
-			break;
-		}
-		default:
-			app_log_error("unknown characteristic write request");
-		}
+		_app_on_gatt_server_user_read_request(req);
 		break;
 	}
 
+	case sl_bt_evt_gatt_server_user_write_request_id: {
+		sl_bt_evt_gatt_server_user_write_request_t *req =
+		    &evt->data.evt_gatt_server_user_write_request;
+		_app_on_gatt_server_user_write_request(req);
+		break;
+	}
 	// -------------------------------
 	// Default event handler.
 	default:
 		break;
+	}
+}
+
+void _app_on_gatt_server_user_read_request(
+    sl_bt_evt_gatt_server_user_read_request_t *req
+) {
+	sl_status_t sc;
+	switch (req->characteristic) {
+	case gattdb_current_time_epoch: {
+		uint32_t time = sl_sleeptimer_get_time();
+		sc            = sl_bt_gatt_server_send_user_read_response(
+            req->connection,
+            req->characteristic,
+            0,
+            sizeof(time),
+            (const uint8_t *)&time,
+            0
+        );
+		app_assert_status(sc);
+		break;
+	}
+	case gattdb_hive_location:
+		location_t current_location = location_get();
+		sc                          = sl_bt_gatt_server_send_user_read_response(
+            req->connection,
+            req->characteristic,
+            0,
+            sizeof(location_t),
+            (const uint8_t *)&current_location,
+            0
+        );
+		app_assert_status(sc);
+		break;
+	default:
+		app_log_error("[app] unknown characteristic read request");
+	}
+}
+
+void _app_on_gatt_server_user_write_request(
+    sl_bt_evt_gatt_server_user_write_request_t *req
+) {
+	uint8_t err = SL_STATUS_OK;
+	switch (req->characteristic) {
+	case gattdb_current_time_epoch: {
+		sl_sleeptimer_timestamp_t now;
+		if (req->value.len != sizeof(sl_sleeptimer_timestamp_t)) {
+			err = SL_STATUS_BT_ATT_INVALID_ATT_LENGTH & 0xff;
+		} else {
+			memcpy(&now, req->value.data, sizeof(sl_sleeptimer_timestamp_t));
+			sl_status_t sc = sl_sleeptimer_set_time(now);
+			if (sc != SL_STATUS_OK) {
+				err = SL_STATUS_BT_ATT_WRITE_REQUEST_REJECTED & 0xff;
+			}
+		}
+		sl_bt_gatt_server_send_user_write_response(
+		    req->connection,
+		    req->characteristic,
+		    err
+		);
+		break;
+	}
+	case gattdb_hive_location: {
+		location_t new_location;
+		if (req->value.len != sizeof(location_t)) {
+			err = SL_STATUS_BT_ATT_INVALID_ATT_LENGTH & 0xff;
+		} else {
+			memcpy(&new_location, req->value.data, sizeof(location_t));
+			sl_status_t sc = location_set(new_location);
+			if (sc != SL_STATUS_OK) {
+				err = SL_STATUS_BT_ATT_WRITE_REQUEST_REJECTED & 0xff;
+			}
+		}
+
+		sl_bt_gatt_server_send_user_write_response(
+		    req->connection,
+		    req->characteristic,
+		    err
+		);
+		break;
+	}
+	default:
+		app_log_error("[app] unknown characteristic write request");
 	}
 }

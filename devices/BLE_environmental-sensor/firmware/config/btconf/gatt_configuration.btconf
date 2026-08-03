@@ -109,9 +109,9 @@ Summary: This control point is used with a service to provide basic management f
     </characteristic>
 
     <!--Hive Location-->
-    <characteristic const="false" name="Hive Location" sourceId="" uuid="08ebf94b-423f-42e8-9d6b-9f8b4ef5984a">
+    <characteristic const="false" id="hive_location" name="Hive Location" sourceId="" uuid="08ebf94b-423f-42e8-9d6b-9f8b4ef5984a">
       <description>Hive Location</description>
-      <value length="2" type="hex" variable_length="false">00</value>
+      <value length="2" type="user" variable_length="false">00</value>
       <properties>
         <read authenticated="false" bonded="false" encrypted="false"/>
         <write authenticated="false" bonded="false" encrypted="false"/>
