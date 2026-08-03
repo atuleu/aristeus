@@ -300,6 +300,7 @@ sl_status_t journal_find_last_before(
 	j.find_callback = callback;
 	j.user_data     = user_data;
 	j.low           = j.first_index;
+	j.low_ts        = j.first_timestamp;
 	j.high          = j.next_index - 1;
 	CORE_EXIT_ATOMIC();
 

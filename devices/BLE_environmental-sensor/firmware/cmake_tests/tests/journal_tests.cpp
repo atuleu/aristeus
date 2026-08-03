@@ -308,3 +308,36 @@ TEST_F(JournalTest, BadCRCatEnd) {
 	waitNotBusy();
 	EXPECT_EQ(expected, 170);
 }
+
+TEST_F(JournalTest, BadCRCinMiddle) {
+	setMemory(std::array<RecordDescription, 8>{
+	    RecordDescription{10},
+	    RecordDescription{.timestamp = 20, .bad_crc = true},
+	    RecordDescription{.timestamp = 30, .bad_crc = true},
+	    RecordDescription{.timestamp = 40, .bad_crc = true},
+	    RecordDescription{.timestamp = 50, .bad_crc = true},
+	    RecordDescription{.timestamp = 60, .bad_crc = true},
+	    RecordDescription{.timestamp = 70, .bad_crc = true},
+	    RecordDescription{80},
+	});
+	journal_init();
+	waitNotBusy();
+
+	EXPECT_EQ(j.next_index, 8);
+	EXPECT_EQ(j.last_timestamp, 80);
+	EXPECT_EQ(j.first_index, 0);
+	EXPECT_EQ(j.first_timestamp, 10);
+
+	journal_find_result found;
+	EXPECT_EQ(journal_find_last_before(85, &on_find, &found), SL_STATUS_OK);
+	waitNotBusy();
+	EXPECT_EQ(found.status, SL_STATUS_OK);
+	EXPECT_EQ(found.timestamp, 80);
+	EXPECT_EQ(found.index, 7);
+
+	EXPECT_EQ(journal_find_last_before(30, &on_find, &found), SL_STATUS_OK);
+	waitNotBusy();
+	EXPECT_EQ(found.status, SL_STATUS_OK);
+	EXPECT_EQ(found.timestamp, 10);
+	EXPECT_EQ(found.index, 0);
+}
