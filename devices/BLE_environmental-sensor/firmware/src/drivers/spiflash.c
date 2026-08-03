@@ -249,15 +249,15 @@ sl_status_t spiflash_read(
 sl_status_t spiflash_write(
     uint32_t               address,
     const uint8_t         *buffer,
-    uint32_t               len,
+    uint32_t               length,
     spiflash_op_callback_t callback,
     void                  *user_data
 ) {
-	if (address > SPIFLASH_MAX_ADDRESS ||
-	    address > (SPIFLASH_MAX_ADDRESS + 1 - address)) {
+	if (length > SPIFLASH_SIZE || address > SPIFLASH_MAX_ADDRESS ||
+	    address > (SPIFLASH_MAX_ADDRESS + 1 - length)) {
 		return SL_STATUS_INVALID_RANGE;
 	}
-	if ((address & 0xff) != ((address + len) & 0xff)) {
+	if (length == 0 || (address & 0xff) != ((address + length - 1) & 0xff)) {
 		// we will cross a sector boundary!!!
 		return SL_STATUS_INVALID_PARAMETER;
 	}
@@ -265,7 +265,7 @@ sl_status_t spiflash_write(
 	    _spiflash_op_write,
 	    address,
 	    (uint8_t *)buffer,
-	    len,
+	    length,
 	    callback,
 	    user_data
 	);
@@ -301,6 +301,7 @@ void _spiflash_on_wakeup_timeout(
 		app_log_error("[spiflash] spurious wakeup" APP_LOG_NL);
 		return;
 	}
+	CORE_ATOMIC_SECTION(self.in_deepsleep = false;);
 	_spiflash_op_action(true);
 }
 
