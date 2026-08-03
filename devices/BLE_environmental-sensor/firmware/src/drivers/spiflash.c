@@ -147,15 +147,16 @@ sl_status_t spiflash_init(SPIDRV_Handle_t spi) {
 	sl_status_t status = _spiflash_read_id_blocking(buffer, 3);
 	if (status != SL_STATUS_OK) {
 		app_log_error(
-		    "COuld not find mx25 device on SPI bus: 0x%04lX." APP_LOG_NL,
+		    "[spiflash] could not find mx25 device on SPI bus: "
+		    "0x%04lX." APP_LOG_NL,
 		    status
 		);
 		return status;
 	}
 	if (buffer[0] != 0xC2 || buffer[1] != 0x28 || buffer[2] != 0x14) {
 		app_log_error(
-		    "Found unexpected device ID. ManufacturerID: %02X (ex.: C2) "
-		    "MemoryType: %02X (ex.: 28) MemomryDensity: %02X (ex.: "
+		    "[spiflash] found unexpected device ID. ManufacturerID: %02X (ex.: "
+		    "C2) MemoryType: %02X (ex.: 28) MemomryDensity: %02X (ex.: "
 		    "14)." APP_LOG_NL,
 		    buffer[0],
 		    buffer[1],
@@ -163,8 +164,6 @@ sl_status_t spiflash_init(SPIDRV_Handle_t spi) {
 		);
 		return SL_STATUS_INVALID_SIGNATURE;
 	}
-
-	// TODO: verify status and WEL
 
 	return SL_STATUS_OK;
 }
