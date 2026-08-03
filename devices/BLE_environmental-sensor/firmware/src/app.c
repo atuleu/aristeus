@@ -342,8 +342,6 @@ void app_process_action(void) {
 		return;
 	}
 
-	lps22hh_process_action(&app.lps22hh_sensor);
-
 	bool need_update = false;
 	CORE_DECLARE_IRQ_STATE;
 	CORE_ENTER_ATOMIC();

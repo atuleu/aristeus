@@ -16,6 +16,12 @@
 
 #include <drivers/lps22hh.h>
 
+void _lps22hh_start_poll_timer(lps22hh_handle_t *self);
+
+void _lps22hh_on_timer_timeout(
+    sl_sleeptimer_timer_handle_t *timer, void *user_data
+);
+
 sl_status_t lps22hh_read_blocking(
     lps22hh_handle_t *self, uint8_t start_reg, uint8_t count, uint8_t *buffer
 ) {
@@ -59,28 +65,26 @@ void _lps22hh_oneshot_complete(
 }
 
 #define LPS22HH_ONESHOT_MAXTRIALS 10
+#define LPS22HH_DATA_PIN_POLL_PERIOD_MS 1
 
 void _lps22hh_oneshot_read_cb(i2c_tx_status_t status, void *user_data) {
 	lps22hh_handle_t *self = user_data;
-	CORE_DECLARE_IRQ_STATE;
-	CORE_ENTER_ATOMIC();
-	self->oneshot_reading = false;
 
 	if (status != I2C_TX_OK) {
-
-		if (self->oneshot_tries < LPS22HH_ONESHOT_MAXTRIALS) {
-			app_proceed();
-		} else {
+		if (self->oneshot_tries >= LPS22HH_ONESHOT_MAXTRIALS) {
+			app_log_error("[LPS22HH] too many read attempt failure." APP_LOG_NL
+			);
 			_lps22hh_oneshot_complete(
 			    self,
 			    i2c_tx_status_map(status),
 			    GATT_PRESSURE_NAN
 			);
+			return;
 		}
-		CORE_EXIT_ATOMIC();
+		// re-schedule another poll.
+		_lps22hh_start_poll_timer(self);
 		return;
 	}
-	CORE_EXIT_ATOMIC();
 
 	// checks if the device cleared the data ready as we read the the H
 	// register.
@@ -92,7 +96,7 @@ void _lps22hh_oneshot_read_cb(i2c_tx_status_t status, void *user_data) {
 		    i2c_schd_get_instance_name(self->i2c_bus),
 		    self->address
 		);
-		app_proceed();
+		_lps22hh_start_poll_timer(self);
 		return;
 	}
 	int32_t pressure_data = ((uint32_t)self->read_buffer[2] << 16) |
@@ -114,12 +118,13 @@ void _lps22hh_oneshot_read_cb(i2c_tx_status_t status, void *user_data) {
 }
 
 void _lps22hh_oneshot_write_cb(i2c_tx_status_t status, void *user_data) {
+	lps22hh_handle_t *self = user_data;
 	if (status == I2C_TX_OK) {
-		// nothing todo, waiting INT.
+		_lps22hh_start_poll_timer(self);
 		return;
 	}
 	// we could not write the command, terminate the async call
-	lps22hh_handle_t *self = user_data;
+
 	_lps22hh_oneshot_complete(
 	    self,
 	    i2c_tx_status_map(status),
@@ -136,14 +141,13 @@ sl_status_t lps22hh_oneshot(
 
 	CORE_DECLARE_IRQ_STATE;
 	CORE_ENTER_ATOMIC();
-	if (self->oneshot_callback != NULL || self->oneshot_user_data != NULL) {
+	if (self->oneshot_callback != NULL) {
 		CORE_EXIT_ATOMIC();
 		return SL_STATUS_BUSY;
 	}
 
 	self->oneshot_callback  = cb;
 	self->oneshot_user_data = user_data;
-	self->oneshot_reading   = false;
 	self->oneshot_tries     = 0;
 	CORE_EXIT_ATOMIC();
 
@@ -180,7 +184,6 @@ sl_status_t lps22hh_init(lps22hh_handle_t *self, lps22hh_config_t *config) {
 
 	self->oneshot_callback  = NULL;
 	self->oneshot_user_data = NULL;
-	self->oneshot_reading   = true;
 
 	uint8_t     whoAmI;
 	sl_status_t sc = lps22hh_read_blocking(self, 0x0f, 1, &whoAmI);
@@ -283,11 +286,32 @@ sl_status_t lps22hh_init(lps22hh_handle_t *self, lps22hh_config_t *config) {
 	return SL_STATUS_OK;
 }
 
-void lps22hh_process_action(lps22hh_handle_t *self) {
+void _lps22hh_start_poll_timer(lps22hh_handle_t *self) {
+	sl_status_t status = sl_sleeptimer_start_timer_ms(
+	    &self->timer,
+	    LPS22HH_DATA_PIN_POLL_PERIOD_MS,
+	    &_lps22hh_on_timer_timeout,
+	    self,
+	    0,
+	    0
+	);
+	if (status != SL_STATUS_OK) {
+		_lps22hh_oneshot_complete(self, status, GATT_PRESSURE_NAN);
+	}
+}
+
+void _lps22hh_on_timer_timeout(
+    sl_sleeptimer_timer_handle_t *timer, void *user_data
+) {
+	(void)timer;
+	lps22hh_handle_t *self = user_data;
 	CORE_DECLARE_IRQ_STATE;
 	CORE_ENTER_ATOMIC();
-	if (self->oneshot_callback == NULL || self->oneshot_reading == true) {
+	if (self->oneshot_callback == NULL) {
 		CORE_EXIT_ATOMIC();
+		app_log_error(
+		    "[LPS22HH] spurious timer firing after read completion." APP_LOG_NL
+		);
 		return;
 	}
 	CORE_EXIT_ATOMIC();
@@ -295,12 +319,10 @@ void lps22hh_process_action(lps22hh_handle_t *self) {
 	bool data_ready;
 	sl_gpio_get_pin_input(self->data_ready_pin, &data_ready);
 	if (data_ready == false) {
-		// we mark that there is sill work to be done.
-		app_proceed();
+		_lps22hh_start_poll_timer(self);
 		return;
 	}
 
-	CORE_ENTER_ATOMIC();
 	static uint8_t start_address[1] = {0x28};
 	sl_status_t    status           = i2c_schd_transfer(
         self->i2c_bus,
@@ -313,21 +335,21 @@ void lps22hh_process_action(lps22hh_handle_t *self) {
         self
     );
 	self->oneshot_tries += 1;
-	if (status != SL_STATUS_OK) {
-		// we retry on next iteration
-		if (self->oneshot_tries < LPS22HH_ONESHOT_MAXTRIALS) {
-			app_proceed();
-		} else {
-			_lps22hh_oneshot_complete(
-			    self,
-			    SL_STATUS_BUS_ERROR,
-			    GATT_PRESSURE_NAN
-			);
-			return;
-		}
-	} else {
-		self->oneshot_reading = true;
+	if (status == SL_STATUS_OK) {
+		// we are reading, we are waiting
+		return;
 	}
-	CORE_EXIT_ATOMIC();
-	return;
+
+	if (self->oneshot_tries < LPS22HH_ONESHOT_MAXTRIALS) {
+		app_log_debug("[LPS22HH] re-scheduling another read later." APP_LOG_NL);
+		// reschedule another trial
+		_lps22hh_start_poll_timer(self);
+		return;
+	}
+	app_log_error(
+	    "[LPS22HH] too many read scheduling attempt failed, "
+	    "failing completion." APP_LOG_NL
+	);
+
+	_lps22hh_oneshot_complete(self, SL_STATUS_BUS_ERROR, GATT_PRESSURE_NAN);
 }

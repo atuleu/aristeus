@@ -3,6 +3,7 @@
 #include "drivers/i2c_schd.h"
 #include "sl_device_gpio.h"
 #include "sl_i2c.h"
+#include "sl_sleeptimer.h"
 #include "types.h"
 #include <stdint.h>
 
@@ -46,13 +47,6 @@ typedef struct lps22hh_config {
  *
  */
 sl_status_t lps22hh_init(lps22hh_handle_t *self, lps22hh_config_t *config);
-
-/**
- * Proceed with any pending operations for the LPS22HH sensor driver.  Must be
- * called from the main loop to ensure proper handling of asynchronous
- * operations.
- */
-void lps22hh_process_action(lps22hh_handle_t *self);
 
 /**
  * Synchronously read data from the LPS22HH sensor starting from the specified
@@ -125,8 +119,9 @@ sl_status_t lps22hh_oneshot(
  * directly by application code.
  */
 struct lps22hh_handle {
-	i2c_schd_handle_t *i2c_bus;
-	uint8_t            address;
+	i2c_schd_handle_t           *i2c_bus;
+	uint8_t                      address;
+	sl_sleeptimer_timer_handle_t timer;
 
 	const sl_gpio_t *data_ready_pin;
 	int32_t          interrupt_number;
@@ -135,7 +130,6 @@ struct lps22hh_handle {
 
 	volatile lps22hh_readout_callback_t oneshot_callback;
 	volatile void                      *oneshot_user_data;
-	bool                                oneshot_reading;
 	uint8_t                             oneshot_tries;
 };
 
