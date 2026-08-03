@@ -159,6 +159,22 @@
 // [EUART0]$
 
 // $[PTI]
+// PTI DFRAME on PC05
+#ifndef PTI_DFRAME_PORT                         
+#define PTI_DFRAME_PORT                          SL_GPIO_PORT_C
+#endif
+#ifndef PTI_DFRAME_PIN                          
+#define PTI_DFRAME_PIN                           5
+#endif
+
+// PTI DOUT on PC04
+#ifndef PTI_DOUT_PORT                           
+#define PTI_DOUT_PORT                            SL_GPIO_PORT_C
+#endif
+#ifndef PTI_DOUT_PIN                            
+#define PTI_DOUT_PIN                             4
+#endif
+
 // [PTI]$
 
 // $[MODEM]

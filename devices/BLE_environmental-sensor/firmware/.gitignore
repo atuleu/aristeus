@@ -7,3 +7,4 @@ build/
 .cache/
 autogen
 /build-test/
+trashed_modified_files/
