@@ -89,9 +89,10 @@ Summary: This control point is used with a service to provide basic management f
       </properties>
     </characteristic>
 
-    <!--Stream Data-->
-    <characteristic const="false" id="stream_data" name="Stream Data" sourceId="" uuid="48027d7d-5c02-453a-b699-c23c1a39fc1d">
-      <value length="14" type="hex" variable_length="false">00</value>
+    <!--Journal Stream Data-->
+    <characteristic const="false" id="stream_data" name="Journal Stream Data" sourceId="" uuid="48027d7d-5c02-453a-b699-c23c1a39fc1d">
+      <description>Journal Stream Data</description>
+      <value length="14" type="user" variable_length="false">00</value>
       <properties>
         <notify authenticated="false" bonded="false" encrypted="false"/>
       </properties>
@@ -99,7 +100,18 @@ Summary: This control point is used with a service to provide basic management f
 
     <!--EPOCH-->
     <characteristic const="false" id="current_time_epoch" name="EPOCH" sourceId="" uuid="386dcd19-e901-4615-b872-b35189ae1754">
+      <description>EPOCH</description>
       <value length="4" type="user" variable_length="false">00000000</value>
+      <properties>
+        <read authenticated="false" bonded="false" encrypted="false"/>
+        <write authenticated="false" bonded="false" encrypted="false"/>
+      </properties>
+    </characteristic>
+
+    <!--Hive Location-->
+    <characteristic const="false" name="Hive Location" sourceId="" uuid="08ebf94b-423f-42e8-9d6b-9f8b4ef5984a">
+      <description>Hive Location</description>
+      <value length="2" type="hex" variable_length="false">00</value>
       <properties>
         <read authenticated="false" bonded="false" encrypted="false"/>
         <write authenticated="false" bonded="false" encrypted="false"/>
