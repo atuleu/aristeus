@@ -90,7 +90,6 @@ if(FIRMWARE_TESTS_COVERAGE)
 		COMMAND ${GENHTML_EXECUTABLE}
 			coverage.filtered.info
 			--output-directory coverage/html
-		COMMAND xdg-open coverage/html/index.html
 		WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
 		DEPENDS firmware-tests
 		COMMENT "Running tests and generating code coverage report"

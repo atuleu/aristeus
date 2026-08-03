@@ -66,8 +66,8 @@ sl_status_t journal_add_record(const data_point_t *dp) {
 	}
 	CORE_DECLARE_IRQ_STATE;
 	CORE_ENTER_ATOMIC();
-	if (j.next_index + journal_input_queue_remaining(&j.queue) >=
-	    JOURNAL_SIZE) {
+	uint8_t remaining = journal_input_queue_remaining(&j.queue);
+	if ((j.next_index + remaining) >= JOURNAL_SIZE) {
 		CORE_EXIT_ATOMIC();
 		return SL_STATUS_FULL;
 	}
@@ -87,7 +87,8 @@ sl_status_t journal_add_record(const data_point_t *dp) {
 }
 
 void _journal_may_start_write() {
-	data_point_t dp;
+	data_point_t    dp;
+	journal_index_t index;
 	CORE_DECLARE_IRQ_STATE;
 	CORE_ENTER_ATOMIC();
 	if (j.operation != journal_op_none) {
@@ -112,17 +113,15 @@ void _journal_may_start_write() {
 	}
 
 	j.operation = journal_op_write;
+	index       = j.next_index;
+	j.next_index += 1;
 	CORE_EXIT_ATOMIC();
 
-	app_log_info(
-	    "[journal] writing at %ld ts=%ld." APP_LOG_NL,
-	    j.next_index,
-	    dp.date
-	);
+	app_log_info("[journal] writing at %ld ts=%ld." APP_LOG_NL, index, dp.date);
 	journal_record_from_data_point(j.buffer.records, &dp);
 
 	sl_status_t status = spiflash_write(
-	    j.next_index * sizeof(journal_record_t),
+	    index * sizeof(journal_record_t),
 	    j.buffer.bytes,
 	    sizeof(journal_record_t),
 	    &_journal_on_write,
@@ -130,11 +129,13 @@ void _journal_may_start_write() {
 	);
 
 	if (status != SL_STATUS_OK) {
-		CORE_ATOMIC_SECTION({ j.operation = journal_op_none; });
+		CORE_ATOMIC_SECTION({
+			j.operation = journal_op_none;
+			j.next_index -= 1;
+		});
+
 		return;
 	}
-
-	j.next_index += 1;
 }
 
 void _journal_on_write(sl_status_t status, void *user_data) {
@@ -220,7 +221,7 @@ void _journal_on_read(sl_status_t status, void *user_data) {
 			_journal_read_send_data_point(record);
 		} else {
 			app_log_warning(
-			    "[journal] Bad CRC at address %d." APP_LOG_NL,
+			    "[journal] Bad CRC at address %ld." APP_LOG_NL,
 			    j.read_start + i
 			);
 		}
@@ -490,7 +491,7 @@ void _journal_on_read_first_idx(sl_status_t status, void *user_data) {
 		j.first_index     = j.under_read;
 		j.first_timestamp = ts;
 		app_log_info(
-		    "[journal] found first index at %d with ts=%ld." APP_LOG_NL,
+		    "[journal] found first index at %ld with ts=%ld." APP_LOG_NL,
 		    j.first_index,
 		    j.first_timestamp
 		);
