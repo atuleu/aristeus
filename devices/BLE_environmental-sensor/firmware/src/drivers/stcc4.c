@@ -70,10 +70,13 @@ void _stcc4_tx_timer_timeout(
 void _stcc4_on_command_write(i2c_tx_status_t status, void *user_data) {
 	stcc4_handle_t *self = user_data;
 	if (self->buffer[0] == 0x00) {
-		app_log_debug(
-		    "[STCC4] Got NACK status on exit sleep mode 0x%02X." APP_LOG_NL,
-		    status
-		);
+		if (status != I2C_TX_BUS_ERROR) {
+			app_log_debug(
+			    "[STCC4] Got unexpected status on exit sleep mode "
+			    "0x%02X." APP_LOG_NL,
+			    status
+			);
+		}
 	} else if (status != I2C_TX_OK ||
 	           (self->read_len == 0 && self->read_delay_ms == 0)) {
 		_stcc4_complete_tx(status, self);
