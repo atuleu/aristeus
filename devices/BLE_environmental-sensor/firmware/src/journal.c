@@ -1,14 +1,17 @@
 #include "journal.h"
+
+#include <stddef.h>
+#include <stdint.h>
+
 #include "app_log.h"
-#include "drivers/spiflash.h"
-#include "journal_priv.h"
-#include "journal_record.h"
 #include "sl_core.h"
 #include "sl_sleeptimer.h"
 #include "sl_status.h"
+
+#include "drivers/spiflash.h"
+#include "journal_priv.h"
+#include "journal_record.h"
 #include "types.h"
-#include <stddef.h>
-#include <stdint.h>
 
 bool journal_input_queue_empty(journal_input_queue_t *q) {
 	return q->head == q->tail;
@@ -57,7 +60,8 @@ journal_t j = {
             .head = 0,
             .tail = 0,
         },
-    .operation = journal_op_none,
+    .operation        = journal_op_none,
+    .preempt_sleeping = false
 };
 
 sl_status_t journal_add_record(const data_point_t *dp) {
@@ -97,12 +101,10 @@ void _journal_may_start_write() {
 		return;
 	}
 	if (journal_input_queue_pop(&j.queue, &dp) == false) {
+		if (j.preempt_sleeping == false) {
+			_journal_enter_deepsleep();
+		}
 		CORE_EXIT_ATOMIC();
-		app_log_debug(
-		    "[journal] attempting a write: none, current operation: "
-		    "%d" APP_LOG_NL,
-		    j.operation
-		);
 		return;
 	}
 
@@ -487,6 +489,7 @@ void _journal_on_read_first_idx(sl_status_t status, void *user_data) {
 			j.next_index      = j.under_read;
 			j.last_timestamp  = 0;
 			CORE_ATOMIC_SECTION({ j.operation = journal_op_none; });
+			_journal_may_start_write();
 			return;
 		}
 		j.first_index     = j.under_read;
@@ -521,6 +524,7 @@ void _journal_on_read_first_idx(sl_status_t status, void *user_data) {
 	if (j.under_read >= JOURNAL_SIZE) {
 		app_log_error("[journal] memory is initialized with bad memory");
 		CORE_ATOMIC_SECTION({ j.operation = journal_op_none; });
+		_journal_enter_deepsleep();
 		return;
 	}
 	status = spiflash_read(
@@ -560,6 +564,7 @@ void _journal_on_read_last_idx(sl_status_t status, void *user_data) {
 			j.next_index     = JOURNAL_SIZE;
 
 			CORE_ATOMIC_SECTION({ j.operation = journal_op_none; });
+			_journal_may_start_write();
 			return;
 		}
 		j.high          = j.under_read;
@@ -624,4 +629,49 @@ void _journal_on_find_next_idx(
 	    j.next_index,
 	    j.last_timestamp
 	);
+}
+
+void _journal_enter_deepsleep() {
+	CORE_DECLARE_IRQ_STATE;
+	CORE_ENTER_ATOMIC();
+	if (j.operation != journal_op_none) {
+		CORE_EXIT_ATOMIC();
+		app_log_warning("deepsleep while operating");
+		return;
+	}
+	j.operation = journal_op_sleep;
+	CORE_EXIT_ATOMIC();
+
+	sl_status_t status = spiflash_enter_deepsleep(&_journal_on_sleep, NULL);
+	if (status != SL_STATUS_OK) {
+		CORE_ATOMIC_SECTION({ j.operation = journal_op_none; });
+		app_log_error(
+		    "[journal] could not enter deepsleep: 0x%04lX." APP_LOG_NL,
+		    status
+		);
+		return;
+	}
+}
+
+void _journal_on_sleep(sl_status_t status, void *user_data) {
+	(void)user_data;
+	if (status != SL_STATUS_OK) {
+		app_log_warning("[journal] sleep failed: 0x%04lX." APP_LOG_NL, status);
+	}
+	CORE_ATOMIC_SECTION({ j.operation = journal_op_none; });
+}
+
+void journal_preempt_sleeping(bool preempt) {
+	CORE_DECLARE_IRQ_STATE;
+	CORE_ENTER_ATOMIC();
+	if (preempt == true) {
+		j.preempt_sleeping = true;
+		CORE_EXIT_ATOMIC();
+		return;
+	}
+	j.preempt_sleeping = false;
+	if (j.operation == journal_op_none && journal_input_queue_empty(&j.queue)) {
+		_journal_enter_deepsleep();
+	}
+	CORE_EXIT_ATOMIC();
 }

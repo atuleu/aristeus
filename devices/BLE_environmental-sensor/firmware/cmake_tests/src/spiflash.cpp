@@ -1,9 +1,9 @@
 #include "spiflash.hpp"
 
-#include <mutex>
 #include <string.h>
 
 #include <array>
+#include <chrono>
 #include <cstdint>
 #include <iomanip>
 #include <iostream>
@@ -39,7 +39,8 @@ public:
 		if (busy == true) {
 			return SL_STATUS_BUSY;
 		}
-		busy = true;
+		busy     = true;
+		sleeping = false;
 
 		std::thread t([this, address, buffer, length, callback, user_data]() {
 			std::this_thread::yield();
@@ -68,8 +69,8 @@ public:
 		if (busy == true) {
 			return SL_STATUS_BUSY;
 		}
-		busy = true;
-
+		busy     = true;
+		sleeping = false;
 		std::thread t([this, address, buffer, length, callback, user_data]() {
 			std::this_thread::yield();
 			memcpy(&data[address], buffer, length);
@@ -99,18 +100,48 @@ public:
 			          << (int)data[i] << " ";
 		}
 		std::cerr << std::endl << "..." << std::endl;
+		sleeping = false;
+	}
+
+	sl_status_t enterSleep(spiflash_op_callback_t callback, void *user_data) {
+		std::lock_guard<std::mutex> lock{mutex};
+		if (sleeping == true) {
+			return SL_STATUS_ALREADY_INITIALIZED;
+		}
+		this->busy = true;
+		std::thread t([this, callback, user_data]() {
+			std::this_thread::sleep_for(std::chrono::microseconds{200});
+			{
+				std::lock_guard<std::mutex> lock(mutex);
+				this->busy     = false;
+				this->sleeping = true;
+			}
+			callback(SL_STATUS_OK, user_data);
+		});
+		t.detach();
+		return SL_STATUS_OK;
+	}
+
+	bool is_sleeping() {
+		std::lock_guard<std::mutex> lock{mutex};
+		return sleeping;
 	}
 
 private:
 	std::array<uint8_t, SPIFLASH_SIZE> data;
 	std::mutex                         mutex;
 	bool                               busy;
+	bool                               sleeping = false;
 };
 
 static MockSPIFlash spiflash;
 
 void spiflash_set_memory(std::span<const uint8_t> bytes) {
 	spiflash.setMemory(bytes);
+}
+
+bool spiflash_sleeping() {
+	return spiflash.is_sleeping();
 }
 
 extern "C" {
@@ -135,4 +166,10 @@ sl_status_t spiflash_write(
 ) {
 	return spiflash.write(address, buffer, len, callback, user_data);
 }
+
+sl_status_t
+spiflash_enter_deepsleep(spiflash_op_callback_t callback, void *user_data) {
+	return spiflash.enterSleep(callback, user_data);
+}
+
 } // __cplusplus

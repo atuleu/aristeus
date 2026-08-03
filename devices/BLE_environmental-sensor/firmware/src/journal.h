@@ -20,6 +20,8 @@ typedef uint32_t journal_index_t;
 	((journal_index_t)(SPIFLASH_SIZE / sizeof(journal_record_t)))
 #endif // jOURNAL_SIZE
 
+void journal_preempt_sleeping(bool preempt);
+
 sl_status_t journal_add_record(const data_point_t *dp);
 
 typedef void (*journal_lower_bound_callback_t)(

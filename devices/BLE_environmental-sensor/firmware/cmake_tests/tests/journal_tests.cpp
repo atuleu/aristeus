@@ -1,14 +1,13 @@
 #include <chrono>
 #include <cstdint>
 #include <cstring>
-
 #include <future>
 #include <ratio>
 #include <span>
-
-#include <gtest/gtest.h>
 #include <stdint.h>
 #include <thread>
+
+#include <gtest/gtest.h>
 
 #include "journal.h"
 #include "journal_priv.h"
@@ -112,6 +111,7 @@ TEST_F(JournalTest, EmptyInitialization) {
 	EXPECT_EQ(j.last_timestamp, 0);
 	EXPECT_EQ(j.first_index, JOURNAL_INDEX_NPOS);
 	EXPECT_EQ(j.first_timestamp, UINT32_MAX);
+	EXPECT_TRUE(spiflash_sleeping());
 
 	journal_find_result found;
 	EXPECT_EQ(journal_find_last_before(8, &on_find, &found), SL_STATUS_EMPTY);
@@ -122,7 +122,9 @@ TEST_F(JournalTest, EmptyInitialization) {
 
 	sl_status_t status = journal_add_record(&dp);
 	EXPECT_EQ(status, SL_STATUS_OK);
+	EXPECT_FALSE(spiflash_sleeping());
 	waitNotBusy();
+	EXPECT_TRUE(spiflash_sleeping());
 
 	EXPECT_EQ(j.next_index, 1);
 	EXPECT_EQ(j.last_timestamp, 10);
@@ -131,6 +133,7 @@ TEST_F(JournalTest, EmptyInitialization) {
 
 	EXPECT_EQ(journal_find_last_before(11, &on_find, &found), SL_STATUS_OK);
 	waitNotBusy();
+	EXPECT_TRUE(spiflash_sleeping());
 	EXPECT_EQ(found.status, SL_STATUS_OK);
 	EXPECT_EQ(found.index, 0);
 	EXPECT_EQ(found.timestamp, 10);
@@ -143,6 +146,7 @@ TEST_F(JournalTest, BadCRCAtFirst) {
 	});
 	journal_init();
 	waitNotBusy();
+	EXPECT_TRUE(spiflash_sleeping());
 	EXPECT_EQ(j.next_index, 2);
 	EXPECT_EQ(j.last_timestamp, 0);
 	EXPECT_EQ(j.first_index, JOURNAL_INDEX_NPOS);
@@ -150,14 +154,16 @@ TEST_F(JournalTest, BadCRCAtFirst) {
 
 	journal_find_result found;
 	EXPECT_EQ(journal_find_last_before(8, &on_find, &found), SL_STATUS_EMPTY);
-
+	EXPECT_TRUE(spiflash_sleeping());
 	data_point_t dp = {
 	    .date = 10,
 	};
 
 	sl_status_t status = journal_add_record(&dp);
 	EXPECT_EQ(status, SL_STATUS_OK);
+	EXPECT_FALSE(spiflash_sleeping());
 	waitNotBusy();
+	EXPECT_TRUE(spiflash_sleeping());
 
 	EXPECT_EQ(j.next_index, 3);
 	EXPECT_EQ(j.last_timestamp, 10);
@@ -165,7 +171,9 @@ TEST_F(JournalTest, BadCRCAtFirst) {
 	EXPECT_EQ(j.first_timestamp, 10);
 
 	EXPECT_EQ(journal_find_last_before(11, &on_find, &found), SL_STATUS_OK);
+	EXPECT_TRUE(spiflash_sleeping());
 	waitNotBusy();
+	EXPECT_TRUE(spiflash_sleeping());
 	EXPECT_EQ(found.status, SL_STATUS_OK);
 	EXPECT_EQ(found.index, 2);
 	EXPECT_EQ(found.timestamp, 10);
@@ -192,6 +200,7 @@ TEST_F(JournalTest, FullBadCRC) {
 	});
 	journal_init();
 	waitNotBusy();
+	EXPECT_TRUE(spiflash_sleeping());
 
 	EXPECT_EQ(j.next_index, JOURNAL_INDEX_NPOS);
 	EXPECT_EQ(j.last_timestamp, UINT32_MAX);
@@ -200,14 +209,16 @@ TEST_F(JournalTest, FullBadCRC) {
 
 	journal_find_result found;
 	EXPECT_EQ(journal_find_last_before(8, &on_find, &found), SL_STATUS_EMPTY);
-
+	EXPECT_TRUE(spiflash_sleeping());
 	data_point_t dp = {
 	    .date = 10,
 	};
 
 	sl_status_t status = journal_add_record(&dp);
 	EXPECT_EQ(status, SL_STATUS_INVALID_PARAMETER);
+	EXPECT_TRUE(spiflash_sleeping());
 	waitNotBusy();
+	EXPECT_TRUE(spiflash_sleeping());
 
 	EXPECT_EQ(journal_find_last_before(11, &on_find, &found), SL_STATUS_EMPTY);
 }
@@ -232,6 +243,8 @@ TEST_F(JournalTest, CannotPutMoreThanSize) {
 	setMemory({});
 	journal_init();
 	waitNotBusy();
+	EXPECT_TRUE(spiflash_sleeping());
+
 	EXPECT_EQ(j.next_index, 0);
 	EXPECT_EQ(j.last_timestamp, 0);
 	EXPECT_EQ(j.first_index, JOURNAL_INDEX_NPOS);
@@ -244,14 +257,19 @@ TEST_F(JournalTest, CannotPutMoreThanSize) {
 		SCOPED_TRACE("for index " + std::to_string(i));
 		EXPECT_EQ(journal_add_record(&dp), SL_STATUS_OK);
 	}
+	EXPECT_FALSE(spiflash_sleeping());
 	dp.date = 170;
 	EXPECT_EQ(journal_add_record(&dp), SL_STATUS_FULL);
+	EXPECT_FALSE(spiflash_sleeping());
 	waitNotBusy();
+	EXPECT_TRUE(spiflash_sleeping());
 
 	sl_sleeptimer_timestamp_t expected{10};
 	EXPECT_EQ(journal_read(0, 16, &on_read, &expected), SL_STATUS_OK);
+	EXPECT_FALSE(spiflash_sleeping());
 	waitNotBusy();
 	EXPECT_EQ(expected, 170);
+	EXPECT_TRUE(spiflash_sleeping());
 }
 
 TEST_F(JournalTest, PartiallySet) {
@@ -263,6 +281,7 @@ TEST_F(JournalTest, PartiallySet) {
 	});
 	journal_init();
 	waitNotBusy();
+	EXPECT_TRUE(spiflash_sleeping());
 	EXPECT_EQ(j.next_index, 4);
 	EXPECT_EQ(j.last_timestamp, 40);
 	EXPECT_EQ(j.first_index, 0);
@@ -270,7 +289,9 @@ TEST_F(JournalTest, PartiallySet) {
 
 	journal_find_result found;
 	EXPECT_EQ(journal_find_last_before(21, &on_find, &found), SL_STATUS_OK);
+	EXPECT_FALSE(spiflash_sleeping());
 	waitNotBusy();
+	EXPECT_TRUE(spiflash_sleeping());
 	EXPECT_EQ(found.status, SL_STATUS_OK);
 	EXPECT_EQ(found.index, 1);
 	EXPECT_EQ(found.timestamp, 20);
@@ -297,6 +318,7 @@ TEST_F(JournalTest, BadCRCatEnd) {
 	});
 	journal_init();
 	waitNotBusy();
+	EXPECT_TRUE(spiflash_sleeping());
 
 	EXPECT_EQ(j.next_index, 16);
 	EXPECT_EQ(j.last_timestamp, 160);
@@ -305,8 +327,10 @@ TEST_F(JournalTest, BadCRCatEnd) {
 
 	sl_sleeptimer_timestamp_t expected{20};
 	EXPECT_EQ(journal_read(0, 16, &on_read, &expected), SL_STATUS_OK);
+	EXPECT_FALSE(spiflash_sleeping());
 	waitNotBusy();
 	EXPECT_EQ(expected, 170);
+	EXPECT_TRUE(spiflash_sleeping());
 }
 
 TEST_F(JournalTest, BadCRCinMiddle) {
@@ -322,7 +346,7 @@ TEST_F(JournalTest, BadCRCinMiddle) {
 	});
 	journal_init();
 	waitNotBusy();
-
+	EXPECT_TRUE(spiflash_sleeping());
 	EXPECT_EQ(j.next_index, 8);
 	EXPECT_EQ(j.last_timestamp, 80);
 	EXPECT_EQ(j.first_index, 0);
@@ -330,14 +354,46 @@ TEST_F(JournalTest, BadCRCinMiddle) {
 
 	journal_find_result found;
 	EXPECT_EQ(journal_find_last_before(85, &on_find, &found), SL_STATUS_OK);
+	EXPECT_TRUE(spiflash_sleeping()); // not reading flash
 	waitNotBusy();
+	EXPECT_TRUE(spiflash_sleeping());
 	EXPECT_EQ(found.status, SL_STATUS_OK);
 	EXPECT_EQ(found.timestamp, 80);
 	EXPECT_EQ(found.index, 7);
 
 	EXPECT_EQ(journal_find_last_before(30, &on_find, &found), SL_STATUS_OK);
+	EXPECT_FALSE(spiflash_sleeping());
 	waitNotBusy();
+	EXPECT_TRUE(spiflash_sleeping());
 	EXPECT_EQ(found.status, SL_STATUS_OK);
 	EXPECT_EQ(found.timestamp, 10);
 	EXPECT_EQ(found.index, 0);
+}
+
+TEST_F(JournalTest, SleepingPreemption) {
+	setMemory({});
+	journal_init();
+	waitNotBusy();
+	EXPECT_TRUE(spiflash_sleeping());
+	journal_preempt_sleeping(true);
+
+	data_point_t dp{.date = 10};
+
+	EXPECT_EQ(journal_add_record(&dp), SL_STATUS_OK);
+	EXPECT_FALSE(spiflash_sleeping());
+	waitNotBusy();
+	EXPECT_FALSE(spiflash_sleeping()); // here sleeping is preempted.
+
+	journal_preempt_sleeping(false);
+	waitNotBusy();
+	EXPECT_TRUE(spiflash_sleeping()); // here sleeping is preempted.
+
+	journal_preempt_sleeping(true);
+	dp.date = 20;
+	EXPECT_EQ(journal_add_record(&dp), SL_STATUS_OK);
+	EXPECT_FALSE(spiflash_sleeping());
+	journal_preempt_sleeping(false);
+	EXPECT_FALSE(spiflash_sleeping());
+	waitNotBusy();
+	EXPECT_TRUE(spiflash_sleeping()); // here sleeping is preempted.
 }

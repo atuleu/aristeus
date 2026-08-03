@@ -33,10 +33,12 @@ SL_ENUM(journal_operation_t){
     journal_op_find,
     journal_op_read,
     journal_op_init,
+    journal_op_sleep,
 };
 
 typedef struct journal {
 	journal_input_queue_t        queue;
+	bool                         preempt_sleeping;
 	volatile journal_operation_t operation;
 
 	union {
@@ -68,8 +70,10 @@ typedef struct journal {
 extern journal_t j;
 
 void _journal_may_start_write();
+void _journal_enter_deepsleep();
 
 void _journal_on_write(sl_status_t status, void *user_data);
+void _journal_on_sleep(sl_status_t status, void *user_data);
 
 void        _journal_read_send_data_point(const journal_record_t *record);
 void        _journal_complete_read(sl_status_t status);
