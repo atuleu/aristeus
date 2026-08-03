@@ -50,8 +50,6 @@
 #include "pin_config.h"
 #include "sl_core.h"
 #include "sl_device_gpio.h"
-#include "sl_power_manager.h"
-#include "sl_power_manager_debug.h"
 #include "sl_spidrv_instances.h"
 #include "types.h"
 #include <drivers/sht4x.h>
@@ -102,11 +100,14 @@ void _app_on_lps22hh_readout(
 ) {
 	(void)user_data;
 	if (status != SL_STATUS_OK) {
-		app_log_warning("Could not read pressure: 0x%04lX" APP_LOG_NL, status);
+		app_log_warning(
+		    "[app] could not read pressure: 0x%04lX." APP_LOG_NL,
+		    status
+		);
 		return;
 	}
 	app_log_info(
-	    "Got pressure %ld.%03ld" APP_LOG_NL,
+	    "[app] got pressure %ld.%03ld." APP_LOG_NL,
 	    pressure / 1000,
 	    pressure % 1000
 	);
@@ -125,11 +126,14 @@ void _app_on_sht4x_readout(
 ) {
 	(void)user_data;
 	if (status != SL_STATUS_OK) {
-		app_log_warning("Sensor readout failure: 0x%04lX" APP_LOG_NL, status);
+		app_log_warning(
+		    "[app] sensor readout failure: 0x%04lX." APP_LOG_NL,
+		    status
+		);
 		return;
 	}
 	app_log_info(
-	    "Got temperature: %d.%02d°C humidity: %d.%01d%%" APP_LOG_NL,
+	    "[app] got temperature: %d.%02d°C humidity: %d.%01d%%." APP_LOG_NL,
 	    temperature / 100,
 	    temperature % 100,
 	    humidity / 10,
@@ -150,10 +154,13 @@ void _app_on_stcc4_readout(
 ) {
 	(void)user_data;
 	if (status != SL_STATUS_OK) {
-		app_log_warning("STCC4 readout failure: 0x%04lX." APP_LOG_NL, status);
+		app_log_warning(
+		    "[app] co2 readout failure: 0x%04lX." APP_LOG_NL,
+		    status
+		);
 		return;
 	}
-	app_log_info("Got c02 concentration: %dPPM." APP_LOG_NL, co2);
+	app_log_info("[app] got c02 concentration: %dPPM." APP_LOG_NL, co2);
 	CORE_ATOMIC_SECTION({
 		app.current_data_point.c02 = co2;
 		app.new_stcc4_data         = true;
@@ -178,24 +185,27 @@ void start_sensor_readout(
 	    NULL
 	);
 	if (s != SL_STATUS_OK) {
-		app_log_error("Could not start SHT4X reading: 0x%04lX" APP_LOG_NL, s);
+		app_log_error(
+		    "[app] could not start SHT4X reading: 0x%04lX" APP_LOG_NL,
+		    s
+		);
 	}
 
 	s = lps22hh_oneshot(&app.lps22hh_sensor, &_app_on_lps22hh_readout, NULL);
 	if (s != SL_STATUS_OK) {
-		app_log_error("Could not start LPS22HH reading: 0x%04lX" APP_LOG_NL, s);
+		app_log_error(
+		    "[app] could not start LPS22HH reading: 0x%04lX" APP_LOG_NL,
+		    s
+		);
 	}
 };
 
 void _app_on_spiflash_deepsleep(sl_status_t status, void *user_data) {
 	(void)user_data;
 	if (status == SL_STATUS_OK) {
-		app_log_info("[spiflash] deep sleep successful." APP_LOG_NL);
+		app_log_info("[app] deep sleep successful." APP_LOG_NL);
 	} else {
-		app_log_warning(
-		    "[spiflash] deep sleep error: 0x%04lX." APP_LOG_NL,
-		    status
-		);
+		app_log_warning("[app] deep sleep error: 0x%04lX." APP_LOG_NL, status);
 	}
 }
 
@@ -314,7 +324,7 @@ sl_status_t app_set_legacy_advertiser_data(
 		adv_data_len             = 31;
 	}
 
-	app_log_debug("new advertised data" APP_LOG_NL);
+	app_log_debug("[app] new advertised data." APP_LOG_NL);
 
 	return sl_bt_legacy_advertiser_set_data(
 	    advertising_set,

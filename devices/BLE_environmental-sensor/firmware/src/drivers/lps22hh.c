@@ -88,7 +88,7 @@ void _lps22hh_oneshot_read_cb(i2c_tx_status_t status, void *user_data) {
 	sl_gpio_get_pin_input(self->data_ready_pin, &data_ready);
 	if (data_ready == true) {
 		app_log_warning(
-		    "LPS22HH %s.0x%x has stale data, re-reading" APP_LOG_NL,
+		    "[LPS22HH %s.0x%x] has stale data, re-reading" APP_LOG_NL,
 		    i2c_schd_get_instance_name(self->i2c_bus),
 		    self->address
 		);
@@ -186,7 +186,8 @@ sl_status_t lps22hh_init(lps22hh_handle_t *self, lps22hh_config_t *config) {
 	sl_status_t sc = lps22hh_read_blocking(self, 0x0f, 1, &whoAmI);
 	if (sc != SL_STATUS_OK) {
 		app_log_warning(
-		    "No LPS22HH devices at %s.0x%x found, retrying in 80ms" APP_LOG_NL,
+		    "[LPS22HH] no devices at %s.0x%x found, retrying in "
+		    "80ms" APP_LOG_NL,
 		    i2c_schd_get_instance_name(self->i2c_bus),
 		    self->address
 		);
@@ -196,7 +197,7 @@ sl_status_t lps22hh_init(lps22hh_handle_t *self, lps22hh_config_t *config) {
 
 		if (sc != SL_STATUS_OK) {
 			app_log_error(
-			    "No LPS22HH devices at %s.0x%x found" APP_LOG_NL,
+			    "[LPS22HH] devices at %s.0x%x found" APP_LOG_NL,
 			    i2c_schd_get_instance_name(self->i2c_bus),
 			    self->address
 			);
@@ -206,7 +207,7 @@ sl_status_t lps22hh_init(lps22hh_handle_t *self, lps22hh_config_t *config) {
 
 	if (whoAmI != 0xb3) {
 		app_log_error(
-		    "LPS2DF device found at %s.0x%x, but wrong whoAmI value 0x%x "
+		    "[LPS2HH] device found at %s.0x%x, but wrong whoAmI value 0x%x "
 		    "(expected 0xb3)" APP_LOG_NL,
 		    i2c_schd_get_instance_name(self->i2c_bus),
 		    self->address,
@@ -216,7 +217,7 @@ sl_status_t lps22hh_init(lps22hh_handle_t *self, lps22hh_config_t *config) {
 	}
 
 	app_log_info(
-	    "found LPS22HH devices at %s.0x%x" APP_LOG_NL,
+	    "[LPS22HH] found device at %s.0x%x" APP_LOG_NL,
 	    i2c_schd_get_instance_name(self->i2c_bus),
 	    self->address
 	);
@@ -234,7 +235,7 @@ sl_status_t lps22hh_init(lps22hh_handle_t *self, lps22hh_config_t *config) {
 	sc = lps22hh_write_blocking(self, 2, config_buffer);
 	if (sc != SL_STATUS_OK) {
 		app_log_error(
-		    "LPS22HH %s.0x%x: could not set IF_ADD_INC" APP_LOG_NL,
+		    "[LPS22HH %s.0x%x] could not set IF_ADD_INC" APP_LOG_NL,
 		    i2c_schd_get_instance_name(self->i2c_bus),
 		    self->address
 		);
@@ -247,7 +248,7 @@ sl_status_t lps22hh_init(lps22hh_handle_t *self, lps22hh_config_t *config) {
 	sc = lps22hh_write_blocking(self, sizeof(config_buffer), config_buffer);
 	if (sc != SL_STATUS_OK) {
 		app_log_error(
-		    "LPS22HH %s.0x%x: could not set config" APP_LOG_NL,
+		    "[LPS22HH %s.0x%x] could not set config" APP_LOG_NL,
 		    i2c_schd_get_instance_name(self->i2c_bus),
 		    self->address
 		);
@@ -261,7 +262,7 @@ sl_status_t lps22hh_init(lps22hh_handle_t *self, lps22hh_config_t *config) {
 	);
 	if (sc != SL_STATUS_OK) {
 		app_log_error(
-		    "LPS22HH %s.0x%x: could not set  pin mode" APP_LOG_NL,
+		    "[LPS22HH %s.0x%x] could not set  pin mode" APP_LOG_NL,
 		    i2c_schd_get_instance_name(self->i2c_bus),
 		    self->address
 		);
@@ -272,7 +273,7 @@ sl_status_t lps22hh_init(lps22hh_handle_t *self, lps22hh_config_t *config) {
 	sc = sl_gpio_get_pin_input(self->data_ready_pin, &dummy);
 	if (sc != SL_STATUS_OK) {
 		app_log_error(
-		    "LPS22HH %s.0x%x: could not read pin" APP_LOG_NL,
+		    "[LPS22HH %s.0x%x] could not read pin" APP_LOG_NL,
 		    i2c_schd_get_instance_name(self->i2c_bus),
 		    self->address
 		);

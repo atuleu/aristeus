@@ -18,7 +18,7 @@ sht4x_init(sht4x_handle_t *self, i2c_schd_handle_t *i2c, uint8_t addr) {
 	sht4x_blocking_result_t result;
 	self->i2c_bus = i2c;
 	if (addr != 0x44 && addr != 0x45 && addr != 0x46) {
-		app_log_info("Invalid address 0x%x for SHT4x device" APP_LOG_NL, addr);
+		app_log_info("[SHT4x] invalid address 0x%x" APP_LOG_NL, addr);
 		return SL_STATUS_INVALID_PARAMETER;
 	}
 	self->address        = addr;
@@ -28,7 +28,7 @@ sht4x_init(sht4x_handle_t *self, i2c_schd_handle_t *i2c, uint8_t addr) {
 	result = sht4x_read_serial_number_blocking(self);
 	if (result.status == SL_STATUS_OK) {
 		app_log_info(
-		    "found SHT4x device at %s.0x%x: %lx" APP_LOG_NL,
+		    "[SHT4x] found device at %s.0x%x: %lx" APP_LOG_NL,
 		    i2c_schd_get_instance_name(i2c),
 		    addr,
 		    result.data.serial_number
@@ -37,7 +37,7 @@ sht4x_init(sht4x_handle_t *self, i2c_schd_handle_t *i2c, uint8_t addr) {
 	}
 
 	app_log_warning(
-	    "No SHT4x device at %s.0x%x, retrying in 80ms" APP_LOG_NL,
+	    "[SHT4x] no device found at %s.0x%x, retrying in 80ms" APP_LOG_NL,
 	    i2c_schd_get_instance_name(i2c),
 	    addr
 	);
@@ -46,7 +46,7 @@ sht4x_init(sht4x_handle_t *self, i2c_schd_handle_t *i2c, uint8_t addr) {
 	result = sht4x_read_serial_number_blocking(self);
 	if (result.status != SL_STATUS_OK) {
 		app_log_error(
-		    "No SHT4x device found at %s.0x%x" APP_LOG_NL,
+		    "[SHT4x] no device found at %s.0x%x" APP_LOG_NL,
 		    i2c_schd_get_instance_name(i2c),
 		    addr
 		);
@@ -54,7 +54,7 @@ sht4x_init(sht4x_handle_t *self, i2c_schd_handle_t *i2c, uint8_t addr) {
 	}
 
 	app_log_info(
-	    "found SHT4x device at %s.0x%x SN:%lx" APP_LOG_NL,
+	    "[SHT4x] device found at %s.0x%x SN:%lx" APP_LOG_NL,
 	    i2c_schd_get_instance_name(i2c),
 	    addr,
 	    result.data.serial_number
@@ -77,7 +77,9 @@ void _sht4x_error_cmd(sht4x_handle_t *self, sl_status_t status) {
 	});
 
 	if (callback.ptr == NULL) {
-		app_log_error("NULL callback in SHT4x driver async error" APP_LOG_NL);
+		app_log_error(
+		    "[SHT4x] NULL callback in async error completion." APP_LOG_NL
+		);
 		return;
 	}
 
@@ -109,7 +111,8 @@ void _sht4x_complete_cmd(sht4x_handle_t *self, sht4x_blocking_result_t *res) {
 	});
 
 	if (callback.ptr == NULL) {
-		app_log_error("NULL callback in SHT4x driver async complete" APP_LOG_NL
+		app_log_error(
+		    "[SHT4x] NULL callback in async sucessful completion." APP_LOG_NL
 		);
 		return;
 	}
@@ -246,7 +249,7 @@ void _sht4x_on_i2c_write_complete(i2c_tx_status_t status, void *user_data) {
 	sht4x_handle_t *self = user_data;
 	if (status != I2C_TX_OK) {
 		app_log_debug(
-		    "Could not write command bus error: 0x%04X" APP_LOG_NL,
+		    "[SHT4x] could not write command bus error: 0x%04X" APP_LOG_NL,
 		    status
 		);
 		_sht4x_error_cmd(
@@ -326,7 +329,10 @@ sl_status_t _sht4x_send_command(
 	    self
 	);
 	if (status != SL_STATUS_OK) {
-		app_log_debug("Could not write command: 0x%04lX" APP_LOG_NL, status);
+		app_log_debug(
+		    "[SHT4x] Could not write command: 0x%04lX" APP_LOG_NL,
+		    status
+		);
 		CORE_ENTER_ATOMIC();
 		self->command_buffer = 0;
 		self->callback.ptr   = NULL;
