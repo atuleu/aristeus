@@ -42,6 +42,7 @@ struct spiflash_handle {
 
 	_spiflash_polling_mode_t poll;
 	uint32_t                 poll_ticks;
+	uint8_t                  poll_count;
 };
 
 static struct spiflash_handle self;
@@ -169,15 +170,32 @@ sl_status_t spiflash_init(SPIDRV_Handle_t spi) {
 	return SL_STATUS_OK;
 }
 
+void _spiflash_on_wakeup_cs_high(
+    sl_sleeptimer_timer_handle_t *timer, void *user_data
+) {
+	(void)timer;
+	(void)user_data;
+	_spiflash_CS_high();
+
+	sl_status_t status = sl_sleeptimer_start_timer(
+	    &self.timer,
+	    10,
+	    _spiflash_on_wakeup_timeout,
+	    NULL,
+	    0,
+	    0
+	);
+	if (status != SL_STATUS_OK) {
+		_spiflash_complete_op(status);
+	}
+}
+
 sl_status_t _spiflash_wakeup() {
 	_spiflash_CS_low();
-	__NOP();
-	__NOP();
-	_spiflash_CS_high();
 	return sl_sleeptimer_start_timer(
 	    &self.timer,
-	    2,
-	    _spiflash_on_wakeup_timeout,
+	    1,
+	    _spiflash_on_wakeup_cs_high,
 	    NULL,
 	    0,
 	    0
@@ -328,6 +346,7 @@ void _spiflash_on_wakeup_timeout(
 }
 
 sl_status_t _spiflash_op_action(bool call_callback) {
+	app_log_debug("[spiflash] starting command %d." APP_LOG_NL, self.operation);
 	Ecode_t err;
 	switch (self.operation) {
 	case _spiflash_op_none:
@@ -395,12 +414,14 @@ void _spiflash_on_wren_sent(
 		_spiflash_complete_op(SL_STATUS_TRANSMIT);
 		return;
 	}
-	_spiflash_poll(_spiflash_poll_wel_set, 10);
+	self.poll_count = 0;
+	_spiflash_poll(_spiflash_poll_wel_set, 50);
 }
 
 void _spiflash_poll(_spiflash_polling_mode_t mode, uint32_t ticks) {
-	self.poll          = mode;
-	self.poll_ticks    = ticks;
+	self.poll       = mode;
+	self.poll_ticks = ticks;
+	self.poll_count += 1;
 	sl_status_t status = sl_sleeptimer_start_timer(
 	    &self.timer,
 	    ticks,
@@ -419,8 +440,12 @@ void _spiflash_on_poll_timeout(
 ) {
 	(void)timer;
 	(void)user_data;
-
+	/* app_log_debug( */
+	/*     "[spiflash] polling for %s." APP_LOG_NL, */
+	/*     self.poll == _spiflash_poll_wel_set ? "WEL set" : "WIP cleared" */
+	/* ); */
 	self.command_buffer[0] = mx25_cmd_read_status_register;
+	self.command_buffer[1] = 0x01; // default to be WEL cleared and WIP set.
 	_spiflash_CS_low();
 	Ecode_t err = SPIDRV_MTransfer(
 	    self.spi,
@@ -446,22 +471,22 @@ void _spiflash_on_poll_status(
 		_spiflash_complete_op(SL_STATUS_TRANSMIT);
 		return;
 	}
-
+	app_log_debug(
+	    "[spiflash] got RDSR: 0x%02x, polling for %s." APP_LOG_NL,
+	    self.command_buffer[1],
+	    self.poll == _spiflash_poll_wel_set ? "WEL set" : "WIP cleared"
+	);
 	switch (self.poll) {
 	case _spiflash_poll_wel_set:
-		if ((self.command_buffer[1] & 0x02) == 0x00) {
-			_spiflash_poll(self.poll, self.poll_ticks);
-			return;
-		} else {
+		if ((self.command_buffer[1] & 0x02) != 0x00) {
 			_spiflash_on_wel_set();
+			return;
 		}
 		break;
 	case _spiflash_poll_wip_cleared:
-		if ((self.command_buffer[1] & 0x01) == 0x01) {
-			_spiflash_poll(self.poll, self.poll_ticks);
-			return;
-		} else {
+		if ((self.command_buffer[1] & 0x01) == 0x00) {
 			_spiflash_on_wip_cleared();
+			return;
 		}
 		break;
 	case _spiflash_poll_none:
@@ -472,6 +497,11 @@ void _spiflash_on_poll_status(
 		}
 		return;
 	}
+	if (self.poll_count > 20) {
+		_spiflash_complete_op(SL_STATUS_TIMEOUT);
+		return;
+	}
+	_spiflash_poll(self.poll, self.poll_ticks);
 }
 
 void _spiflash_on_wel_set() {
@@ -483,7 +513,7 @@ void _spiflash_on_wel_set() {
 		self.command_buffer[2] = (self.address >> 8) & 0xff;
 		self.command_buffer[3] = (self.address >> 0) & 0xff;
 		_spiflash_CS_low();
-		self.poll_ticks = 3 * self.length;
+		self.poll_ticks = 10 * self.length;
 		err             = SPIDRV_MTransmit(
             self.spi,
             self.command_buffer,
@@ -553,7 +583,7 @@ void _spiflash_on_cmd_sent(
 		_spiflash_on_cmd_done(NULL, ECODE_EMDRV_SPIDRV_OK, 0);
 		return;
 	case _spiflash_op_write:
-		self.poll_ticks = 3 * self.length;
+		self.poll_ticks = 10 * self.length;
 		err             = SPIDRV_MTransmit(
             self.spi,
             self.buffer,
