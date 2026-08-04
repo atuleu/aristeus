@@ -320,9 +320,8 @@ void app_process_action(void) {
 		CORE_ENTER_ATOMIC();
 		app.new_lps22hh_data = false;
 		app.new_sht4x_data   = false;
-		need_update          = true;
 	}
-	need_update        = need_update || app.new_stcc4_data;
+	need_update        = app.new_stcc4_data;
 	app.new_stcc4_data = false;
 	CORE_EXIT_ATOMIC();
 
