@@ -91,6 +91,8 @@ void _spiflash_on_cmd_done(
 void _spiflash_on_cmd_sent(
     SPIDRV_HandleData_t *handle, Ecode_t transferStatus, int items
 );
+
+Ecode_t _spiflash_send_wren();
 void _spiflash_on_wren_sent(
     SPIDRV_HandleData_t *handle, Ecode_t transferStatus, int items
 );
@@ -377,14 +379,8 @@ sl_status_t _spiflash_op_action(bool call_callback) {
 		break;
 	case _spiflash_op_write:
 	case _spiflash_op_erase:
-		_spiflash_CS_low();
-		self.command_buffer[0] = mx25_cmd_wren;
-		err                    = SPIDRV_MTransmit(
-            self.spi,
-            self.command_buffer,
-            1,
-            &_spiflash_on_wren_sent
-        );
+		self.poll_count = 0;
+		err             = _spiflash_send_wren();
 		break;
 	default:
 		_spiflash_complete_op(SL_STATUS_INVALID_STATE);
@@ -414,7 +410,7 @@ void _spiflash_on_wren_sent(
 		_spiflash_complete_op(SL_STATUS_TRANSMIT);
 		return;
 	}
-	self.poll_count = 0;
+
 	_spiflash_poll(_spiflash_poll_wel_set, 50);
 }
 
@@ -482,6 +478,7 @@ void _spiflash_on_poll_status(
 			_spiflash_on_wel_set();
 			return;
 		}
+
 		break;
 	case _spiflash_poll_wip_cleared:
 		if ((self.command_buffer[1] & 0x01) == 0x00) {
@@ -501,7 +498,26 @@ void _spiflash_on_poll_status(
 		_spiflash_complete_op(SL_STATUS_TIMEOUT);
 		return;
 	}
-	_spiflash_poll(self.poll, self.poll_ticks);
+	if (self.poll == _spiflash_poll_wip_cleared) {
+		_spiflash_poll(self.poll, self.poll_ticks);
+		return;
+	}
+	if (_spiflash_send_wren() != ECODE_EMDRV_SPIDRV_OK) {
+		_spiflash_CS_high();
+		_spiflash_complete_op(SL_STATUS_FLASH_WRITE_INHIBITED);
+	}
+}
+
+Ecode_t _spiflash_send_wren() {
+	_spiflash_CS_low();
+	self.command_buffer[0] = mx25_cmd_wren;
+	app_log_debug("[spiflash] sending WREN." APP_LOG_NL);
+	return SPIDRV_MTransmit(
+	    self.spi,
+	    self.command_buffer,
+	    1,
+	    &_spiflash_on_wren_sent
+	);
 }
 
 void _spiflash_on_wel_set() {
@@ -623,6 +639,7 @@ void _spiflash_on_cmd_done(
 		return;
 	case _spiflash_op_erase:
 	case _spiflash_op_write:
+		self.poll_count = 0;
 		_spiflash_poll(_spiflash_poll_wip_cleared, self.poll_ticks);
 		break;
 	case _spiflash_op_deepsleep: {
