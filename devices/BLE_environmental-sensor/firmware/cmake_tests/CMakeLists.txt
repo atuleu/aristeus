@@ -39,6 +39,7 @@ add_library(simplicity-mock #
 	src/sl_sleeptimer.h
 	src/sl_sleeptimer.cpp
 	src/sl_status.h
+	src/sl_status.cpp
 	src/app_log.h
 	src/app_log.cpp
 	src/spiflash.hpp

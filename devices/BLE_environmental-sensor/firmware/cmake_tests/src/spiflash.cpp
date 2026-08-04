@@ -15,6 +15,10 @@
 class MockSPIFlash {
 public:
 	static constexpr size_t SPIFLASH_SIZE = 1024 * 1024;
+	static constexpr size_t SPIFLASH_1M   = 1024 * 1024;
+	static constexpr size_t SPIFLASH_64K  = 64 * 1024;
+	static constexpr size_t SPIFLASH_32K  = 32 * 1024;
+	static constexpr size_t SPIFLASH_4K   = 4 * 1024;
 
 	MockSPIFlash()
 	    : busy(false) {
@@ -127,6 +131,45 @@ public:
 		return sleeping;
 	}
 
+	sl_status_t erase(
+	    uint32_t               address,
+	    uint32_t               length,
+	    spiflash_op_callback_t callback,
+	    void                  *user_data
+	) {
+		switch (length) {
+		case SPIFLASH_4K:
+		case SPIFLASH_32K:
+		case SPIFLASH_64K:
+		case SPIFLASH_1M:
+			break;
+		default:
+			return SL_STATUS_INVALID_PARAMETER;
+		}
+		if ((address & (length - 1)) != 0x00) {
+			return SL_STATUS_INVALID_RANGE;
+		}
+
+		std::lock_guard<std::mutex> lock(mutex);
+		if (busy == true) {
+			return SL_STATUS_BUSY;
+		}
+		busy     = true;
+		sleeping = false;
+
+		std::thread t([this, address, length, callback, user_data]() {
+			std::this_thread::yield();
+			memset(&data[address], 0xff, length);
+			{
+				std::lock_guard<std::mutex> lock(mutex);
+				this->busy = false;
+			}
+			callback(SL_STATUS_OK, user_data);
+		});
+		t.detach();
+		return SL_STATUS_OK;
+	}
+
 private:
 	std::array<uint8_t, SPIFLASH_SIZE> data;
 	std::mutex                         mutex;
@@ -165,6 +208,15 @@ sl_status_t spiflash_write(
     void                  *user_data
 ) {
 	return spiflash.write(address, buffer, len, callback, user_data);
+}
+
+sl_status_t spiflash_erase(
+    uint32_t               address,
+    uint32_t               length,
+    spiflash_op_callback_t callback,
+    void                  *user_data
+) {
+	return spiflash.erase(address, length, callback, user_data);
 }
 
 sl_status_t

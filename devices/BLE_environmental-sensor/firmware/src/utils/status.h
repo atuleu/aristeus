@@ -1,6 +1,7 @@
 #pragma once
 
 #include "sl_status.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif // __cplusplus
