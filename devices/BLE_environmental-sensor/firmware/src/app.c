@@ -207,6 +207,12 @@ void app_init(void) {
 
 	em_logger_init();
 
+	app_log_info(
+	    "[app] sleeptimer frequency is %d 1 ticks = %d us." APP_LOG_NL,
+	    sl_sleeptimer_get_timer_frequency(),
+	    1000000 / sl_sleeptimer_get_timer_frequency()
+	);
+
 	status = spiflash_init(sl_spidrv_spi0_handle);
 	app_assert_status(status);
 

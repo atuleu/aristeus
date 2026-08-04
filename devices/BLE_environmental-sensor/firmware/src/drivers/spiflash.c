@@ -48,16 +48,18 @@ struct spiflash_handle {
 static struct spiflash_handle self;
 
 SL_ENUM(spiflash_command_t){
-    mx25_cmd_read_id              = 0x9f,
-    mx25_cmd_read                 = 0x03,
-    mx25_cmd_wren                 = 0x06,
-    mx25_cmd_read_status_register = 0x05,
-    mx25_cmd_program_page         = 0x02,
-    mx25_cmd_sector_erase         = 0x20,
-    mx25_cmd_block_erase_32k      = 0x52,
-    mx25_cmd_block_erase_64k      = 0xd8,
-    mx25_cmd_chip_erase           = 0x60,
-    mx25_cmd_deep_sleep           = 0xb9,
+    mx25_cmd_read_id                       = 0x9f,
+    mx25_cmd_read                          = 0x03,
+    mx25_cmd_wren                          = 0x06,
+    mx25_cmd_read_status_register          = 0x05,
+    mx25_cmd_read_config_register          = 0x15,
+    mx25_cmd_read_security_config_register = 0x2b,
+    mx25_cmd_program_page                  = 0x02,
+    mx25_cmd_sector_erase                  = 0x20,
+    mx25_cmd_block_erase_32k               = 0x52,
+    mx25_cmd_block_erase_64k               = 0xd8,
+    mx25_cmd_chip_erase                    = 0x60,
+    mx25_cmd_deep_sleep                    = 0xb9,
 };
 
 #define _spiflash_CS_low()                                                     \
@@ -128,6 +130,56 @@ sl_status_t _spiflash_read_id_blocking(uint8_t *buffer, uint8_t len) {
 	return status;
 }
 
+sl_status_t
+_spiflash_read_status_config_register_blocking(uint8_t *buffer, uint8_t len) {
+	if (len < 4) {
+		return SL_STATUS_INVALID_COUNT;
+	}
+	uint8_t     command[1];
+	sl_status_t status;
+	// RDSR
+	_spiflash_CS_low();
+	command[0] = mx25_cmd_read_status_register;
+	status     = SPIDRV_MTransmitB(self.spi, command, 1);
+	if (status != SL_STATUS_OK) {
+		_spiflash_CS_high();
+		return status;
+	}
+	status = SPIDRV_MReceiveB(self.spi, &buffer[0], 1);
+	_spiflash_CS_high();
+	if (status != SL_STATUS_OK) {
+		return status;
+	}
+	sl_sleeptimer_delay_millisecond(1);
+
+	// RDCR
+	_spiflash_CS_low();
+	command[0] = mx25_cmd_read_config_register;
+	status     = SPIDRV_MTransmitB(self.spi, command, 1);
+	if (status != SL_STATUS_OK) {
+		_spiflash_CS_high();
+		return status;
+	}
+	status = SPIDRV_MReceiveB(self.spi, &buffer[1], 2);
+	_spiflash_CS_high();
+	if (status != SL_STATUS_OK) {
+		return status;
+	}
+	sl_sleeptimer_delay_millisecond(1);
+
+	// RDSCUR
+	_spiflash_CS_low();
+	command[0] = mx25_cmd_read_security_config_register;
+	status     = SPIDRV_MTransmitB(self.spi, command, 1);
+	if (status != SL_STATUS_OK) {
+		_spiflash_CS_high();
+		return status;
+	}
+	status = SPIDRV_MReceiveB(self.spi, &buffer[3], 1);
+	_spiflash_CS_high();
+	return status;
+}
+
 sl_status_t spiflash_init(SPIDRV_Handle_t spi) {
 	if (spi == NULL) {
 		return SL_STATUS_NULL_POINTER;
@@ -147,7 +199,7 @@ sl_status_t spiflash_init(SPIDRV_Handle_t spi) {
 	sl_gpio_set_pin_mode(&self.cs_pin, SL_GPIO_MODE_PUSH_PULL, 1);
 	_spiflash_CS_high();
 
-	uint8_t     buffer[3];
+	uint8_t     buffer[4];
 	sl_status_t status = _spiflash_read_id_blocking(buffer, 3);
 	if (status != SL_STATUS_OK) {
 		app_log_error(
@@ -168,6 +220,22 @@ sl_status_t spiflash_init(SPIDRV_Handle_t spi) {
 		);
 		return SL_STATUS_INVALID_SIGNATURE;
 	}
+
+	status = _spiflash_read_status_config_register_blocking(buffer, 4);
+	if (status != SL_STATUS_OK) {
+		app_log_error(
+		    "[spiflash] could not read the status register: %s." APP_LOG_NL,
+		    sl_status_get_string(status)
+		);
+		return status;
+	}
+	app_log_info(
+	    "[spiflash] SR=%02X CR[0]=%02X CR[1]=%02X SCR=%02X." APP_LOG_NL,
+	    buffer[0],
+	    buffer[1],
+	    buffer[2],
+	    buffer[3]
+	);
 
 	return SL_STATUS_OK;
 }
@@ -411,7 +479,7 @@ void _spiflash_on_wren_sent(
 		return;
 	}
 
-	_spiflash_poll(_spiflash_poll_wel_set, 50);
+	_spiflash_poll(_spiflash_poll_wel_set, 10);
 }
 
 void _spiflash_poll(_spiflash_polling_mode_t mode, uint32_t ticks) {
@@ -468,8 +536,9 @@ void _spiflash_on_poll_status(
 		return;
 	}
 	app_log_debug(
-	    "[spiflash] got RDSR: 0x%02x, polling for %s." APP_LOG_NL,
+	    "[spiflash] got RDSR: 0x%02x 0x%02x, polling for %s." APP_LOG_NL,
 	    self.command_buffer[1],
+	    self.command_buffer[2],
 	    self.poll == _spiflash_poll_wel_set ? "WEL set" : "WIP cleared"
 	);
 	switch (self.poll) {
