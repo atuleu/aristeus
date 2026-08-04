@@ -100,7 +100,7 @@
 // <i> Disabling will cause a current spike when entering em4, however the time
 // to enter em4 will be reduced. <i> Default: 1
 #ifndef SL_POWER_MANAGER_RAMP_DVDD_EN
-#define SL_POWER_MANAGER_RAMP_DVDD_EN 1
+#define SL_POWER_MANAGER_RAMP_DVDD_EN 0
 #endif
 // </e>
 

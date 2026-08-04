@@ -42,6 +42,7 @@
 
 #include <gatt_db.h>
 
+#include "batt_monitor.h"
 #include "drivers/i2c_schd.h"
 #include "drivers/lps22hh.h"
 #include "drivers/spiflash.h"
@@ -213,6 +214,9 @@ void app_init(void) {
 	    1000000 / sl_sleeptimer_get_timer_frequency()
 	);
 
+	status = batt_monitor_init();
+	app_assert_status(status);
+
 	status = spiflash_init(sl_spidrv_spi0_handle);
 	app_assert_status(status);
 
@@ -282,7 +286,7 @@ app_set_legacy_advertiser_data(uint8_t advertising_set, const data_point_t *d) {
 
 	adv_data[adv_data_len++] = location.hive_id;
 	adv_data[adv_data_len++] = location.placement;
-	adv_data[adv_data_len++] = 100;
+	adv_data[adv_data_len++] = batt_monitor_get_current_level();
 	memcpy(&adv_data[adv_data_len], d, sizeof(data_point_t));
 	adv_data_len += sizeof(data_point_t);
 
@@ -322,10 +326,26 @@ void app_process_action(void) {
 		);
 		if (status != SL_STATUS_OK) {
 			app_log_error(
-			    "Could not start c02 readout: %s." APP_LOG_NL,
+			    "[app] could not start c02 readout: %s." APP_LOG_NL,
 			    sl_status_get_string(status)
 			);
 		}
+		status = sl_sleeptimer_start_timer_ms(
+		    &app.batt_timer,
+		    40,
+		    &_app_on_batt_timer_timeout,
+		    NULL,
+		    0,
+		    0
+		);
+		if (status != SL_STATUS_OK) {
+			app_log_error(
+			    "[app] could not schedule battery level reading: "
+			    "%s." APP_LOG_NL,
+			    sl_status_get_string(status)
+			);
+		}
+
 		CORE_ENTER_ATOMIC();
 		app.new_lps22hh_data = false;
 		app.new_sht4x_data   = false;
@@ -534,4 +554,18 @@ void _app_on_gatt_server_user_write_request(
 
 bool app_is_ok_to_sleep() {
 	return i2c_schd_is_ok_to_sleep(&app.i2c0);
+}
+
+void _app_on_batt_timer_timeout(
+    sl_sleeptimer_timer_handle_t *timer, void *user_data
+) {
+	(void)timer;
+	(void)user_data;
+	sl_status_t status = batt_monitor_start_measurement();
+	if (status != SL_STATUS_OK) {
+		app_log_error(
+		    "[app] could not start battery level measurement: %s." APP_LOG_NL,
+		    sl_status_get_string(status)
+		);
+	}
 }

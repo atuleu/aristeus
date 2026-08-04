@@ -43,6 +43,8 @@ add_executable(BLE_environmental_sensor
 	${PROJECT_SOURCE_DIR}/../src/journal_record.c
 	${PROJECT_SOURCE_DIR}/../src/location.h
 	${PROJECT_SOURCE_DIR}/../src/location.c
+	${PROJECT_SOURCE_DIR}/../src/batt_monitor.h
+	${PROJECT_SOURCE_DIR}/../src/batt_monitor.c
 
 )
 set_property(TARGET BLE_environmental_sensor PROPERTY C_STANDARD 23)
