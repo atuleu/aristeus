@@ -91,7 +91,7 @@ void _stcc4_on_command_write(i2c_tx_status_t status, void *user_data) {
 		    &_stcc4_tx_timer_timeout,
 		    self,
 		    0,
-		    0
+		    SL_SLEEPTIMER_NO_HIGH_PRECISION_HF_CLOCKS_REQUIRED_FLAG
 		);
 	} else {
 		command_status = i2c_schd_receive(

@@ -252,14 +252,36 @@ sl_status_t spiflash_write(
     spiflash_op_callback_t callback,
     void                  *user_data
 ) {
+	app_log_debug(
+	    "[spiflash] write address=0x%06lX buffer=%08lX length=%ld." APP_LOG_NL,
+	    address,
+	    (uint32_t)buffer,
+	    length
+	);
 	if (length > SPIFLASH_SIZE || address > SPIFLASH_MAX_ADDRESS ||
 	    address > (SPIFLASH_MAX_ADDRESS + 1 - length)) {
+
 		return SL_STATUS_INVALID_RANGE;
 	}
-	if (length == 0 || (address & 0xff) != ((address + length - 1) & 0xff)) {
+
+	if (length == 0) {
+		return SL_STATUS_INVALID_PARAMETER;
+	}
+
+	uint32_t start_sector = address & 0x0fff00;
+	uint32_t end_sector   = (address + length - 1) & 0x0fff00;
+
+	if (start_sector != end_sector) {
+		app_log_warning(
+		    "[spiflash] start_boundary=%06lX and end_boundary=%06lX "
+		    "differs." APP_LOG_NL,
+		    start_sector,
+		    end_sector
+		);
 		// we will cross a sector boundary!!!
 		return SL_STATUS_INVALID_PARAMETER;
 	}
+
 	return _spiflash_start_op(
 	    _spiflash_op_write,
 	    address,

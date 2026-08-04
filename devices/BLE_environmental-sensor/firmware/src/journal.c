@@ -135,7 +135,7 @@ void _journal_may_start_write() {
 			j.operation = journal_op_none;
 			j.next_index -= 1;
 		});
-
+		app_log_error("[journal] could not write: 0x%04lX." APP_LOG_NL, status);
 		return;
 	}
 }
@@ -659,6 +659,7 @@ void _journal_on_sleep(sl_status_t status, void *user_data) {
 		app_log_warning("[journal] sleep failed: 0x%04lX." APP_LOG_NL, status);
 	}
 	CORE_ATOMIC_SECTION({ j.operation = journal_op_none; });
+	app_log_info("[journal] sleeping." APP_LOG_NL);
 }
 
 void journal_preempt_sleeping(bool preempt) {
