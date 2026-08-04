@@ -59,7 +59,7 @@
 app_handle_t app = {
     .advertising_set_handle = 0xff,
     .is_advertising         = false,
-    .data_ready = {.port = LPS22DF_INT_PORT, .pin = LPS22DF_INT_PIN},
+    .data_ready = {.port = LPS22HH_INT_PORT, .pin = LPS22HH_INT_PIN},
     .current_data_point =
         {
             .date        = 0,

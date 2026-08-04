@@ -8,3 +8,4 @@ build/
 autogen
 /build-test/
 trashed_modified_files/
+BLE_environmental_sensor.cmake
