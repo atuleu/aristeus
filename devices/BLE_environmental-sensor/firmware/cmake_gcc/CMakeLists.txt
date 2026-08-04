@@ -13,6 +13,8 @@ project(
 include(BLE_environmental_sensor.cmake)
 set_property(TARGET slc PROPERTY C_STANDARD 23)
 
+option(PRODUCTION_BUILD Off "Production build")
+
 add_executable(BLE_environmental_sensor
     # Add additional sources here
 	${PROJECT_SOURCE_DIR}/../src/app.c
@@ -57,6 +59,13 @@ target_compile_definitions(BLE_environmental_sensor PUBLIC
 target_compile_options(BLE_environmental_sensor PUBLIC
     # Set additional compiler flags here
 )
+if (PRODUCTION_BUILD)
+	target_compile_options(BLE_environmental_sensor PUBLIC
+		# Set additional compiler flags here
+		-DPRODUCTION_BUILD
+		-DSL_POWER_MANAGER_DEBUG=0
+	)
+endif()
 
 target_link_options(BLE_environmental_sensor PUBLIC
 	-Wl,--print-memory-usage

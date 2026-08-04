@@ -35,7 +35,11 @@
 
 // <e APP_ASSERT_ENABLE> Assert component
 // <i> Enables Assert.
+#ifdef PRODUCTION_BUILD
+#define APP_ASSERT_ENABLE 0
+#else // PRODUCTION_BUILD
 #define APP_ASSERT_ENABLE 1
+#endif // PRODUCTION_BUILD
 
 // <q APP_ASSERT_SCHEDULE_LOCK> Enable schedule lock
 // <i> Enables schedule locking under OS

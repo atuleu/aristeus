@@ -8,6 +8,7 @@
 #include <stdio.h>
 #include <string.h>
 
+#ifndef PRODUCTION_BUILD
 typedef struct em_logger {
 	volatile uint64_t last_transition;
 
@@ -60,10 +61,6 @@ void em_logger_print() {
 		    percent % 10
 		);
 	}
-
-#if defined(SL_POWER_MANAGER_DEBUG)
-	sl_power_manager_debug_print_em_requirements();
-#endif
 }
 
 void em_logger_init() {
@@ -92,3 +89,4 @@ void _em_logger_on_pm_event(
 		el.count_ticks[from] += ellapsed;
 	});
 }
+#endif // PRODUCTION_BUILD

@@ -208,7 +208,7 @@ void app_init(void) {
 	em_logger_init();
 
 	app_log_info(
-	    "[app] sleeptimer frequency is %d 1 ticks = %d us." APP_LOG_NL,
+	    "[app] sleeptimer frequency is %ld 1 ticks = %ld us." APP_LOG_NL,
 	    sl_sleeptimer_get_timer_frequency(),
 	    1000000 / sl_sleeptimer_get_timer_frequency()
 	);

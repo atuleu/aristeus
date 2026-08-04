@@ -74,7 +74,11 @@
 
 // <e APP_LOG_ENABLE> Application Logging
 // <i> Enables Logging.
+#ifdef PRODUCTION_BUILD
+#define APP_LOG_ENABLE 0
+#else // PRODUCTION_BUILD
 #define APP_LOG_ENABLE 1
+#endif // PRODUCTION_BUILD
 
 // <h> General
 

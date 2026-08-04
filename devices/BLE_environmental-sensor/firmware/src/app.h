@@ -38,12 +38,16 @@
 #include "types.h"
 #include <stdbool.h>
 
-#define SENSOR_READOUT_PERIOD_S 10
 #define JOURNAL_MINIMUM_DATE                                                   \
 	1767225600 // correspond to 2026-01-01T00:00:00.000Z
 
-#define BT_ADV_PERIOD_MS 5000
-
+#ifdef PRODUCTION_BUILD
+#define SENSOR_READOUT_PERIOD_S 60
+#define BT_ADV_PERIOD_MS        5000
+#else
+#define SENSOR_READOUT_PERIOD_S 10
+#define BT_ADV_PERIOD_MS        1000
+#endif
 typedef struct app_handle {
 	uint8_t                      advertising_set_handle;
 	sl_sleeptimer_timer_handle_t sensor_timer;
