@@ -535,22 +535,23 @@ void _spiflash_on_poll_status(
 		_spiflash_complete_op(SL_STATUS_TRANSMIT);
 		return;
 	}
+
+	uint8_t sr = self.command_buffer[2];
 	app_log_debug(
-	    "[spiflash] got RDSR: 0x%02x 0x%02x, polling for %s." APP_LOG_NL,
-	    self.command_buffer[1],
-	    self.command_buffer[2],
+	    "[spiflash] got RDSR: 0x%02x, polling for %s." APP_LOG_NL,
+	    sr,
 	    self.poll == _spiflash_poll_wel_set ? "WEL set" : "WIP cleared"
 	);
 	switch (self.poll) {
 	case _spiflash_poll_wel_set:
-		if ((self.command_buffer[1] & 0x02) != 0x00) {
+		if ((sr & 0x02) != 0x00) {
 			_spiflash_on_wel_set();
 			return;
 		}
 
 		break;
 	case _spiflash_poll_wip_cleared:
-		if ((self.command_buffer[1] & 0x01) == 0x00) {
+		if ((sr & 0x01) == 0x00) {
 			_spiflash_on_wip_cleared();
 			return;
 		}
