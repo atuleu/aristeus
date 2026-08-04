@@ -47,6 +47,7 @@
 #include "drivers/spiflash.h"
 #include "drivers/stcc4.h"
 #include "em_logger.h"
+#include "journal.h"
 #include "location.h"
 #include "pin_config.h"
 #include "sl_core.h"
@@ -72,6 +73,7 @@ app_handle_t app = {
     .new_lps22hh_data = false,
     .new_sht4x_data   = false,
     .new_stcc4_data   = false,
+    .time_offset      = 0,
 };
 
 // The advertising set handle allocated from Bluetooth stack.
@@ -157,7 +159,7 @@ void _app_on_sensor_timer_timeout(
 
 	em_logger_print();
 
-	app.current_data_point.date = sl_sleeptimer_get_time();
+	app.current_data_point.date = sl_sleeptimer_get_time() + app.time_offset;
 	app_log_debug("[app] starting readout." APP_LOG_NL);
 	sl_status_t s = sht4x_read_data(
 	    &app.sht4x_sensor,
@@ -208,7 +210,8 @@ void app_init(void) {
 	status = spiflash_init(sl_spidrv_spi0_handle);
 	app_assert_status(status);
 
-	spiflash_enter_deepsleep(&_app_on_spiflash_deepsleep, NULL);
+	status = journal_init();
+	app_assert_status(status);
 
 	status = i2c_schd_init(&app.i2c0, sl_i2c_i2c0_handle);
 	app_assert_status(status);
@@ -329,6 +332,17 @@ void app_process_action(void) {
 		return;
 	}
 
+	if (app.current_data_point.date > JOURNAL_MINIMUM_DATE) {
+		sl_status_t status =
+		    journal_add_record((const data_point_t *)&app.current_data_point);
+		if (status != SL_STATUS_OK) {
+			app_log_error(
+			    "[app] could not save record to journal: %s" APP_LOG_NL,
+			    sl_status_get_string(status)
+			);
+		}
+	}
+
 	if (app.is_advertising == true) {
 		sl_status_t sc = app_set_legacy_advertiser_data(
 		    app.advertising_set_handle,
@@ -439,7 +453,7 @@ void _app_on_gatt_server_user_read_request(
 	sl_status_t sc;
 	switch (req->characteristic) {
 	case gattdb_current_time_epoch: {
-		uint32_t time = sl_sleeptimer_get_time();
+		uint32_t time = sl_sleeptimer_get_time() + app.time_offset;
 		sc            = sl_bt_gatt_server_send_user_read_response(
             req->connection,
             req->characteristic,
@@ -479,10 +493,7 @@ void _app_on_gatt_server_user_write_request(
 			err = SL_STATUS_BT_ATT_INVALID_ATT_LENGTH & 0xff;
 		} else {
 			memcpy(&now, req->value.data, sizeof(sl_sleeptimer_timestamp_t));
-			sl_status_t sc = sl_sleeptimer_set_time(now);
-			if (sc != SL_STATUS_OK) {
-				err = SL_STATUS_BT_ATT_WRITE_REQUEST_REJECTED & 0xff;
-			}
+			app.time_offset = now - sl_sleeptimer_get_time();
 		}
 		sl_bt_gatt_server_send_user_write_response(
 		    req->connection,

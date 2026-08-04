@@ -34,6 +34,7 @@
 #include "drivers/sht4x.h"
 #include "drivers/stcc4.h"
 #include "sl_bt_api.h"
+#include "sl_sleeptimer.h"
 #include "types.h"
 #include <stdbool.h>
 
@@ -53,11 +54,11 @@ typedef struct app_handle {
 	lps22hh_handle_t             lps22hh_sensor;
 	stcc4_handle_t               stcc4_sensor;
 
-	volatile data_point_t current_data_point;
-	volatile bool         new_sht4x_data;
-	volatile bool         new_lps22hh_data;
-	volatile bool         new_stcc4_data;
-
+	volatile data_point_t     current_data_point;
+	volatile bool             new_sht4x_data;
+	volatile bool             new_lps22hh_data;
+	volatile bool             new_stcc4_data;
+	sl_sleeptimer_timestamp_t time_offset;
 } app_handle_t;
 
 extern app_handle_t app;
