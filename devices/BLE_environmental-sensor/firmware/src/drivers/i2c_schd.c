@@ -1,10 +1,13 @@
 #include "i2c_schd.h"
 #include "sl_core.h"
 #include "sl_i2c.h"
-#include "sl_power_manager.h"
+
 #include "sl_sleeptimer.h"
 #include "sl_status.h"
 #include <stdint.h>
+
+#define CURRENT_MODULE_NAME "I2C_SCHEDULER"
+#include "sl_power_manager.h"
 
 sl_status_t i2c_schd_receive_blocking(
     i2c_schd_handle_t *self, uint8_t address, uint8_t *buffer, uint8_t len
