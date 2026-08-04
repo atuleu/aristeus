@@ -12,6 +12,7 @@
 #include "journal_priv.h"
 #include "journal_record.h"
 #include "types.h"
+#include "utils/status.h"
 
 bool journal_input_queue_empty(journal_input_queue_t *q) {
 	return q->head == q->tail;
@@ -135,7 +136,10 @@ void _journal_may_start_write() {
 			j.operation = journal_op_none;
 			j.next_index -= 1;
 		});
-		app_log_error("[journal] could not write: 0x%04lX." APP_LOG_NL, status);
+		app_log_error(
+		    "[journal] could not write: %s." APP_LOG_NL,
+		    sl_status_get_string(status)
+		);
 		return;
 	}
 }
@@ -145,8 +149,8 @@ void _journal_on_write(sl_status_t status, void *user_data) {
 	CORE_ATOMIC_SECTION({ j.operation = journal_op_none; });
 	if (status != SL_STATUS_OK) {
 		app_log_error(
-		    "[journal] could not write record: 0x%04lX." APP_LOG_NL,
-		    status
+		    "[journal] could not write record: %s." APP_LOG_NL,
+		    sl_status_get_string(status)
 		);
 	}
 	_journal_may_start_write();
@@ -454,9 +458,9 @@ sl_status_t journal_init() {
 	if (status != SL_STATUS_OK) {
 		CORE_ATOMIC_SECTION({ j.operation = journal_op_none; });
 		app_log_error(
-		    "[journal] could not look for first index %ld: 0x%04lX." APP_LOG_NL,
+		    "[journal] could not look for first index %ld: %s." APP_LOG_NL,
 		    j.under_read,
-		    status
+		    sl_status_get_string(status)
 		);
 	}
 
@@ -467,9 +471,9 @@ void _journal_on_read_first_idx(sl_status_t status, void *user_data) {
 	(void)user_data;
 	if (status != SL_STATUS_OK) {
 		app_log_error(
-		    "[journal] could not find first index %ld: 0x%04lX." APP_LOG_NL,
+		    "[journal] could not find first index %ld: %s." APP_LOG_NL,
 		    j.under_read,
-		    status
+		    sl_status_get_string(status)
 		);
 		return;
 	}
@@ -512,9 +516,9 @@ void _journal_on_read_first_idx(sl_status_t status, void *user_data) {
 			CORE_ATOMIC_SECTION({ j.operation = journal_op_none; });
 			app_log_error(
 			    "[journal] could not look for last index %ld: "
-			    "0x%04lX." APP_LOG_NL,
+			    "%s." APP_LOG_NL,
 			    j.under_read,
-			    status
+			    sl_status_get_string(status)
 			);
 		}
 		return;
@@ -537,9 +541,9 @@ void _journal_on_read_first_idx(sl_status_t status, void *user_data) {
 	if (status != SL_STATUS_OK) {
 		CORE_ATOMIC_SECTION({ j.operation = journal_op_none; });
 		app_log_error(
-		    "[journal] could not lookup first index %ld: 0x%04lX." APP_LOG_NL,
+		    "[journal] could not lookup first index %ld: %s." APP_LOG_NL,
 		    j.under_read,
-		    status
+		    sl_status_get_string(status)
 		);
 	}
 	return;
@@ -549,9 +553,9 @@ void _journal_on_read_last_idx(sl_status_t status, void *user_data) {
 	(void)user_data;
 	if (status != SL_STATUS_OK) {
 		app_log_error(
-		    "[journal] could not read last index %ld: 0x%04lX." APP_LOG_NL,
+		    "[journal] could not read last index %ld: %s." APP_LOG_NL,
 		    j.under_read,
-		    status
+		    sl_status_get_string(status)
 		);
 		CORE_ATOMIC_SECTION({ j.operation = journal_op_none; });
 		return;
@@ -577,8 +581,8 @@ void _journal_on_read_last_idx(sl_status_t status, void *user_data) {
 			CORE_ATOMIC_SECTION({ j.operation = journal_op_none; });
 			app_log_error(
 			    "[journal] could not find for last written index: "
-			    "0x%04lX." APP_LOG_NL,
-			    status
+			    "%s." APP_LOG_NL,
+			    sl_status_get_string(status)
 			);
 		}
 		return;
@@ -596,9 +600,9 @@ void _journal_on_read_last_idx(sl_status_t status, void *user_data) {
 	if (status != SL_STATUS_OK) {
 		CORE_ATOMIC_SECTION({ j.operation = journal_op_none; });
 		app_log_error(
-		    "could not look up for last index %ld: 0x%04lX.",
+		    "could not look up for last index %ld: %s.",
 		    j.under_read,
-		    status
+		    sl_status_get_string(status)
 		);
 	}
 	return;
@@ -615,8 +619,8 @@ void _journal_on_find_next_idx(
 	if (status != SL_STATUS_OK) {
 		app_log_error(
 		    "[journal] could not find starting index from flash: "
-		    "0x%04lX." APP_LOG_NL,
-		    status
+		    "%s." APP_LOG_NL,
+		    sl_status_get_string(status)
 		);
 		j.next_index     = JOURNAL_INDEX_NPOS;
 		j.last_timestamp = UINT32_MAX;
@@ -646,8 +650,8 @@ void _journal_enter_deepsleep() {
 	if (status != SL_STATUS_OK) {
 		CORE_ATOMIC_SECTION({ j.operation = journal_op_none; });
 		app_log_error(
-		    "[journal] could not enter deepsleep: 0x%04lX." APP_LOG_NL,
-		    status
+		    "[journal] could not enter deepsleep: %s." APP_LOG_NL,
+		    sl_status_get_string(status)
 		);
 		return;
 	}
@@ -656,7 +660,10 @@ void _journal_enter_deepsleep() {
 void _journal_on_sleep(sl_status_t status, void *user_data) {
 	(void)user_data;
 	if (status != SL_STATUS_OK) {
-		app_log_warning("[journal] sleep failed: 0x%04lX." APP_LOG_NL, status);
+		app_log_warning(
+		    "[journal] sleep failed: %s." APP_LOG_NL,
+		    sl_status_get_string(status)
+		);
 	}
 	CORE_ATOMIC_SECTION({ j.operation = journal_op_none; });
 	app_log_info("[journal] sleeping." APP_LOG_NL);

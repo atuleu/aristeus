@@ -11,6 +11,7 @@
 #include "drivers/i2c_schd.h"
 #include "sl_core.h"
 #include "types.h"
+#include "utils/status.h"
 #include <utils/crc8.h>
 
 sl_status_t
@@ -249,8 +250,8 @@ void _sht4x_on_i2c_write_complete(i2c_tx_status_t status, void *user_data) {
 	sht4x_handle_t *self = user_data;
 	if (status != I2C_TX_OK) {
 		app_log_debug(
-		    "[SHT4x] could not write command bus error: 0x%04X" APP_LOG_NL,
-		    status
+		    "[SHT4x] could not write command bus error: %s" APP_LOG_NL,
+		    sl_status_get_string(status)
 		);
 		_sht4x_error_cmd(
 		    self,
@@ -330,8 +331,8 @@ sl_status_t _sht4x_send_command(
 	);
 	if (status != SL_STATUS_OK) {
 		app_log_debug(
-		    "[SHT4x] Could not write command: 0x%04lX" APP_LOG_NL,
-		    status
+		    "[SHT4x] Could not write command: %s" APP_LOG_NL,
+		    sl_status_get_string(status)
 		);
 		CORE_ENTER_ATOMIC();
 		self->command_buffer = 0;

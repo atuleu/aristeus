@@ -8,6 +8,7 @@
 #include "sl_status.h"
 #include "types.h"
 #include "utils/crc8.h"
+#include "utils/status.h"
 #include <stdint.h>
 
 SL_ENUM_GENERIC(_stcc4_command_t, uint16_t){
@@ -265,10 +266,10 @@ sl_status_t stcc4_init(stcc4_handle_t *self, stcc4_init_args_t *args) {
 	if (status != SL_STATUS_OK) {
 		app_log_error(
 		    "[STCC4] device found at %s.0x%02X. But could not enter deep "
-		    "sleep: 0x%04lX" APP_LOG_NL,
+		    "sleep: %s" APP_LOG_NL,
 		    i2c_schd_get_instance_name(self->i2c_bus),
 		    self->address,
-		    status
+		    sl_status_get_string(status)
 		);
 	}
 
@@ -311,8 +312,8 @@ void _stcc4_complete_read_sequence(
 	);
 	if (sleep_status != SL_STATUS_OK) {
 		app_log_error(
-		    "[STCC4] could not schedule sleepmode: 0x%04lX" APP_LOG_NL,
-		    sleep_status
+		    "[STCC4] could not schedule sleepmode: %s" APP_LOG_NL,
+		    sl_status_get_string(sleep_status)
 		);
 	}
 

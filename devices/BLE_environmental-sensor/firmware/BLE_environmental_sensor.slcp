@@ -101,6 +101,9 @@ component:
   - spi0
   vendor: silabs
   id: spidrv
+- package: simplicity_sdk
+  vendor: silabs
+  id: status_string
 autoselected_components:
 - package: simplicity_sdk
   vendor: silabs

@@ -503,3 +503,11 @@ const char *i2c_schd_get_instance_name(i2c_schd_handle_t *self) {
 	}
 	return self->name;
 }
+
+bool i2c_schd_is_ok_to_sleep(i2c_schd_handle_t *self) {
+	bool res;
+	CORE_ATOMIC_SECTION({
+		res = _i2c_sched_queue_empty(self) || self->current_tx != NULL;
+	});
+	return res;
+}

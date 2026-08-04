@@ -8,6 +8,7 @@
 #include "sl_sleeptimer.h"
 #include "sl_status.h"
 #include "spidrv.h"
+#include "utils/status.h"
 #include <stdint.h>
 
 SL_ENUM(_spiflash_operation_t){
@@ -148,8 +149,8 @@ sl_status_t spiflash_init(SPIDRV_Handle_t spi) {
 	if (status != SL_STATUS_OK) {
 		app_log_error(
 		    "[spiflash] could not find mx25 device on SPI bus: "
-		    "0x%04lX." APP_LOG_NL,
-		    status
+		    "%s." APP_LOG_NL,
+		    sl_status_get_string(status)
 		);
 		return status;
 	}

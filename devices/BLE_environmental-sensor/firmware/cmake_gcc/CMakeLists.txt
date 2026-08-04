@@ -30,6 +30,8 @@ add_executable(BLE_environmental_sensor
 	${PROJECT_SOURCE_DIR}/../src/drivers/spiflash.h
 	${PROJECT_SOURCE_DIR}/../src/utils/crc8.c
 	${PROJECT_SOURCE_DIR}/../src/utils/crc8.h
+	${PROJECT_SOURCE_DIR}/../src/utils/status.c
+	${PROJECT_SOURCE_DIR}/../src/utils/status.h
 	${PROJECT_SOURCE_DIR}/../src/em_logger.h
 	${PROJECT_SOURCE_DIR}/../src/em_logger.c
 	${PROJECT_SOURCE_DIR}/../src/journal.h
@@ -39,6 +41,7 @@ add_executable(BLE_environmental_sensor
 	${PROJECT_SOURCE_DIR}/../src/journal_record.c
 	${PROJECT_SOURCE_DIR}/../src/location.h
 	${PROJECT_SOURCE_DIR}/../src/location.c
+
 )
 set_property(TARGET BLE_environmental_sensor PROPERTY C_STANDARD 23)
 

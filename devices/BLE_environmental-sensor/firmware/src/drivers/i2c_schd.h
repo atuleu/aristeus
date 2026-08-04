@@ -210,6 +210,8 @@ sl_status_t i2c_schd_transfer_blocking(
     uint8_t            read_len
 );
 
+bool i2c_schd_is_ok_to_sleep(i2c_schd_handle_t *self);
+
 /**
  * Opaque handle for an I2C transmission operation. This structure is used
  * internally. The implementation is public only for providing static allocation

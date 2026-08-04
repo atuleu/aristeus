@@ -1,6 +1,7 @@
 #include "location.h"
 #include "app_log.h"
 #include "nvm3_default.h"
+#include "utils/status.h"
 
 #define NVM3_LOCATION_KEY (NVM3_KEY_MIN + 0x00010)
 
@@ -17,8 +18,8 @@ location_t location_get() {
 		);
 		if (status != SL_STATUS_OK) {
 			app_log_error(
-			    "[location] could not read location: 0x%04lX." APP_LOG_NL,
-			    status
+			    "[location] could not read location: %s." APP_LOG_NL,
+			    sl_status_get_string(status)
 			);
 		}
 		if (status == SL_STATUS_OK || status == SL_STATUS_NOT_FOUND) {
@@ -39,8 +40,8 @@ sl_status_t location_set(location_t value) {
 
 	if (status != SL_STATUS_OK) {
 		app_log_error(
-		    "[location] could not set location : 0x%04lx." APP_LOG_NL,
-		    status
+		    "[location] could not set location : %s." APP_LOG_NL,
+		    sl_status_get_string(status)
 		);
 	} else {
 		read = true;

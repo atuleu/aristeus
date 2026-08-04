@@ -52,6 +52,7 @@
 #include "sl_core.h"
 #include "sl_spidrv_instances.h"
 #include "types.h"
+#include "utils/status.h"
 #include <drivers/sht4x.h>
 #include <stdio.h>
 #include <string.h>
@@ -81,8 +82,8 @@ void _app_on_lps22hh_readout(
 	(void)user_data;
 	if (status != SL_STATUS_OK) {
 		app_log_warning(
-		    "[app] could not read pressure: 0x%04lX." APP_LOG_NL,
-		    status
+		    "[app] could not read pressure: %s." APP_LOG_NL,
+		    sl_status_get_string(status)
 		);
 		return;
 	}
@@ -107,8 +108,8 @@ void _app_on_sht4x_readout(
 	(void)user_data;
 	if (status != SL_STATUS_OK) {
 		app_log_warning(
-		    "[app] sensor readout failure: 0x%04lX." APP_LOG_NL,
-		    status
+		    "[app] sensor readout failure: %s." APP_LOG_NL,
+		    sl_status_get_string(status)
 		);
 		return;
 	}
@@ -135,8 +136,8 @@ void _app_on_stcc4_readout(
 	(void)user_data;
 	if (status != SL_STATUS_OK) {
 		app_log_warning(
-		    "[app] co2 readout failure: 0x%04lX." APP_LOG_NL,
-		    status
+		    "[app] co2 readout failure: %s." APP_LOG_NL,
+		    sl_status_get_string(status)
 		);
 		return;
 	}
@@ -157,7 +158,7 @@ void _app_on_sensor_timer_timeout(
 	em_logger_print();
 
 	app.current_data_point.date = sl_sleeptimer_get_time();
-
+	app_log_debug("[app] starting readout." APP_LOG_NL);
 	sl_status_t s = sht4x_read_data(
 	    &app.sht4x_sensor,
 	    SHT4X_MEASURE_HIGH_P,
@@ -166,16 +167,16 @@ void _app_on_sensor_timer_timeout(
 	);
 	if (s != SL_STATUS_OK) {
 		app_log_error(
-		    "[app] could not start SHT4X reading: 0x%04lX" APP_LOG_NL,
-		    s
+		    "[app] could not start SHT4X reading: %s" APP_LOG_NL,
+		    sl_status_get_string(s)
 		);
 	}
 
 	s = lps22hh_oneshot(&app.lps22hh_sensor, &_app_on_lps22hh_readout, NULL);
 	if (s != SL_STATUS_OK) {
 		app_log_error(
-		    "[app] could not start LPS22HH reading: 0x%04lX" APP_LOG_NL,
-		    s
+		    "[app] could not start LPS22HH reading: %s" APP_LOG_NL,
+		    sl_status_get_string(s)
 		);
 	}
 };
@@ -185,7 +186,10 @@ void _app_on_spiflash_deepsleep(sl_status_t status, void *user_data) {
 	if (status == SL_STATUS_OK) {
 		app_log_info("[app] deep sleep successful." APP_LOG_NL);
 	} else {
-		app_log_warning("[app] deep sleep error: 0x%04lX." APP_LOG_NL, status);
+		app_log_warning(
+		    "[app] deep sleep error: %s." APP_LOG_NL,
+		    sl_status_get_string(status)
+		);
 	}
 }
 
@@ -204,7 +208,7 @@ void app_init(void) {
 	status = spiflash_init(sl_spidrv_spi0_handle);
 	app_assert_status(status);
 
-	// spiflash_enter_deepsleep(&_app_on_spiflash_deepsleep, NULL);
+	spiflash_enter_deepsleep(&_app_on_spiflash_deepsleep, NULL);
 
 	status = i2c_schd_init(&app.i2c0, sl_i2c_i2c0_handle);
 	app_assert_status(status);
@@ -234,7 +238,7 @@ void app_init(void) {
 
 	sl_sleeptimer_start_periodic_timer_ms(
 	    &app.sensor_timer,
-	    2000,
+	    SENSOR_READOUT_PERIOD_S * 1000,
 	    &_app_on_sensor_timer_timeout,
 	    NULL,
 	    0,
@@ -298,6 +302,7 @@ void app_process_action(void) {
 	CORE_ENTER_ATOMIC();
 	if (app.new_lps22hh_data == true && app.new_sht4x_data == true) {
 		CORE_EXIT_ATOMIC();
+		app_log_debug("[app] starting STCC4 measure." APP_LOG_NL);
 		sl_status_t status = stcc4_start_read_sequence(
 		    &app.stcc4_sensor,
 		    app.current_data_point.temperature,
@@ -308,8 +313,8 @@ void app_process_action(void) {
 		);
 		if (status != SL_STATUS_OK) {
 			app_log_error(
-			    "Could not start c02 readout: 0x%04lX." APP_LOG_NL,
-			    status
+			    "Could not start c02 readout: %s." APP_LOG_NL,
+			    sl_status_get_string(status)
 			);
 		}
 		CORE_ENTER_ATOMIC();
@@ -363,9 +368,9 @@ void sl_bt_on_event(sl_bt_msg_t *evt) {
 		// Set advertising interval to 100ms.
 		sc = sl_bt_advertiser_set_timing(
 		    app.advertising_set_handle,
-		    160, // min. adv. interval (milliseconds / 1.6)
-		    160, // max. adv. interval (milliseconds / 1.6)
-		    0,   // adv. duration
+		    BT_ADV_PERIOD_MS * 1.6, // min. adv. interval (milliseconds / 1.6)
+		    BT_ADV_PERIOD_MS * 1.6, // max. adv. interval (milliseconds / 1.6)
+		    0,                      // adv. duration
 		    0
 		); // max. num. adv. events
 		app_assert_status(sc);
@@ -509,4 +514,8 @@ void _app_on_gatt_server_user_write_request(
 	default:
 		app_log_error("[app] unknown characteristic write request");
 	}
+}
+
+bool app_is_ok_to_sleep() {
+	return i2c_schd_is_ok_to_sleep(&app.i2c0);
 }
