@@ -9,6 +9,34 @@
 #define CURRENT_MODULE_NAME "I2C_SCHEDULER"
 #include "sl_power_manager.h"
 
+#include "app_log.h"
+
+bool        _i2c_sched_queue_empty(i2c_schd_handle_t *self);
+bool        _i2c_sched_queue_full(i2c_schd_handle_t *self);
+sl_status_t _i2c_schd_transfer(
+    i2c_schd_handle_t *self,
+    uint8_t            address,
+    const uint8_t     *write_buffer,
+    uint8_t            write_len,
+    uint8_t           *read_buffer,
+    uint8_t            read_len,
+    i2c_tx_callback_t  callback,
+    void              *user_data
+);
+void _i2c_schd_complete_tx(
+    i2c_schd_handle_t *self, i2c_tx_handle_t *tx, i2c_tx_status_t status
+);
+void _i2c_schd_on_timeout(sl_sleeptimer_timer_handle_t *timer, void *user_data);
+sl_status_t
+_i2c_schd_on_i2c_complete(sl_i2c_handle_t *i2c_bus, void *user_data);
+sl_status_t _i2c_schd_on_i2c_event(
+    sl_i2c_handle_t *i2c_bus, sl_i2c_event_t e, void *user_data
+);
+void _i2c_schd_may_start_next_tx(i2c_schd_handle_t *self);
+void _i2c_schd_start_tx(i2c_schd_handle_t *self, i2c_tx_handle_t *tx);
+
+void _i2c_schd_reset_bus(i2c_schd_handle_t *self);
+
 sl_status_t i2c_schd_receive_blocking(
     i2c_schd_handle_t *self, uint8_t address, uint8_t *buffer, uint8_t len
 ) {
@@ -28,7 +56,7 @@ sl_status_t i2c_schd_receive_blocking(
 	    address,
 	    buffer,
 	    len,
-	    len + 1
+	    len + I2C_SCHEDULER_TIMEOUT_BASE_MS
 	);
 }
 
@@ -52,7 +80,7 @@ sl_status_t i2c_schd_send_blocking(
 	    address,
 	    buffer,
 	    len,
-	    len + 1
+	    len + I2C_SCHEDULER_TIMEOUT_BASE_MS
 	);
 }
 
@@ -83,7 +111,7 @@ sl_status_t i2c_schd_transfer_blocking(
 	    write_len,
 	    read_buffer,
 	    read_len,
-	    write_len + read_len + 2
+	    write_len + read_len + I2C_SCHEDULER_TIMEOUT_BASE_MS
 	);
 }
 
@@ -137,6 +165,7 @@ sl_status_t _i2c_schd_transfer(
 	tx->callback        = callback;
 	tx->user_data       = user_data;
 	CORE_EXIT_ATOMIC();
+	_i2c_schd_may_start_next_tx(self);
 	return SL_STATUS_OK;
 }
 
@@ -239,6 +268,8 @@ void _i2c_schd_complete_tx(
 	}
 
 	callback(status, user_data);
+
+	_i2c_schd_may_start_next_tx(self);
 }
 
 void _i2c_schd_on_timeout(
@@ -247,16 +278,22 @@ void _i2c_schd_on_timeout(
 	(void)timer;
 	i2c_schd_handle_t *self = user_data;
 	i2c_tx_handle_t   *tx;
-	CORE_ATOMIC_SECTION({
-		tx               = (i2c_tx_handle_t *)self->current_tx;
-		self->current_tx = NULL;
-	});
-	if (tx == NULL) {
+	CORE_DECLARE_IRQ_STATE;
+	CORE_ENTER_ATOMIC();
+	if (self->current_tx == NULL) {
+		// already handled by another conditions.
+		CORE_EXIT_ATOMIC();
+
 		return;
 	}
+
+	tx               = (i2c_tx_handle_t *)self->current_tx;
+	self->current_tx = NULL;
+	self->stuck_flag = true;
+	CORE_EXIT_ATOMIC();
+
 	sl_power_manager_remove_em_requirement(SL_POWER_MANAGER_EM1);
 
-	self->stuck_flag = true;
 	_i2c_schd_complete_tx(self, tx, I2C_TX_TIMEOUT);
 };
 
@@ -269,10 +306,11 @@ _i2c_schd_on_i2c_complete(sl_i2c_handle_t *i2c_bus, void *user_data) {
 		tx               = (i2c_tx_handle_t *)self->current_tx;
 		self->current_tx = NULL;
 	});
-	sl_sleeptimer_stop_timer(&self->timer);
 	if (tx == NULL) {
 		return SL_STATUS_OK;
 	}
+	sl_sleeptimer_stop_timer(&self->timer);
+
 	sl_power_manager_remove_em_requirement(SL_POWER_MANAGER_EM1);
 
 	_i2c_schd_complete_tx(self, tx, I2C_TX_OK);
@@ -310,11 +348,11 @@ sl_status_t _i2c_schd_on_i2c_event(
 		tx               = (i2c_tx_handle_t *)self->current_tx;
 		self->current_tx = NULL;
 	});
-	sl_sleeptimer_stop_timer(&self->timer);
-
 	if (tx == NULL) {
 		return SL_STATUS_OK;
 	}
+	sl_sleeptimer_stop_timer(&self->timer);
+
 	sl_power_manager_remove_em_requirement(SL_POWER_MANAGER_EM1);
 
 	_i2c_schd_complete_tx(
@@ -334,7 +372,7 @@ void _i2c_schd_start_tx(i2c_schd_handle_t *self, i2c_tx_handle_t *tx) {
 
 	sl_status_t status = sl_sleeptimer_start_timer_ms(
 	    &self->timer,
-	    tx->read_len + tx->write_len + 2,
+	    tx->read_len + tx->write_len + I2C_SCHEDULER_TIMEOUT_BASE_MS,
 	    _i2c_schd_on_timeout,
 	    self,
 	    0,
@@ -394,22 +432,13 @@ void i2c_schd_process_action(i2c_schd_handle_t *self) {
 	CORE_EXIT_ATOMIC();
 
 	if (stuck == true) {
+		app_log_warning(
+		    "[I2C %s] stuck bus, resetting." APP_LOG_NL,
+		    i2c_schd_get_instance_name(self)
+		);
 		_i2c_schd_reset_bus(self);
+		_i2c_schd_may_start_next_tx(self);
 	}
-
-	CORE_ENTER_ATOMIC();
-	if (self->current_tx != NULL) {
-		CORE_EXIT_ATOMIC();
-		return;
-	}
-	if (_i2c_sched_queue_empty(self)) {
-		CORE_EXIT_ATOMIC();
-		return;
-	}
-	i2c_tx_handle_t *tx = &self->queue[self->head];
-	self->current_tx    = tx;
-	CORE_EXIT_ATOMIC();
-	_i2c_schd_start_tx(self, tx);
 }
 
 sl_status_t i2c_schd_init(i2c_schd_handle_t *self, sl_i2c_handle_t *i2c_bus) {
@@ -506,8 +535,23 @@ const char *i2c_schd_get_instance_name(i2c_schd_handle_t *self) {
 
 bool i2c_schd_is_ok_to_sleep(i2c_schd_handle_t *self) {
 	bool res;
-	CORE_ATOMIC_SECTION({
-		res = _i2c_sched_queue_empty(self) || self->current_tx != NULL;
-	});
+	CORE_ATOMIC_SECTION({ res = !self->stuck_flag; });
 	return res;
+}
+
+void _i2c_schd_may_start_next_tx(i2c_schd_handle_t *self) {
+	CORE_DECLARE_IRQ_STATE;
+	CORE_ENTER_ATOMIC();
+	if (self->current_tx != NULL || _i2c_sched_queue_empty(self) == true ||
+	    self->stuck_flag == true) {
+		// transmitting, nothing to transmit, or fault condition, do not start
+		// next transaction.
+		CORE_EXIT_ATOMIC();
+		return;
+	}
+
+	i2c_tx_handle_t *next = &self->queue[self->head];
+	self->current_tx      = next;
+	CORE_EXIT_ATOMIC();
+	_i2c_schd_start_tx(self, next);
 }

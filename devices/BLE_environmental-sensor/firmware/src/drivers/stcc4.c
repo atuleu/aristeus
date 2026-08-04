@@ -12,22 +12,22 @@
 #include <stdint.h>
 
 SL_ENUM_GENERIC(_stcc4_command_t, uint16_t){
-    stcc4_start_continuous_measurement = 0x218B,
-    stcc4_stop_continuous_measurement  = 0x3F86,
-    stcc4_read_measurement             = 0xEC05,
-    stcc4_set_rht_compensation         = 0xE000,
-    stcc4_set_pressure_compensation    = 0xE016,
-    stcc4_measure_single_shot          = 0x219D,
-    stcc4_enter_sleep_mode             = 0x3650,
-    stcc4_exit_sleep_mode              = 0x0000,
-    stcc4_perform_conditioning         = 0x29BC,
-    stcc4_perform_soft_reset           = 0x0006,
-    stcc4_perform_factory_reset        = 0x3632,
-    stcc4_perform_self_test            = 0x278C,
-    stcc4_enable_testing_mode          = 0x3FBC,
-    stcc4_disable_testing_mode         = 0x3F3D,
-    stcc4_perform_forced_recalibration = 0x362F,
-    stcc4_get_product_ID               = 0x365B,
+    stcc4_cmd_start_continuous_measurement = 0x218B,
+    stcc4_cmd_stop_continuous_measurement  = 0x3F86,
+    stcc4_cmd_read_measurement             = 0xEC05,
+    stcc4_cmd_set_rht_compensation         = 0xE000,
+    stcc4_cmd_set_pressure_compensation    = 0xE016,
+    stcc4_cmd_measure_single_shot          = 0x219D,
+    stcc4_cmd_enter_sleep_mode             = 0x3650,
+    stcc4_cmd_exit_sleep_mode              = 0x0000,
+    stcc4_cmd_perform_conditioning         = 0x29BC,
+    stcc4_cmd_perform_soft_reset           = 0x0006,
+    stcc4_cmd_perform_factory_reset        = 0x3632,
+    stcc4_cmd_perform_self_test            = 0x278C,
+    stcc4_cmd_enable_testing_mode          = 0x3FBC,
+    stcc4_cmd_disable_testing_mode         = 0x3F3D,
+    stcc4_cmd_perform_forced_recalibration = 0x362F,
+    stcc4_cmd_get_product_ID               = 0x365B,
 };
 
 /// this function has an inverted signature to be used also as a callback
@@ -70,7 +70,7 @@ void _stcc4_tx_timer_timeout(
 
 void _stcc4_on_command_write(i2c_tx_status_t status, void *user_data) {
 	stcc4_handle_t *self = user_data;
-	if (self->buffer[0] == 0x00) {
+	if (self->buffer[0] == stcc4_cmd_exit_sleep_mode) {
 		if (status != I2C_TX_BUS_ERROR) {
 			app_log_debug(
 			    "[STCC4] Got unexpected status on exit sleep mode "
@@ -206,8 +206,13 @@ sl_status_t _stcc4_read_serial_number_blocking(
     stcc4_handle_t *self, uint32_t *serial_number
 ) {
 	uint8_t     buffer[6];
-	sl_status_t status =
-	    _stcc4_send_command_blocking(self, stcc4_get_product_ID, 1, buffer, 6);
+	sl_status_t status = _stcc4_send_command_blocking(
+	    self,
+	    stcc4_cmd_get_product_ID,
+	    1,
+	    buffer,
+	    6
+	);
 	if (status != SL_STATUS_OK) {
 		return status;
 	}
@@ -261,8 +266,13 @@ sl_status_t stcc4_init(stcc4_handle_t *self, stcc4_init_args_t *args) {
 	    i2c_schd_get_instance_name(self->i2c_bus),
 	    self->address
 	);
-	status =
-	    _stcc4_send_command_blocking(self, stcc4_enter_sleep_mode, 1, NULL, 0);
+	status = _stcc4_send_command_blocking(
+	    self,
+	    stcc4_cmd_enter_sleep_mode,
+	    1,
+	    NULL,
+	    0
+	);
 	if (status != SL_STATUS_OK) {
 		app_log_error(
 		    "[STCC4] device found at %s.0x%02X. But could not enter deep "
@@ -303,7 +313,7 @@ void _stcc4_complete_read_sequence(
 
 	sl_status_t sleep_status = _stcc4_send_command(
 	    self,
-	    stcc4_enter_sleep_mode,
+	    stcc4_cmd_enter_sleep_mode,
 	    2,
 	    1,
 	    0,
@@ -356,7 +366,7 @@ void _stcc4_on_measure_single_shot(i2c_tx_status_t status, void *user_data) {
 
 	sl_status_t command_status = _stcc4_send_command(
 	    self,
-	    stcc4_read_measurement,
+	    stcc4_cmd_read_measurement,
 	    2,
 	    1,
 	    12,
@@ -380,7 +390,7 @@ void _stcc4_on_set_pressure_compensation(
 
 	sl_status_t command_status = _stcc4_send_command(
 	    self,
-	    stcc4_measure_single_shot,
+	    stcc4_cmd_measure_single_shot,
 	    2,
 	    500,
 	    0,
@@ -416,7 +426,7 @@ void _stcc4_on_set_rht_compensation(i2c_tx_status_t status, void *user_data) {
 
 	sl_status_t command_status = _stcc4_send_command(
 	    self,
-	    stcc4_set_pressure_compensation,
+	    stcc4_cmd_set_pressure_compensation,
 	    5,
 	    1,
 	    0,
@@ -454,7 +464,7 @@ void _stcc4_on_exit_sleepmode(i2c_tx_status_t status, void *user_data) {
 
 	sl_status_t command_status = _stcc4_send_command(
 	    self,
-	    stcc4_set_rht_compensation,
+	    stcc4_cmd_set_rht_compensation,
 	    8,
 	    1,
 	    0,
@@ -469,7 +479,7 @@ void _stcc4_on_exit_sleepmode(i2c_tx_status_t status, void *user_data) {
 sl_status_t _stcc4_send_exit_sleep_mode(stcc4_handle_t *self) {
 	return _stcc4_send_command(
 	    self,
-	    stcc4_exit_sleep_mode,
+	    stcc4_cmd_exit_sleep_mode,
 	    1,
 	    5,
 	    0,

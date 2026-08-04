@@ -11,6 +11,10 @@ extern "C" {
 #define I2C_SCHEDULER_QUEUE_SIZE 8
 #endif
 
+#ifndef I2C_SCHEDULER_TIMEOUT_BASE_MS
+#define I2C_SCHEDULER_TIMEOUT_BASE_MS 8
+#endif
+
 /**
  * Opaque handle for the I2C scheduler. Use `i2c_schd_init()` to initialize it.
  */
