@@ -39,9 +39,9 @@
         "other_text_thickness": 0.15,
         "other_text_upright": false,
         "pads": {
-          "drill": 0.3,
-          "height": 0.7,
-          "width": 0.7
+          "drill": 0.0,
+          "height": 1.0,
+          "width": 2.7
         },
         "silk_line_width": 0.1,
         "silk_text_italic": false,
@@ -86,12 +86,20 @@
           "Removed silkscreen to close to other IC"
         ],
         [
-          "lib_footprint_mismatch|114927500|93087500|8649fe7d-7e7b-4dae-8dbb-4cf6bd93542d|00000000-0000-0000-0000-000000000000",
-          "Widened via to meet factory cap."
+          "lib_footprint_mismatch|153887500|83050000|82c10068-625c-4eac-a171-68e9d5f40cb8|00000000-0000-0000-0000-000000000000",
+          "Modified Intentionally"
         ],
         [
-          "lib_footprint_mismatch|153887500|83050000|82c10068-625c-4eac-a171-68e9d5f40cb8|00000000-0000-0000-0000-000000000000",
-          "On purpose"
+          "silk_over_copper|111984000|83010000|39155bac-5dba-4fb8-811f-5023f76c74bb|60708ab8-fa08-4c81-9eb6-5557831979ee",
+          "Cannot avoid, but its ok"
+        ],
+        [
+          "silk_over_copper|113000000|75390000|39155bac-5dba-4fb8-811f-5023f76c74bb|fd5a3036-f4b0-4f1a-814e-be39d63877eb",
+          "Cannot avoid, but its ok"
+        ],
+        [
+          "silk_over_copper|114016000|83010000|39155bac-5dba-4fb8-811f-5023f76c74bb|b3d8aab8-0294-4aaf-974e-c8d0af13bb83",
+          "Cannot avoid, but its ok"
         ]
       ],
       "meta": {
@@ -718,7 +726,7 @@
         "uuid": "49c1c37b-72aa-495e-a728-9c64ef996552"
       }
     ],
-    "used_designators": "",
+    "used_designators": "R4,C2,C8,U5,U7,#PWR30",
     "variants": []
   },
   "sheets": [
