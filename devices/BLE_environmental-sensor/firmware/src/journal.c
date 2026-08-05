@@ -355,9 +355,9 @@ void _journal_read_send_data_point(const journal_record_t *record) {
 
 /// Returns the first index which timestamp is strictly smaller than time.
 sl_status_t journal_find_last_before(
-    sl_sleeptimer_timestamp_t      date,
-    journal_lower_bound_callback_t callback,
-    void                          *user_data
+    sl_sleeptimer_timestamp_t date,
+    journal_find_callback_t   callback,
+    void                     *user_data
 ) {
 	if (callback == NULL) {
 		return SL_STATUS_NULL_POINTER;
@@ -830,8 +830,8 @@ void _journal_complete_read_from_main(sl_status_t status) {
 }
 
 void _journal_on_find_done(sl_status_t status) {
-	journal_lower_bound_callback_t callback;
-	void                          *user_data;
+	journal_find_callback_t callback;
+	void                   *user_data;
 	CORE_ATOMIC_SECTION({
 		callback         = j.find_callback;
 		user_data        = j.find_user_data;

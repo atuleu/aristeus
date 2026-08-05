@@ -60,7 +60,7 @@ typedef struct journal {
 	volatile journal_index_t           read_start, read_end;
 	journal_read_callback_t            read_callback;
 	void                              *read_user_data;
-	journal_lower_bound_callback_t     find_callback;
+	journal_find_callback_t            find_callback;
 	void                              *find_user_data;
 	sl_sleeptimer_timestamp_t          target;
 	volatile sl_sleeptimer_timestamp_t low_ts;
