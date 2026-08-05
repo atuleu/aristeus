@@ -2,3 +2,5 @@
 *bak
 ~*
 .history/
+*.kicad_pcb.zip
+*-unsaved-export*

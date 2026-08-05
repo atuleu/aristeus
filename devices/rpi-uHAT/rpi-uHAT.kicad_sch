@@ -5297,13 +5297,13 @@
 	)
 	(wire
 		(pts
-			(xy 60.96 33.02) (xy 60.96 43.18)
+			(xy 60.96 68.58) (xy 60.96 80.01)
 		)
 		(stroke
 			(width 0)
 			(type solid)
 		)
-		(uuid "0d143423-c9d6-49e3-8b7d-f1137d1a3509")
+		(uuid "0d12cb98-ab8c-4a2a-89bc-916d81986315")
 	)
 	(wire
 		(pts
@@ -5427,16 +5427,6 @@
 	)
 	(wire
 		(pts
-			(xy 60.96 50.8) (xy 60.96 63.5)
-		)
-		(stroke
-			(width 0)
-			(type solid)
-		)
-		(uuid "252c2642-5979-4a84-8d39-11da2e3821fe")
-	)
-	(wire
-		(pts
 			(xy 58.42 35.56) (xy 85.09 35.56)
 		)
 		(stroke
@@ -5454,6 +5444,16 @@
 			(type solid)
 		)
 		(uuid "29651976-85fe-45df-9d6a-4d640774cbbc")
+	)
+	(wire
+		(pts
+			(xy 60.96 33.02) (xy 60.96 43.18)
+		)
+		(stroke
+			(width 0)
+			(type solid)
+		)
+		(uuid "2a044fc0-0283-440f-90ac-1f803e79256d")
 	)
 	(wire
 		(pts
@@ -5494,6 +5494,16 @@
 			(type solid)
 		)
 		(uuid "2b5ed9dc-9932-4186-b4a5-acc313524917")
+	)
+	(wire
+		(pts
+			(xy 60.96 43.18) (xy 60.96 50.8)
+		)
+		(stroke
+			(width 0)
+			(type solid)
+		)
+		(uuid "2f13dceb-c63c-4d42-b1a5-737be49ad70a")
 	)
 	(wire
 		(pts
@@ -6047,16 +6057,6 @@
 	)
 	(wire
 		(pts
-			(xy 60.96 43.18) (xy 60.96 50.8)
-		)
-		(stroke
-			(width 0)
-			(type solid)
-		)
-		(uuid "7aed86fe-31d5-4139-a0b1-020ce61800b6")
-	)
-	(wire
-		(pts
 			(xy 124.46 121.92) (xy 133.35 121.92)
 		)
 		(stroke
@@ -6184,16 +6184,6 @@
 			(type solid)
 		)
 		(uuid "8846d55b-57bd-4185-9629-4525ca309ac0")
-	)
-	(wire
-		(pts
-			(xy 58.42 48.26) (xy 85.09 48.26)
-		)
-		(stroke
-			(width 0)
-			(type solid)
-		)
-		(uuid "8b129051-97ca-49cd-adf8-4efb5043fabb")
 	)
 	(wire
 		(pts
@@ -6327,6 +6317,16 @@
 	)
 	(wire
 		(pts
+			(xy 60.96 50.8) (xy 60.96 63.5)
+		)
+		(stroke
+			(width 0)
+			(type solid)
+		)
+		(uuid "98bc3210-9541-4efc-9bea-ab1aa60ff3d4")
+	)
+	(wire
+		(pts
 			(xy 107.95 33.02) (xy 107.95 35.56)
 		)
 		(stroke
@@ -6344,6 +6344,16 @@
 			(type default)
 		)
 		(uuid "9e842379-2268-4373-83f1-56f783715816")
+	)
+	(wire
+		(pts
+			(xy 58.42 48.26) (xy 85.09 48.26)
+		)
+		(stroke
+			(width 0)
+			(type solid)
+		)
+		(uuid "a02596fe-4c96-40c5-80b3-17a217a48cef")
 	)
 	(wire
 		(pts
@@ -6804,16 +6814,6 @@
 			(type default)
 		)
 		(uuid "dd43946a-cae8-4ed9-abf2-c36de47f1669")
-	)
-	(wire
-		(pts
-			(xy 60.96 68.58) (xy 60.96 80.01)
-		)
-		(stroke
-			(width 0)
-			(type solid)
-		)
-		(uuid "ddb5ec2a-613c-4ee5-b250-77656b088e84")
 	)
 	(wire
 		(pts
@@ -7435,6 +7435,16 @@
 		)
 		(uuid "dd6c1ab1-463a-460b-93e3-6e17d4c06611")
 	)
+	(label "WP"
+		(at 91.44 180.34 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "e4d196cd-2eb8-4a76-bc6b-f5eb270562d6")
+	)
 	(label "GPIO2{slash}SDA1"
 		(at 81.28 124.46 180)
 		(effects
@@ -7702,8 +7712,7 @@
 	)
 	(symbol
 		(lib_id "Connector_Generic:Conn_02x20_Odd_Even")
-		(at 53.34 50.8 0)
-		(mirror y)
+		(at 50.8 50.8 0)
 		(unit 1)
 		(body_style 1)
 		(exclude_from_sim no)
@@ -7732,8 +7741,8 @@
 				)
 			)
 		)
-		(property "Footprint" "custom:Samtec_HLE-120-02-xxx-DV-BE_2x20_P2.54mm_Horizontal"
-			(at 176.53 74.93 0)
+		(property "Footprint" "Connector_PinSocket_2.54mm:PinSocket_2x20_P2.54mm_Vertical"
+			(at -72.39 74.93 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -7744,7 +7753,7 @@
 			)
 		)
 		(property "Datasheet" ""
-			(at 176.53 74.93 0)
+			(at -72.39 74.93 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -7755,7 +7764,7 @@
 			)
 		)
 		(property "Description" "Generic connector, double row, 02x20, odd/even pin numbering scheme (row 1 odd numbers, row 2 even numbers), script generated (kicad-library-utils/schlib/autogen/connector/)"
-			(at 53.34 50.8 0)
+			(at 50.8 50.8 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -7766,7 +7775,7 @@
 			)
 		)
 		(property "MPN" "HLE-120-02-F-DV-BE"
-			(at 53.34 50.8 0)
+			(at 50.8 50.8 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -7777,7 +7786,7 @@
 			)
 		)
 		(property "Voltage Rating" ""
-			(at 53.34 50.8 0)
+			(at 50.8 50.8 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -10796,7 +10805,7 @@
 				)
 			)
 		)
-		(property "MPN" "SM04B-SRSS-TB"
+		(property "MPN" "BM04B-SRSS-TB"
 			(at 217.17 113.03 0)
 			(hide yes)
 			(show_name no)
@@ -12298,7 +12307,7 @@
 				)
 			)
 		)
-		(property "MPN" "S4B-PH-SM4-TB"
+		(property "MPN" "B5B-PH-SM4-TB"
 			(at 186.69 113.03 0)
 			(hide yes)
 			(show_name no)
