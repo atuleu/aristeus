@@ -534,9 +534,10 @@ const char *i2c_schd_get_instance_name(i2c_schd_handle_t *self) {
 }
 
 bool i2c_schd_is_ok_to_sleep(i2c_schd_handle_t *self) {
-	bool res;
-	CORE_ATOMIC_SECTION({ res = !self->stuck_flag; });
-	return res;
+	// we preempt if we need to unstuck the I2C bus.
+	// must be called with interrupt disabled, which is the case for
+	// app_is_ok_to_sleep();
+	return !self->stuck_flag;
 }
 
 void _i2c_schd_may_start_next_tx(i2c_schd_handle_t *self) {

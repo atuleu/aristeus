@@ -87,7 +87,7 @@ bool app_is_process_required(void);
  *****************************************************************************/
 void app_init_bt(void);
 
-bool app_is_ok_to_sleep();
+bool app_is_ok_to_sleep(void);
 
 void app_init();
 

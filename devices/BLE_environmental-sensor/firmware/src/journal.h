@@ -37,6 +37,12 @@ sl_status_t journal_init();
  */
 void journal_process_action();
 
+/**
+ * Query whether the journal is in a state that allows the system to enter
+ * sleep. i.e. no operation completion are pending.
+ */
+bool journal_is_ok_to_sleep();
+
 typedef uint32_t journal_index_t;
 
 /**

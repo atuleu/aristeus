@@ -844,3 +844,9 @@ void _journal_on_find_done(sl_status_t status) {
 	}
 	callback(status, j.low, j.low_ts, user_data);
 }
+
+bool journal_is_ok_to_sleep() {
+	// we can sleep if there is no completion pending, that requires the
+	// main loop
+	return j.operation_done == journal_op_none;
+}

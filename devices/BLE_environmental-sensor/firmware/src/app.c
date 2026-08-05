@@ -53,6 +53,7 @@
 #include "pin_config.h"
 #include "sl_core.h"
 #include "sl_spidrv_instances.h"
+#include "sli_power_manager.h"
 #include "types.h"
 #include "utils/status.h"
 #include <drivers/sht4x.h>
@@ -551,8 +552,8 @@ void _app_on_gatt_server_user_write_request(
 	}
 }
 
-bool app_is_ok_to_sleep() {
-	return i2c_schd_is_ok_to_sleep(&app.i2c0);
+bool app_is_ok_to_sleep(void) {
+	return journal_is_ok_to_sleep() && i2c_schd_is_ok_to_sleep(&app.i2c0);
 }
 
 void _app_on_batt_timer_timeout(
