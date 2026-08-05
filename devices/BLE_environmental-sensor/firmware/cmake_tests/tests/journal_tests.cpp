@@ -69,7 +69,9 @@ protected:
 
 	void waitNotBusy() {
 		for (size_t i = 0; i < 50; ++i) {
-			if (j.operation == journal_op_none) {
+			journal_process_action();
+			if (j.operation == journal_op_none &&
+			    j.operation_done == journal_op_none) {
 				return;
 			}
 			std::cerr << "waiting for op " << (int)j.operation << " to finish"

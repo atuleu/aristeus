@@ -6,7 +6,7 @@
 extern "C" {
 
 const char *sl_status_get_string(sl_status_t status) {
-	std::array<const char *, 10> known = {
+	std::array<const char *, 11> known = {
 	    "SL_STATUS_OK",
 	    "SL_STATUS_INVALID_PARAMETER",
 	    "SL_STATUS_FULL",
@@ -17,6 +17,7 @@ const char *sl_status_get_string(sl_status_t status) {
 	    "SL_STATUS_EMPTY              ",
 	    "SL_STATUS_INITIALIZATION     ",
 	    "SL_STATUS_ALREADY_INITIALIZED",
+	    "SL_STATUS_NULL_POINTER",
 	};
 	if (status < known.size()) {
 		return known[status];

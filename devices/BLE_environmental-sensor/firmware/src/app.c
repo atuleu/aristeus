@@ -303,6 +303,7 @@ app_set_legacy_advertiser_data(uint8_t advertising_set, const data_point_t *d) {
 // Application Process Action.
 void app_process_action(void) {
 	i2c_schd_process_action(&app.i2c0);
+	journal_process_action();
 
 	if (app_is_process_required() == false) {
 		return;

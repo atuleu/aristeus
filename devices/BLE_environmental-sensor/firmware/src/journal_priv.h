@@ -4,6 +4,7 @@
 #include "journal_record.h"
 #include "sl_enum.h"
 #include "sl_sleeptimer.h"
+#include <stdint.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -40,27 +41,31 @@ SL_ENUM(journal_operation_t){
 typedef struct journal {
 	journal_input_queue_t        queue;
 	bool                         preempt_sleeping;
-	volatile journal_operation_t operation;
+	volatile journal_operation_t operation, operation_done;
+	volatile sl_status_t         operation_done_status;
 
 	union {
 		journal_record_t records[JOURNAL_READ_CHUNK];
 		uint8_t          bytes[JOURNAL_READ_CHUNK * sizeof(journal_record_t)];
 	} buffer;
 
+	union {
+		journal_record_t record[1];
+		uint8_t          bytes[sizeof(journal_record_t)];
+	} write_buffer;
+
 	journal_index_t           next_index, first_index;
 	sl_sleeptimer_timestamp_t first_timestamp, last_timestamp;
 
-	void *user_data;
-
-	journal_index_t         read_start;
-	journal_index_t         read_end;
-	journal_read_callback_t read_callback;
-
+	volatile journal_index_t           read_start, read_end;
+	journal_read_callback_t            read_callback;
+	void                              *read_user_data;
 	journal_lower_bound_callback_t     find_callback;
+	void                              *find_user_data;
 	sl_sleeptimer_timestamp_t          target;
 	volatile sl_sleeptimer_timestamp_t low_ts;
-	volatile journal_index_t       low, high, under_read;
-	volatile bool                  bad_crc_towards_high;
+	volatile journal_index_t           low, high, under_read;
+	volatile bool                      bad_crc_towards_high;
 
 	union {
 		journal_record_header_t header;
@@ -70,23 +75,33 @@ typedef struct journal {
 
 extern journal_t j;
 
-void _journal_may_start_write();
+bool _journal_busy();
+
+void _journal_start_next_operation();
+bool _journal_start_next_write();
+bool _journal_start_next_read();
+bool _journal_start_next_find();
 void _journal_enter_deepsleep();
+
+void _journal_mark_current_operation_done(sl_status_t status, void *user_data);
 
 void _journal_on_write(sl_status_t status, void *user_data);
 void _journal_on_sleep(sl_status_t status, void *user_data);
 
-void        _journal_read_send_data_point(const journal_record_t *record);
-void        _journal_complete_read(sl_status_t status);
-sl_status_t _journal_read_next(bool call_callback);
-void        _journal_on_read(sl_status_t status, void *user_data);
-void        _journal_on_erase(sl_status_t status, void *user_data);
+void _journal_read_send_data_point(const journal_record_t *record);
+void _journal_read_next();
+void _journal_on_chunk_read(sl_status_t status);
 
-void        _journal_on_find(sl_status_t status, void *user_data);
-sl_status_t _journal_find_step(bool call_callback);
-void        _journal_complete_find(
-           sl_status_t status, journal_index_t index, sl_sleeptimer_timestamp_t ts
-       );
+void _journal_on_find_step(sl_status_t status, void *user_data);
+void _journal_on_find_done(sl_status_t status);
+void _journal_on_erase(sl_status_t status, void *user_data);
+
+void _journal_find_step();
+
+void _journal_complete_find(
+    sl_status_t status, journal_index_t index, sl_sleeptimer_timestamp_t ts
+);
+void _journal_complete_read_from_main(sl_status_t status);
 void _journal_on_read_first_idx(sl_status_t status, void *user_data);
 void _journal_on_read_last_idx(sl_status_t status, void *user_data);
 void _journal_on_find_next_idx(

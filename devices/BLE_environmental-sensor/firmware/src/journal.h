@@ -19,6 +19,7 @@ extern "C" {
 #endif // jOURNAL_SIZE
 
 sl_status_t journal_init();
+void        journal_process_action();
 
 typedef uint32_t journal_index_t;
 
