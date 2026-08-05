@@ -198,11 +198,6 @@ void _app_on_spiflash_deepsleep(sl_status_t status, void *user_data) {
 
 // Application Init.
 void app_init(void) {
-	////////////////////////////////////////////////////////////////////////////
-	// Put your additional application init code here!
-	//
-	// This is called once during start-up.
-	////////////////////////////////////////////////////////////////////////////
 
 	sl_status_t status;
 
@@ -215,6 +210,9 @@ void app_init(void) {
 	);
 
 	status = batt_monitor_init();
+	app_assert_status(status);
+
+	status = batt_monitor_start_measurement();
 	app_assert_status(status);
 
 	status = spiflash_init(sl_spidrv_spi0_handle);

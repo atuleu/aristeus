@@ -416,7 +416,6 @@ void _spiflash_on_wakeup_timeout(
 }
 
 sl_status_t _spiflash_op_action(bool call_callback) {
-	app_log_debug("[spiflash] starting command %d." APP_LOG_NL, self.operation);
 	Ecode_t err;
 	switch (self.operation) {
 	case _spiflash_op_none:
