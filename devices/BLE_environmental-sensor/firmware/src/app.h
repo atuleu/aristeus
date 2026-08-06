@@ -47,7 +47,7 @@
 #else
 #define SENSOR_READOUT_PERIOD_S   10
 #define BT_ADV_PERIOD_MS          1000
-#define APP_CONNECTION_TIMEOUT_MS 10 * 1000
+#define APP_CONNECTION_TIMEOUT_MS 120 * 1000
 #endif
 
 #define APP_CONNECTION_WD_SIGNAL 0x02
@@ -101,9 +101,26 @@ void _app_on_external_signals(uint32_t events);
 
 void _app_on_es_readout(sl_status_t status, const data_point_t *point);
 
+void _app_on_bt_system_boot();
+void _app_on_bt_connection_opened(sl_bt_evt_connection_opened_t *evt);
+void _app_on_bt_connection_closed(sl_bt_evt_connection_closed_t *evt);
+void _app_on_gatt_server_characteristic_status(
+    sl_bt_evt_gatt_server_characteristic_status_t *evt
+);
 void _app_connection_wd_start();
 void _app_connection_wd_stop();
 void _app_connection_wd_reset();
 void _app_on_connection_wd_timeout(
     sl_sleeptimer_timer_handle_t *timer, void *user_data
+);
+
+void _app_stream_data_notification_handler(
+    sl_bt_evt_gatt_server_characteristic_status_t *evt
+);
+void _app_racp_notification_handler(
+    sl_bt_evt_gatt_server_characteristic_status_t *evt
+);
+
+void _app_racp_user_write_request_handler(
+    sl_bt_evt_gatt_server_user_write_request_t *req
 );

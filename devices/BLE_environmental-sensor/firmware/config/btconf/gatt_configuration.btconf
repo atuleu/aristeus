@@ -79,7 +79,7 @@
   <service advertise="false" name="Environmental Sensor" requirement="mandatory" sourceId="" type="primary" uuid="63f3777c-b5d5-4882-b27e-b67ef3cce019">
 
     <!--Record Access Control Point-->
-    <characteristic const="false" id="record_access_control_point_0" name="Record Access Control Point" sourceId="org.bluetooth.characteristic.record_access_control_point" uuid="2A52">
+    <characteristic const="false" id="record_access_control_point" name="Record Access Control Point" sourceId="org.bluetooth.characteristic.record_access_control_point" uuid="2A52">
       <informativeText>
 Summary: This control point is used with a service to provide basic management functionality for the Glucose Sensor patient record database. This enables functions including counting records, transmitting records and clearing records based on filter criterion. The filter criterion in the Operand field is defined by the service that references this characteristic as is the format of a record (which may be comprised of one or more characteristics) and the sequence of transferred records.</informativeText>
       <value length="2" type="hex" variable_length="true"/>
@@ -94,7 +94,7 @@ Summary: This control point is used with a service to provide basic management f
       <description>Journal Stream Data</description>
       <value length="14" type="user" variable_length="false">00</value>
       <properties>
-        <notify authenticated="false" bonded="false" encrypted="false"/>
+        <indicate authenticated="false" bonded="false" encrypted="false"/>
       </properties>
     </characteristic>
 

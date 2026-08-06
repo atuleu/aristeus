@@ -161,84 +161,31 @@ void app_process_action(void) {
  * @param[in] evt Event coming from the Bluetooth stack.
  *****************************************************************************/
 void sl_bt_on_event(sl_bt_msg_t *evt) {
-	sl_status_t sc;
-
 	switch (SL_BT_MSG_ID(evt->header)) {
 	// -------------------------------
 	// This event indicates the device has started and the radio is ready.
 	// Do not call any stack command before receiving this boot event!
 	case sl_bt_evt_system_boot_id:
-		// Create an advertising set.
-		sc = sl_bt_advertiser_create_set(&app.advertising_set_handle);
-
-		app_assert_status(sc);
-
-		// Generate data for advertising
-		sc = app_set_legacy_advertiser_data(
-		    app.advertising_set_handle,
-		    app_es_current_data()
-
-		);
-		app_assert_status(sc);
-
-		// Set advertising interval to 100ms.
-		sc = sl_bt_advertiser_set_timing(
-		    app.advertising_set_handle,
-		    BT_ADV_PERIOD_MS * 1.6, // min. adv. interval (milliseconds / 1.6)
-		    BT_ADV_PERIOD_MS * 1.6, // max. adv. interval (milliseconds / 1.6)
-		    0,                      // adv. duration
-		    0
-		); // max. num. adv. events
-		app_assert_status(sc);
-		// Start advertising and enable connections.
-		sc = sl_bt_legacy_advertiser_start(
-		    app.advertising_set_handle,
-		    sl_bt_legacy_advertiser_connectable
-		);
-		app.connection = SL_BT_INVALID_CONNECTION_HANDLE;
-		app_assert_status(sc);
+		_app_on_bt_system_boot();
 		break;
 
-	// -------------------------------
-	// This event indicates that a new connection was opened.
 	case sl_bt_evt_connection_opened_id:
-		app.connection = evt->data.evt_connection_opened.connection;
-		app_log_info(
-		    "[app] connected with %02X:%02X:%02X:%02X:%02X:%02X." APP_LOG_NL,
-		    evt->data.evt_connection_opened.address.addr[0],
-		    evt->data.evt_connection_opened.address.addr[1],
-		    evt->data.evt_connection_opened.address.addr[2],
-		    evt->data.evt_connection_opened.address.addr[3],
-		    evt->data.evt_connection_opened.address.addr[4],
-		    evt->data.evt_connection_opened.address.addr[5]
-		);
-		_app_connection_wd_start();
+		_app_on_bt_connection_opened(&evt->data.evt_connection_opened);
 		break;
 
-	// -------------------------------
-	// This event indicates that a connection was closed.
 	case sl_bt_evt_connection_closed_id:
-		_app_connection_wd_stop();
-		app_log_info("[app] disconnected." APP_LOG_NL);
-		app.connection = SL_BT_INVALID_CONNECTION_HANDLE;
-		// Generate data for advertising
-
-		sc = app_set_legacy_advertiser_data(
-		    app.advertising_set_handle,
-		    app_es_current_data()
-		);
-
-		app_assert_status(sc);
-
-		// Restart advertising after client has disconnected.
-		sc = sl_bt_legacy_advertiser_start(
-		    app.advertising_set_handle,
-		    sl_bt_legacy_advertiser_connectable
-		);
-
-		app_assert_status(sc);
+		_app_on_bt_connection_closed(&evt->data.evt_connection_closed);
 		break;
-
+	case sl_bt_evt_gatt_server_characteristic_status_id:
+		_app_connection_wd_reset();
+		_app_on_gatt_server_characteristic_status(
+		    &evt->data.evt_gatt_server_characteristic_status
+		);
+		break;
+	case sl_bt_evt_gatt_server_attribute_value_id:
+		_app_connection_wd_reset();
+		// do nothing.
+		break;
 	case sl_bt_evt_gatt_server_user_read_request_id: {
 		_app_connection_wd_reset();
 		sl_bt_evt_gatt_server_user_read_request_t *req =
@@ -249,7 +196,6 @@ void sl_bt_on_event(sl_bt_msg_t *evt) {
 
 	case sl_bt_evt_gatt_server_user_write_request_id: {
 		_app_connection_wd_reset();
-
 		sl_bt_evt_gatt_server_user_write_request_t *req =
 		    &evt->data.evt_gatt_server_user_write_request;
 		_app_on_gatt_server_user_write_request(req);
@@ -298,50 +244,6 @@ void _app_on_gatt_server_user_read_request(
 		break;
 	default:
 		app_log_error("[app] unknown characteristic read request");
-	}
-}
-
-void _app_on_gatt_server_user_write_request(
-    sl_bt_evt_gatt_server_user_write_request_t *req
-) {
-	uint8_t err = SL_STATUS_OK;
-	switch (req->characteristic) {
-	case gattdb_current_time_epoch: {
-		sl_sleeptimer_timestamp_t now;
-		if (req->value.len != sizeof(sl_sleeptimer_timestamp_t)) {
-			err = SL_STATUS_BT_ATT_INVALID_ATT_LENGTH & 0xff;
-		} else {
-			memcpy(&now, req->value.data, sizeof(sl_sleeptimer_timestamp_t));
-			app_es_set_current_unix_time(now);
-		}
-		sl_bt_gatt_server_send_user_write_response(
-		    req->connection,
-		    req->characteristic,
-		    err
-		);
-		break;
-	}
-	case gattdb_hive_location: {
-		location_t new_location;
-		if (req->value.len != sizeof(location_t)) {
-			err = SL_STATUS_BT_ATT_INVALID_ATT_LENGTH & 0xff;
-		} else {
-			memcpy(&new_location, req->value.data, sizeof(location_t));
-			sl_status_t sc = location_set(new_location);
-			if (sc != SL_STATUS_OK) {
-				err = SL_STATUS_BT_ATT_WRITE_REQUEST_REJECTED & 0xff;
-			}
-		}
-
-		sl_bt_gatt_server_send_user_write_response(
-		    req->connection,
-		    req->characteristic,
-		    err
-		);
-		break;
-	}
-	default:
-		app_log_error("[app] unknown characteristic write request");
 	}
 }
 
@@ -449,4 +351,195 @@ void _app_on_external_signals(uint32_t events) {
 			);
 		}
 	}
+}
+
+void _app_on_bt_system_boot() {
+	// Create an advertising set.
+	sl_status_t status =
+	    sl_bt_advertiser_create_set(&app.advertising_set_handle);
+
+	app_assert_status(status);
+
+	// Generate data for advertising
+	status = app_set_legacy_advertiser_data(
+	    app.advertising_set_handle,
+	    app_es_current_data()
+
+	);
+	app_assert_status(status);
+
+	// Set advertising interval to 100ms.
+	status = sl_bt_advertiser_set_timing(
+	    app.advertising_set_handle,
+	    BT_ADV_PERIOD_MS * 1.6, // min. adv. interval (milliseconds / 1.6)
+	    BT_ADV_PERIOD_MS * 1.6, // max. adv. interval (milliseconds / 1.6)
+	    0,                      // adv. duration
+	    0
+	); // max. num. adv. events
+	app_assert_status(status);
+	// Start advertising and enable connections.
+	status = sl_bt_legacy_advertiser_start(
+	    app.advertising_set_handle,
+	    sl_bt_legacy_advertiser_connectable
+	);
+	app.connection = SL_BT_INVALID_CONNECTION_HANDLE;
+	app_assert_status(status);
+}
+
+void _app_on_bt_connection_opened(sl_bt_evt_connection_opened_t *evt) {
+	app.connection = evt->connection;
+	app_log_info(
+	    "[app] connected with %02X:%02X:%02X:%02X:%02X:%02X." APP_LOG_NL,
+	    evt->address.addr[0],
+	    evt->address.addr[1],
+	    evt->address.addr[2],
+	    evt->address.addr[3],
+	    evt->address.addr[4],
+	    evt->address.addr[5]
+	);
+	_app_connection_wd_start();
+}
+
+void _app_on_bt_connection_closed(sl_bt_evt_connection_closed_t *evt) {
+	(void)evt;
+	_app_connection_wd_stop();
+	app_log_info("[app] disconnected." APP_LOG_NL);
+	app.connection = SL_BT_INVALID_CONNECTION_HANDLE;
+	// Generate data for advertising
+
+	sl_status_t status = app_set_legacy_advertiser_data(
+	    app.advertising_set_handle,
+	    app_es_current_data()
+	);
+
+	app_assert_status(status);
+
+	// Restart advertising after client has disconnected.
+	status = sl_bt_legacy_advertiser_start(
+	    app.advertising_set_handle,
+	    sl_bt_legacy_advertiser_connectable
+	);
+
+	app_assert_status(status);
+}
+
+void _app_on_gatt_server_user_write_request(
+    sl_bt_evt_gatt_server_user_write_request_t *req
+) {
+	uint8_t err = SL_STATUS_OK;
+	switch (req->characteristic) {
+	case gattdb_current_time_epoch: {
+		sl_sleeptimer_timestamp_t now;
+		if (req->value.len != sizeof(sl_sleeptimer_timestamp_t)) {
+			err = SL_STATUS_BT_ATT_INVALID_ATT_LENGTH & 0xff;
+		} else {
+			memcpy(&now, req->value.data, sizeof(sl_sleeptimer_timestamp_t));
+			app_es_set_current_unix_time(now);
+		}
+		sl_bt_gatt_server_send_user_write_response(
+		    req->connection,
+		    req->characteristic,
+		    err
+		);
+		break;
+	}
+	case gattdb_hive_location: {
+		location_t new_location;
+		if (req->value.len != sizeof(location_t)) {
+			err = SL_STATUS_BT_ATT_INVALID_ATT_LENGTH & 0xff;
+		} else {
+			memcpy(&new_location, req->value.data, sizeof(location_t));
+			sl_status_t sc = location_set(new_location);
+			if (sc != SL_STATUS_OK) {
+				err = SL_STATUS_BT_ATT_WRITE_REQUEST_REJECTED & 0xff;
+			}
+		}
+
+		sl_bt_gatt_server_send_user_write_response(
+		    req->connection,
+		    req->characteristic,
+		    err
+		);
+		break;
+	}
+	case gattdb_record_access_control_point:
+		_app_racp_user_write_request_handler(req);
+		break;
+	default:
+		app_log_error("[app] unknown characteristic write request");
+	}
+}
+
+void _app_on_gatt_server_characteristic_status(
+    sl_bt_evt_gatt_server_characteristic_status_t *evt
+) {
+	switch (evt->characteristic) {
+	case gattdb_stream_data:
+		_app_stream_data_notification_handler(evt);
+		break;
+	case gattdb_record_access_control_point:
+		_app_racp_notification_handler(evt);
+		break;
+	default:
+		app_log_warning(
+		    "[app] unknwon GATT characteristic status %d." APP_LOG_NL,
+		    evt->characteristic
+		);
+	}
+}
+
+void _app_stream_data_notification_handler(
+    sl_bt_evt_gatt_server_characteristic_status_t *evt
+) {
+	app_log_debug(
+	    "[app] stream data notification handler %d %x." APP_LOG_NL,
+	    evt->status_flags,
+	    evt->client_config_flags
+	);
+}
+
+void _app_racp_notification_handler(
+    sl_bt_evt_gatt_server_characteristic_status_t *evt
+) {
+	app_log_debug(
+	    "[app] RACP notification handler %d %x." APP_LOG_NL,
+	    evt->status_flags,
+	    evt->client_config_flags
+	);
+}
+
+SL_ENUM(racp_opcode_t){
+    racp_opcode_not_supported            = 0,
+    racp_opcode_report_records           = 1,
+    racp_opcode_delete_records           = 2,
+    racp_opcode_abort_operation          = 3,
+    racp_opcode_report_number_of_records = 4,
+};
+
+SL_ENUM(racp_rsp_t){
+    racp_rsp_code_succeed         = 0x01,
+    racp_rsp_not_supported        = 0x02,
+    racp_rsp_number_of_records    = 0x05,
+    racp_rsp_code_racp            = 0x06,
+    racp_rsp_code_no_record_found = 0x06,
+
+};
+
+SL_ENUM(racp_operator_t){
+    racp_operator_null     = 0x00,
+    racp_operator_all      = 0x01,
+    racp_operator_le       = 0x02,
+    racp_operator_ge       = 0x03,
+    racp_operator_in_range = 0x04,
+    racp_operator_first    = 0x05,
+    racp_operator_last     = 0x06,
+};
+
+void _app_racp_user_write_request_handler(
+    sl_bt_evt_gatt_server_user_write_request_t *req
+) {
+	app_log_debug(
+	    "[app] RACP write request OPCODE:%x." APP_LOG_NL,
+	    req->value.data[0]
+	);
 }
