@@ -58,8 +58,8 @@
 #include <string.h>
 
 app_handle_t app = {
-    .advertising_set_handle = 0xff,
-    .is_advertising         = false,
+    .advertising_set_handle = SL_BT_INVALID_ADVERTISING_SET_HANDLE,
+    .connection             = SL_BT_INVALID_CONNECTION_HANDLE,
 };
 
 // The advertising set handle allocated from Bluetooth stack.
@@ -195,22 +195,34 @@ void sl_bt_on_event(sl_bt_msg_t *evt) {
 		    app.advertising_set_handle,
 		    sl_bt_legacy_advertiser_connectable
 		);
-		app.is_advertising = true;
+		app.connection = SL_BT_INVALID_CONNECTION_HANDLE;
 		app_assert_status(sc);
 		break;
 
 	// -------------------------------
 	// This event indicates that a new connection was opened.
 	case sl_bt_evt_connection_opened_id:
-		app_log_info("connected" APP_LOG_NL);
-		app.is_advertising = false;
+		app.connection = evt->data.evt_connection_opened.connection;
+		app_log_info(
+		    "[app] connected with %02X:%02X:%02X:%02X:%02X:%02X." APP_LOG_NL,
+		    evt->data.evt_connection_opened.address.addr[0],
+		    evt->data.evt_connection_opened.address.addr[1],
+		    evt->data.evt_connection_opened.address.addr[2],
+		    evt->data.evt_connection_opened.address.addr[3],
+		    evt->data.evt_connection_opened.address.addr[4],
+		    evt->data.evt_connection_opened.address.addr[5]
+		);
+		_app_connection_wd_start();
 		break;
 
 	// -------------------------------
 	// This event indicates that a connection was closed.
 	case sl_bt_evt_connection_closed_id:
-		app_log_info("disconnected" APP_LOG_NL);
+		_app_connection_wd_stop();
+		app_log_info("[app] disconnected." APP_LOG_NL);
+		app.connection = SL_BT_INVALID_CONNECTION_HANDLE;
 		// Generate data for advertising
+
 		sc = app_set_legacy_advertiser_data(
 		    app.advertising_set_handle,
 		    app_es_current_data()
@@ -223,14 +235,12 @@ void sl_bt_on_event(sl_bt_msg_t *evt) {
 		    app.advertising_set_handle,
 		    sl_bt_legacy_advertiser_connectable
 		);
-		app.is_advertising = true;
+
 		app_assert_status(sc);
 		break;
 
-	///////////////////////////////////////////////////////////////////////////
-	// Add additional event handlers here as your application requires!      //
-	///////////////////////////////////////////////////////////////////////////
 	case sl_bt_evt_gatt_server_user_read_request_id: {
+		_app_connection_wd_reset();
 		sl_bt_evt_gatt_server_user_read_request_t *req =
 		    &evt->data.evt_gatt_server_user_read_request;
 		_app_on_gatt_server_user_read_request(req);
@@ -238,13 +248,19 @@ void sl_bt_on_event(sl_bt_msg_t *evt) {
 	}
 
 	case sl_bt_evt_gatt_server_user_write_request_id: {
+		_app_connection_wd_reset();
+
 		sl_bt_evt_gatt_server_user_write_request_t *req =
 		    &evt->data.evt_gatt_server_user_write_request;
 		_app_on_gatt_server_user_write_request(req);
 		break;
 	}
-	// -------------------------------
-	// Default event handler.
+
+	case sl_bt_evt_system_external_signal_id:
+		uint32_t signals = evt->data.evt_system_external_signal.extsignals;
+		_app_on_external_signals(signals);
+		break;
+
 	default:
 		break;
 	}
@@ -348,13 +364,88 @@ void _app_on_es_readout(sl_status_t status, const data_point_t *point) {
 		}
 	}
 
-	if (app.is_advertising == true) {
+	if (_app_is_connected() == false) {
 		sl_status_t status =
 		    app_set_legacy_advertiser_data(app.advertising_set_handle, point);
 		if (status != SL_STATUS_OK) {
 			app_log_error(
 			    "[app] could not setup advertisement data: %s." APP_LOG_NL,
 			    sl_status_get_string(status)
+			);
+		}
+	}
+}
+
+bool _app_is_connected() {
+	return app.connection != SL_BT_INVALID_CONNECTION_HANDLE;
+}
+
+void _app_connection_wd_reset() {
+	CORE_ATOMIC_SECTION({
+		sl_sleeptimer_restart_timer_ms(
+		    &app.connection_wd,
+		    APP_CONNECTION_TIMEOUT_MS,
+		    &_app_on_connection_wd_timeout,
+		    NULL,
+		    0,
+		    0
+		);
+		app.wd_fired = false;
+	});
+	app_log_debug("[app] connection WD reset." APP_LOG_NL);
+}
+
+void _app_connection_wd_start() {
+	CORE_ATOMIC_SECTION({
+		sl_sleeptimer_start_timer_ms(
+		    &app.connection_wd,
+		    APP_CONNECTION_TIMEOUT_MS,
+		    &_app_on_connection_wd_timeout,
+		    NULL,
+		    0,
+		    0
+		);
+		app.wd_fired = false;
+	});
+	app_log_debug("[app] connection WD started." APP_LOG_NL);
+}
+
+void _app_connection_wd_stop() {
+	CORE_ATOMIC_SECTION({
+		sl_sleeptimer_start_timer_ms(
+		    &app.connection_wd,
+		    APP_CONNECTION_TIMEOUT_MS,
+		    &_app_on_connection_wd_timeout,
+		    NULL,
+		    0,
+		    0
+		);
+		app.wd_fired = false;
+	});
+	app_log_debug("[app] connection WD stopped." APP_LOG_NL);
+}
+
+void _app_on_connection_wd_timeout(
+    sl_sleeptimer_timer_handle_t *timer, void *user_data
+) {
+	(void)timer;
+	(void)user_data;
+	CORE_ATOMIC_SECTION({
+		sl_bt_external_signal(APP_CONNECTION_WD_SIGNAL);
+		app.wd_fired = true;
+	});
+}
+
+void _app_on_external_signals(uint32_t events) {
+	if ((events & APP_CONNECTION_WD_SIGNAL) != 0x00) {
+		if (app.wd_fired && _app_is_connected()) {
+			sl_bt_connection_close(app.connection);
+			app_log_warning(
+			    "[app] closing connection after %d.%03ds of "
+			    "inactivity." APP_LOG_NL,
+			    APP_CONNECTION_TIMEOUT_MS / 1000,
+			    APP_CONNECTION_TIMEOUT_MS % 1000
+
 			);
 		}
 	}

@@ -32,26 +32,33 @@
 
 #include "drivers/i2c_schd.h"
 #include "sl_bt_api.h"
+#include "sl_sleeptimer.h"
 #include "types.h"
 #include <stdbool.h>
+#include <stdint.h>
 
 #define JOURNAL_MINIMUM_DATE                                                   \
 	1767225600 // correspond to 2026-01-01T00:00:00.000Z
 
 #ifdef PRODUCTION_BUILD
-#define SENSOR_READOUT_PERIOD_S 60
-#define BT_ADV_PERIOD_MS        5000
+#define SENSOR_READOUT_PERIOD_S   60
+#define BT_ADV_PERIOD_MS          5000
+#define APP_CONNECTION_TIMEOUT_MS 10 * 1000
 #else
-#define SENSOR_READOUT_PERIOD_S 10
-#define BT_ADV_PERIOD_MS        1000
+#define SENSOR_READOUT_PERIOD_S   10
+#define BT_ADV_PERIOD_MS          1000
+#define APP_CONNECTION_TIMEOUT_MS 10 * 1000
 #endif
 
+#define APP_CONNECTION_WD_SIGNAL 0x02
+
 typedef struct app_handle {
-	uint8_t       advertising_set_handle;
-	volatile bool is_advertising;
+	uint8_t advertising_set_handle;
+	uint8_t connection;
 
-	i2c_schd_handle_t i2c0;
-
+	i2c_schd_handle_t            i2c0;
+	sl_sleeptimer_timer_handle_t connection_wd;
+	volatile bool                wd_fired;
 } app_handle_t;
 
 extern app_handle_t app;
@@ -77,7 +84,7 @@ bool app_is_process_required(void);
 void app_init_bt(void);
 
 bool app_is_ok_to_sleep(void);
-
+bool _app_is_connected();
 void app_init();
 
 sl_status_t
@@ -90,4 +97,13 @@ void _app_on_gatt_server_user_write_request(
     sl_bt_evt_gatt_server_user_write_request_t *req
 );
 
+void _app_on_external_signals(uint32_t events);
+
 void _app_on_es_readout(sl_status_t status, const data_point_t *point);
+
+void _app_connection_wd_start();
+void _app_connection_wd_stop();
+void _app_connection_wd_reset();
+void _app_on_connection_wd_timeout(
+    sl_sleeptimer_timer_handle_t *timer, void *user_data
+);
