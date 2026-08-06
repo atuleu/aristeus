@@ -3581,7 +3581,7 @@
 			(net "+3.3V")
 			(pinfunction "VMAIN_1")
 			(pintype "power_out")
-			(solder_mask_margin -0.05)
+			(solder_mask_margin 0)
 			(uuid "6ab90261-4fa2-4062-a4f7-db098f987122")
 		)
 		(pad "2" smd roundrect
@@ -3592,7 +3592,7 @@
 			(net "/SW")
 			(pinfunction "SW_2")
 			(pintype "power_in")
-			(solder_mask_margin -0.05)
+			(solder_mask_margin 0)
 			(uuid "bb0383eb-9f7d-40c9-897e-4a99f21ad15e")
 		)
 		(pad "3" smd roundrect
@@ -3603,7 +3603,7 @@
 			(net "/VIN")
 			(pinfunction "VIN_3")
 			(pintype "power_in")
-			(solder_mask_margin -0.05)
+			(solder_mask_margin 0)
 			(uuid "15d0d809-1959-4e35-a55b-6d9c03922d34")
 		)
 		(pad "4" smd roundrect
@@ -3614,7 +3614,7 @@
 			(net "GND")
 			(pinfunction "MODE_4")
 			(pintype "input")
-			(solder_mask_margin 0.05)
+			(solder_mask_margin 0)
 			(uuid "d4dd1a9e-3436-43b0-9293-d05203cb7c0b")
 		)
 		(pad "5" smd roundrect
@@ -3625,7 +3625,7 @@
 			(net "unconnected-(U5-VSUB-Pad5)")
 			(pinfunction "VSUB_5")
 			(pintype "power_out+no_connect")
-			(solder_mask_margin 0.05)
+			(solder_mask_margin 0)
 			(uuid "0134981a-3c2c-4fa2-aef4-81cb9575abf9")
 		)
 		(pad "6" smd roundrect
@@ -3636,7 +3636,7 @@
 			(net "GND")
 			(pinfunction "GND_6")
 			(pintype "power_in")
-			(solder_mask_margin 0.05)
+			(solder_mask_margin 0)
 			(uuid "f049757b-a479-4d8f-aafa-7f8f67d05169")
 		)
 		(embedded_fonts no)
