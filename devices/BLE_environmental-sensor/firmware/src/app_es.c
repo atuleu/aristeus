@@ -393,7 +393,7 @@ void _app_es_process_stcc4(sl_status_t status) {
 		    self.new_data_point.c02
 		);
 	}
-	_app_es_complete_readout(status);
+	_app_es_complete_readout(SL_STATUS_OK);
 }
 
 sl_sleeptimer_timestamp_t app_es_get_current_unix_time() {
