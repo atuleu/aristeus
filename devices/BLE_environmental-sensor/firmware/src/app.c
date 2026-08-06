@@ -44,6 +44,7 @@
 
 #include "app_es.h"
 #include "batt_monitor.h"
+#include "bt_types.h"
 #include "drivers/i2c_schd.h"
 #include "drivers/spiflash.h"
 #include "em_logger.h"
@@ -59,7 +60,12 @@
 
 app_handle_t app = {
     .advertising_set_handle = SL_BT_INVALID_ADVERTISING_SET_HANDLE,
-    .connection             = SL_BT_INVALID_CONNECTION_HANDLE,
+    .connection =
+        {
+            .handle         = SL_BT_INVALID_CONNECTION_HANDLE,
+            .racp_enabled   = false,
+            .stream_enabled = false,
+        },
 };
 
 // The advertising set handle allocated from Bluetooth stack.
@@ -279,20 +285,20 @@ void _app_on_es_readout(sl_status_t status, const data_point_t *point) {
 }
 
 bool _app_is_connected() {
-	return app.connection != SL_BT_INVALID_CONNECTION_HANDLE;
+	return app.connection.handle != SL_BT_INVALID_CONNECTION_HANDLE;
 }
 
 void _app_connection_wd_reset() {
 	CORE_ATOMIC_SECTION({
 		sl_sleeptimer_restart_timer_ms(
-		    &app.connection_wd,
+		    &app.connection.wd,
 		    APP_CONNECTION_TIMEOUT_MS,
 		    &_app_on_connection_wd_timeout,
 		    NULL,
 		    0,
 		    0
 		);
-		app.wd_fired = false;
+		app.connection.wd_fired = false;
 	});
 	app_log_debug("[app] connection WD reset." APP_LOG_NL);
 }
@@ -300,14 +306,14 @@ void _app_connection_wd_reset() {
 void _app_connection_wd_start() {
 	CORE_ATOMIC_SECTION({
 		sl_sleeptimer_start_timer_ms(
-		    &app.connection_wd,
+		    &app.connection.wd,
 		    APP_CONNECTION_TIMEOUT_MS,
 		    &_app_on_connection_wd_timeout,
 		    NULL,
 		    0,
 		    0
 		);
-		app.wd_fired = false;
+		app.connection.wd_fired = false;
 	});
 	app_log_debug("[app] connection WD started." APP_LOG_NL);
 }
@@ -315,14 +321,14 @@ void _app_connection_wd_start() {
 void _app_connection_wd_stop() {
 	CORE_ATOMIC_SECTION({
 		sl_sleeptimer_start_timer_ms(
-		    &app.connection_wd,
+		    &app.connection.wd,
 		    APP_CONNECTION_TIMEOUT_MS,
 		    &_app_on_connection_wd_timeout,
 		    NULL,
 		    0,
 		    0
 		);
-		app.wd_fired = false;
+		app.connection.wd_fired = false;
 	});
 	app_log_debug("[app] connection WD stopped." APP_LOG_NL);
 }
@@ -334,14 +340,14 @@ void _app_on_connection_wd_timeout(
 	(void)user_data;
 	CORE_ATOMIC_SECTION({
 		sl_bt_external_signal(APP_CONNECTION_WD_SIGNAL);
-		app.wd_fired = true;
+		app.connection.wd_fired = true;
 	});
 }
 
 void _app_on_external_signals(uint32_t events) {
 	if ((events & APP_CONNECTION_WD_SIGNAL) != 0x00) {
-		if (app.wd_fired && _app_is_connected()) {
-			sl_bt_connection_close(app.connection);
+		if (app.connection.wd_fired && _app_is_connected()) {
+			sl_bt_connection_close(app.connection.handle);
 			app_log_warning(
 			    "[app] closing connection after %d.%03ds of "
 			    "inactivity." APP_LOG_NL,
@@ -382,12 +388,20 @@ void _app_on_bt_system_boot() {
 	    app.advertising_set_handle,
 	    sl_bt_legacy_advertiser_connectable
 	);
-	app.connection = SL_BT_INVALID_CONNECTION_HANDLE;
+	app.connection.handle                = SL_BT_INVALID_CONNECTION_HANDLE;
+	app.connection.racp_enabled          = false;
+	app.connection.stream_enabled        = false;
+	app.connection.inflight_indication   = false;
+	app.connection.procedure_in_progress = false;
 	app_assert_status(status);
 }
 
 void _app_on_bt_connection_opened(sl_bt_evt_connection_opened_t *evt) {
-	app.connection = evt->connection;
+	app.connection.handle                = evt->connection;
+	app.connection.stream_enabled        = false;
+	app.connection.racp_enabled          = false;
+	app.connection.inflight_indication   = false;
+	app.connection.procedure_in_progress = false;
 	app_log_info(
 	    "[app] connected with %02X:%02X:%02X:%02X:%02X:%02X." APP_LOG_NL,
 	    evt->address.addr[0],
@@ -404,7 +418,11 @@ void _app_on_bt_connection_closed(sl_bt_evt_connection_closed_t *evt) {
 	(void)evt;
 	_app_connection_wd_stop();
 	app_log_info("[app] disconnected." APP_LOG_NL);
-	app.connection = SL_BT_INVALID_CONNECTION_HANDLE;
+	app.connection.handle                = SL_BT_INVALID_CONNECTION_HANDLE;
+	app.connection.stream_enabled        = false;
+	app.connection.racp_enabled          = false;
+	app.connection.inflight_indication   = false;
+	app.connection.procedure_in_progress = false;
 	// Generate data for advertising
 
 	sl_status_t status = app_set_legacy_advertiser_data(
@@ -426,12 +444,12 @@ void _app_on_bt_connection_closed(sl_bt_evt_connection_closed_t *evt) {
 void _app_on_gatt_server_user_write_request(
     sl_bt_evt_gatt_server_user_write_request_t *req
 ) {
-	uint8_t err = SL_STATUS_OK;
+	gatt_ecode_t err = gatt_ecode_succeed;
 	switch (req->characteristic) {
 	case gattdb_current_time_epoch: {
 		sl_sleeptimer_timestamp_t now;
 		if (req->value.len != sizeof(sl_sleeptimer_timestamp_t)) {
-			err = SL_STATUS_BT_ATT_INVALID_ATT_LENGTH & 0xff;
+			err = gatt_ecode_invalid_attribute_length;
 		} else {
 			memcpy(&now, req->value.data, sizeof(sl_sleeptimer_timestamp_t));
 			app_es_set_current_unix_time(now);
@@ -446,12 +464,12 @@ void _app_on_gatt_server_user_write_request(
 	case gattdb_hive_location: {
 		location_t new_location;
 		if (req->value.len != sizeof(location_t)) {
-			err = SL_STATUS_BT_ATT_INVALID_ATT_LENGTH & 0xff;
+			err = gatt_ecode_invalid_attribute_length;
 		} else {
 			memcpy(&new_location, req->value.data, sizeof(location_t));
 			sl_status_t sc = location_set(new_location);
 			if (sc != SL_STATUS_OK) {
-				err = SL_STATUS_BT_ATT_WRITE_REQUEST_REJECTED & 0xff;
+				err = gatt_ecode_write_request_rejected;
 			}
 		}
 
@@ -489,57 +507,333 @@ void _app_on_gatt_server_characteristic_status(
 }
 
 void _app_stream_data_notification_handler(
-    sl_bt_evt_gatt_server_characteristic_status_t *evt
+    sl_bt_evt_gatt_server_characteristic_status_t *status
 ) {
 	app_log_debug(
-	    "[app] stream data notification handler %d %x." APP_LOG_NL,
-	    evt->status_flags,
-	    evt->client_config_flags
+	    "[app] stream data notification handler %02x %02x." APP_LOG_NL,
+	    status->status_flags,
+	    status->client_config_flags
 	);
+
+	if ((status->status_flags & sl_bt_gatt_server_confirmation) ==
+	    sl_bt_gatt_server_confirmation) {
+		_app_on_indication_confirmation();
+	}
+
+	if ((status->status_flags & sl_bt_gatt_server_client_config) == 0x00) {
+		return;
+	}
+
+	// we set the configuration from the client. Only interested on indications.
+	app.connection.racp_enabled =
+	    (status->status_flags & sl_bt_gatt_server_indication) != 0x00;
 }
 
 void _app_racp_notification_handler(
-    sl_bt_evt_gatt_server_characteristic_status_t *evt
+    sl_bt_evt_gatt_server_characteristic_status_t *status
 ) {
 	app_log_debug(
-	    "[app] RACP notification handler %d %x." APP_LOG_NL,
-	    evt->status_flags,
-	    evt->client_config_flags
+	    "[app] RACP notification handler %02x %02x." APP_LOG_NL,
+	    status->status_flags,
+	    status->client_config_flags
 	);
+
+	if ((status->status_flags & sl_bt_gatt_server_confirmation) ==
+	    sl_bt_gatt_server_confirmation) {
+		_app_on_indication_confirmation();
+	}
+
+	if ((status->status_flags & sl_bt_gatt_server_client_config) == 0x00) {
+		return;
+	}
+
+	// we set the configuration from the client. Only interested on indications.
+	app.connection.racp_enabled =
+	    (status->status_flags & sl_bt_gatt_server_indication) != 0x00;
 }
-
-SL_ENUM(racp_opcode_t){
-    racp_opcode_not_supported            = 0,
-    racp_opcode_report_records           = 1,
-    racp_opcode_delete_records           = 2,
-    racp_opcode_abort_operation          = 3,
-    racp_opcode_report_number_of_records = 4,
-};
-
-SL_ENUM(racp_rsp_t){
-    racp_rsp_code_succeed         = 0x01,
-    racp_rsp_not_supported        = 0x02,
-    racp_rsp_number_of_records    = 0x05,
-    racp_rsp_code_racp            = 0x06,
-    racp_rsp_code_no_record_found = 0x06,
-
-};
-
-SL_ENUM(racp_operator_t){
-    racp_operator_null     = 0x00,
-    racp_operator_all      = 0x01,
-    racp_operator_le       = 0x02,
-    racp_operator_ge       = 0x03,
-    racp_operator_in_range = 0x04,
-    racp_operator_first    = 0x05,
-    racp_operator_last     = 0x06,
-};
 
 void _app_racp_user_write_request_handler(
     sl_bt_evt_gatt_server_user_write_request_t *req
 ) {
+	racp_opcode_t opcode = req->value.data[0];
 	app_log_debug(
-	    "[app] RACP write request OPCODE:%x." APP_LOG_NL,
-	    req->value.data[0]
+	    "[app] RACP write request OPCODE:%02X len=%d data=",
+	    opcode,
+	    req->value.len
 	);
+	const char *sep = "{ ";
+	for (int i = 1; i < req->value.len; ++i) {
+		app_log("%s%02X", sep, req->value.data[i]);
+		sep = ", ";
+	}
+	app_log(" }," APP_LOG_NL);
+
+	if (req->value.len < 2) {
+		sl_bt_gatt_server_send_user_write_response(
+		    req->connection,
+		    gattdb_record_access_control_point,
+		    gatt_ecode_invalid_attribute_length
+		);
+		return;
+	}
+
+	if (app.connection.stream_enabled == false ||
+	    app.connection.racp_enabled == false) {
+		app_log_warning(
+		    "[app] client did not enable indication for stream data or "
+		    "RACP." APP_LOG_NL
+		);
+		sl_bt_gatt_server_send_user_write_response(
+		    req->connection,
+		    gattdb_record_access_control_point,
+		    gatt_ecode_not_indicated
+		);
+		return;
+	}
+
+	if (app.connection.procedure_in_progress == true) {
+		sl_bt_gatt_server_send_user_write_response(
+		    req->connection,
+		    gattdb_record_access_control_point,
+		    gatt_ecode_procedure_in_progress
+		);
+		return;
+	}
+	sl_bt_gatt_server_send_user_write_response(
+	    req->connection,
+	    gattdb_record_access_control_point,
+	    gatt_ecode_succeed
+	);
+
+	switch (opcode) {
+	case racp_opcode_report_records:
+		_app_racp_range_operation(req, &_app_readout_range);
+		break;
+	case racp_opcode_delete_records:
+		_app_racp_delete_records(req);
+		break;
+	case racp_opcode_report_number:
+		_app_racp_range_operation(req, &_app_count_range);
+		break;
+	case racp_opcode_abort_operation:
+		// normally it is a mandatory one, but we do not implement it so we
+		// 'accept' but fail it immediatly.
+		_app_racp_send_response(opcode, racp_rsp_procedure_not_completed);
+		break;
+
+	case racp_opcode_reserved:
+	default:
+		app_log_error("[app] unsupported opcode %02X." APP_LOG_NL, opcode);
+		_app_racp_send_response(opcode, racp_rsp_opcode_not_supported);
+	};
+}
+
+void _app_racp_send_number_of_records(uint16_t number) {
+	uint8_t buffer[4] = {
+	    racp_opcode_rsp_number_response,
+	    racp_operator_null,
+	    number & 0xff,
+	    number >> 8,
+	};
+	sl_status_t status = sl_bt_gatt_server_send_indication(
+	    app.connection.handle,
+	    gattdb_record_access_control_point,
+	    sizeof(buffer),
+	    buffer
+	);
+	if (status != SL_STATUS_OK) {
+		app_log_error(
+		    "[app] cannot send RACP number indication: %s." APP_LOG_NL,
+		    sl_status_get_string(status)
+		);
+	} else {
+		app.connection.inflight_indication = true;
+	}
+}
+
+void _app_racp_send_response(racp_opcode_t opcode, racp_rsp_t response_code) {
+	uint8_t buffer[4] = {
+	    racp_opcode_rsp_response_code,
+	    racp_operator_null,
+	    opcode,
+	    response_code
+	};
+	sl_status_t status = sl_bt_gatt_server_send_indication(
+	    app.connection.handle,
+	    gattdb_record_access_control_point,
+	    sizeof(buffer),
+	    buffer
+	);
+	if (status != SL_STATUS_OK) {
+		app_log_error(
+		    "[app] cannot send RACP response indication: %s." APP_LOG_NL,
+		    sl_status_get_string(status)
+		);
+	} else {
+		app.connection.inflight_indication = true;
+	}
+}
+
+void _app_on_indication_confirmation() {
+	if (app.connection.inflight_indication == false) {
+		app_log_error("[app] spurious indication confirmation." APP_LOG_NL);
+		return;
+	}
+	app.connection.inflight_indication = false;
+	if (app.connection.procedure_in_progress == false) {
+		return;
+	}
+
+	// TODO: resume reading procedure.
+}
+
+void _app_racp_range_operation(
+    sl_bt_evt_gatt_server_user_write_request_t *req,
+    _app_on_journal_range_callback_t            action
+) {
+	racp_opcode_t   opcode = req->value.data[0];
+	racp_operator_t operator= req->value.data[1];
+	switch (operator) {
+	case racp_operator_null:
+		_app_racp_send_response(opcode, racp_rsp_invalid_operator);
+		return;
+	case racp_operator_all: {
+		if (req->value.len != 2) {
+			_app_racp_send_response(opcode, racp_rsp_invalid_operand);
+			return;
+		}
+		_app_find_journal_range_inclusive(opcode, 0, UINT32_MAX, action);
+		return;
+	}
+	case racp_operator_le:
+	case racp_operator_ge: {
+		if (req->value.len != 7 || req->value.data[2] != 0x01) {
+			_app_racp_send_response(opcode, racp_rsp_invalid_operand);
+			return;
+		}
+		sl_sleeptimer_timestamp_t operand =
+		    ((uint32_t)req->value.data[3] << 0) |
+		    ((uint32_t)req->value.data[4] << 8) |
+		    ((uint32_t)req->value.data[5] << 16) |
+		    ((uint32_t)req->value.data[6] << 24);
+		if (opcode == racp_operator_ge) {
+			_app_find_journal_range_inclusive(
+			    opcode,
+			    operand,
+			    UINT32_MAX,
+			    action
+			);
+		} else {
+			_app_find_journal_range_inclusive(opcode, 0, operand, action);
+		}
+		return;
+	}
+	case racp_operator_in_range: {
+		if (req->value.len != 11 || req->value.data[2] != 0x01) {
+			_app_racp_send_response(opcode, racp_rsp_invalid_operand);
+			return;
+		}
+
+		sl_sleeptimer_timestamp_t low_operand =
+		    ((uint32_t)req->value.data[3] << 0) |
+		    ((uint32_t)req->value.data[4] << 8) |
+		    ((uint32_t)req->value.data[5] << 16) |
+		    ((uint32_t)req->value.data[6] << 24);
+
+		sl_sleeptimer_timestamp_t high_operand =
+		    ((uint32_t)req->value.data[7] << 0) |
+		    ((uint32_t)req->value.data[8] << 8) |
+		    ((uint32_t)req->value.data[9] << 16) |
+		    ((uint32_t)req->value.data[10] << 24);
+
+		_app_find_journal_range_inclusive(
+		    opcode,
+		    low_operand,
+		    high_operand,
+		    action
+		);
+		return;
+	}
+	default:
+		_app_racp_send_response(opcode, racp_rsp_operator_not_supported);
+	}
+}
+
+void _app_racp_delete_records(sl_bt_evt_gatt_server_user_write_request_t *req) {
+	racp_opcode_t   opcode = req->value.data[0];
+	racp_operator_t operator= req->value.data[1];
+	switch (operator) {
+	case racp_operator_null:
+		_app_racp_send_response(opcode, racp_rsp_invalid_operator);
+		break;
+	case racp_operator_all: {
+		if (req->value.len != 2) {
+			_app_racp_send_response(opcode, racp_rsp_invalid_operand);
+			return;
+		}
+		sl_status_t status = journal_erase();
+		if (status != SL_STATUS_OK) {
+			_app_racp_send_response(
+			    opcode,
+			    status == SL_STATUS_BUSY ? racp_rsp_server_busy
+			                             : racp_rsp_procedure_not_completed
+			);
+			return;
+		}
+
+		_app_racp_send_response(opcode, racp_rsp_sucess);
+		break;
+	}
+	default:
+		_app_racp_send_response(opcode, racp_rsp_operator_not_supported);
+	}
+}
+
+void _app_readout_range(
+    sl_status_t status, journal_index_t start, journal_index_t end
+) {
+	if (status != SL_STATUS_OK || end <= start) {
+		app.connection.procedure_in_progress = false;
+		_app_racp_send_response(
+		    racp_opcode_report_records,
+		    racp_rsp_code_no_record_found
+		);
+		return;
+	}
+
+	// TODO: Implement the asynchronous reading.
+	_app_racp_send_response(
+	    racp_opcode_report_records,
+	    racp_rsp_procedure_not_completed
+	);
+	// TODO: remove this once not failing straight away
+	app.connection.procedure_in_progress = false;
+}
+
+void _app_count_range(
+    sl_status_t status, journal_index_t start, journal_index_t end
+) {
+	app.connection.procedure_in_progress = false;
+	if (status != SL_STATUS_OK || end < start) {
+		_app_racp_send_response(
+		    racp_opcode_report_records,
+		    racp_rsp_procedure_not_completed
+		);
+	}
+
+	_app_racp_send_number_of_records(end - start);
+}
+
+void _app_find_journal_range_inclusive(
+    racp_opcode_t                    opcode,
+    sl_sleeptimer_timestamp_t        low,
+    sl_sleeptimer_timestamp_t        high,
+    _app_on_journal_range_callback_t action
+) {
+	app.connection.procedure_in_progress = true;
+	// TODO:  implement the aysnchronous search
+	_app_racp_send_response(opcode, racp_rsp_procedure_not_completed);
+
+	// TODO: remove this once not failing straight away
+	app.connection.procedure_in_progress = false;
 }

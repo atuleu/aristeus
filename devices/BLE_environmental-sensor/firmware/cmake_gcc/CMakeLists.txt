@@ -17,6 +17,7 @@ option(PRODUCTION_BUILD Off "Production build")
 
 add_executable(BLE_environmental_sensor
     # Add additional sources here
+	${PROJECT_SOURCE_DIR}/../src/bt_types.h
 	${PROJECT_SOURCE_DIR}/../src/app.c
 	${PROJECT_SOURCE_DIR}/../src/app.h
 	${PROJECT_SOURCE_DIR}/../src/app_es.c

@@ -30,9 +30,12 @@
 
 #pragma once
 
+#include "bt_types.h"
 #include "drivers/i2c_schd.h"
+#include "journal.h"
 #include "sl_bt_api.h"
 #include "sl_sleeptimer.h"
+#include "sl_status.h"
 #include "types.h"
 #include <stdbool.h>
 #include <stdint.h>
@@ -50,15 +53,27 @@
 #define APP_CONNECTION_TIMEOUT_MS 120 * 1000
 #endif
 
-#define APP_CONNECTION_WD_SIGNAL 0x02
+#define APP_CONNECTION_WD_SIGNAL      0x02
+#define APP_CONNECTION_ACK_INDICATION 0x01
+
+typedef struct app_bt_connection {
+	uint8_t                      handle;
+	sl_sleeptimer_timer_handle_t wd;
+	volatile bool                wd_fired;
+
+	bool stream_enabled;
+	bool racp_enabled;
+	bool inflight_indication;
+	bool procedure_in_progress;
+} app_bt_connection_t;
 
 typedef struct app_handle {
 	uint8_t advertising_set_handle;
-	uint8_t connection;
 
-	i2c_schd_handle_t            i2c0;
-	sl_sleeptimer_timer_handle_t connection_wd;
-	volatile bool                wd_fired;
+	i2c_schd_handle_t i2c0;
+
+	app_bt_connection_t connection;
+
 } app_handle_t;
 
 extern app_handle_t app;
@@ -123,4 +138,40 @@ void _app_racp_notification_handler(
 
 void _app_racp_user_write_request_handler(
     sl_bt_evt_gatt_server_user_write_request_t *req
+);
+
+typedef void (*_app_on_journal_range_callback_t)(
+    sl_status_t status, journal_index_t start, journal_index_t end
+);
+
+void _app_racp_range_operation(
+    sl_bt_evt_gatt_server_user_write_request_t *req,
+    _app_on_journal_range_callback_t            action
+);
+
+void _app_racp_delete_records(sl_bt_evt_gatt_server_user_write_request_t *req);
+
+void _app_racp_send_number_of_records(uint16_t number);
+void _app_racp_send_response(racp_opcode_t opcode, racp_rsp_t error);
+
+void _app_on_indication_confirmation();
+
+void _app_find_journal_range_inclusive(
+    racp_opcode_t                    opcode,
+    sl_sleeptimer_timestamp_t        low,
+    sl_sleeptimer_timestamp_t        high,
+    _app_on_journal_range_callback_t action
+);
+
+void _app_readout_range(
+    sl_status_t status, journal_index_t start, journal_index_t end
+);
+void _app_count_range(
+    sl_status_t status, journal_index_t start, journal_index_t end
+);
+void _app_on_find_last_before(
+    sl_status_t               status,
+    journal_index_t           idx,
+    sl_sleeptimer_timestamp_t ts,
+    void                     *user_data
 );
