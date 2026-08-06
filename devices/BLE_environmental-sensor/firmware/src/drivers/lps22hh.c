@@ -120,6 +120,7 @@ void _lps22hh_oneshot_read_cb(i2c_tx_status_t status, void *user_data) {
 void _lps22hh_oneshot_write_cb(i2c_tx_status_t status, void *user_data) {
 	lps22hh_handle_t *self = user_data;
 	if (status == I2C_TX_OK) {
+		self->data_ready_timeout_ms = -LPS22HH_DATA_PIN_POLL_PERIOD_MS;
 		_lps22hh_start_poll_timer(self);
 		return;
 	}
@@ -135,6 +136,7 @@ void _lps22hh_oneshot_write_cb(i2c_tx_status_t status, void *user_data) {
 sl_status_t lps22hh_oneshot(
     lps22hh_handle_t *self, lps22hh_readout_callback_t cb, void *user_data
 ) {
+	app_log_debug("[LPS22HH] starting one-shot." APP_LOG_NL);
 	if (cb == NULL) {
 		return SL_STATUS_NULL_POINTER;
 	}
@@ -286,6 +288,11 @@ sl_status_t lps22hh_init(lps22hh_handle_t *self, lps22hh_config_t *config) {
 }
 
 void _lps22hh_start_poll_timer(lps22hh_handle_t *self) {
+	self->data_ready_timeout_ms += LPS22HH_DATA_PIN_POLL_PERIOD_MS;
+	if (self->data_ready_timeout_ms >= 500) {
+		_lps22hh_oneshot_complete(self, SL_STATUS_TIMEOUT, GATT_PRESSURE_NAN);
+		return;
+	}
 	sl_status_t status = sl_sleeptimer_start_timer_ms(
 	    &self->timer,
 	    LPS22HH_DATA_PIN_POLL_PERIOD_MS,

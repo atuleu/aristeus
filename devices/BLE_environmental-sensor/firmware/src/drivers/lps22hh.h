@@ -131,6 +131,7 @@ struct lps22hh_handle {
 	volatile lps22hh_readout_callback_t oneshot_callback;
 	volatile void                      *oneshot_user_data;
 	uint8_t                             oneshot_tries;
+	uint16_t                            data_ready_timeout_ms;
 };
 
 #ifdef __cplusplus
