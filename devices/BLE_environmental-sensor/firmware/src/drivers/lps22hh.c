@@ -89,7 +89,7 @@ void _lps22hh_oneshot_read_cb(i2c_tx_status_t status, void *user_data) {
 	// checks if the device cleared the data ready as we read the the H
 	// register.
 	bool data_ready;
-	sl_gpio_get_pin_input(self->data_ready_pin, &data_ready);
+	sl_gpio_get_pin_input(&self->data_ready_pin, &data_ready);
 	if (data_ready == true) {
 		app_log_warning(
 		    "[LPS22HH %s.0x%x] has stale data, re-reading" APP_LOG_NL,
@@ -173,8 +173,7 @@ sl_status_t lps22hh_oneshot(
 }
 
 sl_status_t lps22hh_init(lps22hh_handle_t *self, lps22hh_config_t *config) {
-	if (self == NULL || config == NULL || config->i2c_bus == NULL ||
-	    config->interrupt_pin == NULL) {
+	if (self == NULL || config == NULL || config->i2c_bus == NULL) {
 		return SL_STATUS_NULL_POINTER;
 	}
 
@@ -259,7 +258,7 @@ sl_status_t lps22hh_init(lps22hh_handle_t *self, lps22hh_config_t *config) {
 	}
 
 	sc = sl_gpio_set_pin_mode(
-	    self->data_ready_pin,
+	    &self->data_ready_pin,
 	    SL_GPIO_MODE_INPUT_PULL,
 	    false
 	);
@@ -273,7 +272,7 @@ sl_status_t lps22hh_init(lps22hh_handle_t *self, lps22hh_config_t *config) {
 	}
 
 	bool dummy;
-	sc = sl_gpio_get_pin_input(self->data_ready_pin, &dummy);
+	sc = sl_gpio_get_pin_input(&self->data_ready_pin, &dummy);
 	if (sc != SL_STATUS_OK) {
 		app_log_error(
 		    "[LPS22HH %s.0x%x] could not read pin" APP_LOG_NL,
@@ -317,7 +316,7 @@ void _lps22hh_on_timer_timeout(
 	CORE_EXIT_ATOMIC();
 
 	bool data_ready;
-	sl_gpio_get_pin_input(self->data_ready_pin, &data_ready);
+	sl_gpio_get_pin_input(&self->data_ready_pin, &data_ready);
 	if (data_ready == false) {
 		_lps22hh_start_poll_timer(self);
 		return;

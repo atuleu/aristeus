@@ -42,18 +42,15 @@
 
 #include <gatt_db.h>
 
+#include "app_es.h"
 #include "batt_monitor.h"
 #include "drivers/i2c_schd.h"
-#include "drivers/lps22hh.h"
 #include "drivers/spiflash.h"
-#include "drivers/stcc4.h"
 #include "em_logger.h"
 #include "journal.h"
 #include "location.h"
 #include "pin_config.h"
-#include "sl_core.h"
 #include "sl_spidrv_instances.h"
-#include "sli_power_manager.h"
 #include "types.h"
 #include "utils/status.h"
 #include <drivers/sht4x.h>
@@ -63,139 +60,9 @@
 app_handle_t app = {
     .advertising_set_handle = 0xff,
     .is_advertising         = false,
-    .data_ready = {.port = LPS22HH_INT_PORT, .pin = LPS22HH_INT_PIN},
-    .current_data_point =
-        {
-            .date        = 0,
-            .temperature = GATT_TEMPERATURE_NAN,
-            .humidity    = GATT_HUMIDITY_NAN,
-            .pressure    = GATT_PRESSURE_NAN,
-            .c02         = GATT_CO2_NAN,
-        },
-    .new_lps22hh_data = false,
-    .new_sht4x_data   = false,
-    .new_stcc4_data   = false,
-    .time_offset      = 0,
 };
 
 // The advertising set handle allocated from Bluetooth stack.
-
-void _app_on_lps22hh_readout(
-    sl_status_t status, pressure_t pressure, void *user_data
-) {
-	(void)user_data;
-	if (status != SL_STATUS_OK) {
-		app_log_warning(
-		    "[app] could not read pressure: %s." APP_LOG_NL,
-		    sl_status_get_string(status)
-		);
-		return;
-	}
-	app_log_info(
-	    "[app] got pressure %ld.%03ld." APP_LOG_NL,
-	    pressure / 1000,
-	    pressure % 1000
-	);
-	CORE_ATOMIC_SECTION({
-		app.current_data_point.pressure = pressure;
-		app.new_lps22hh_data            = true;
-	});
-	app_proceed();
-}
-
-void _app_on_sht4x_readout(
-    sl_status_t   status,
-    temperature_t temperature,
-    humidity_t    humidity,
-    void         *user_data
-) {
-	(void)user_data;
-	if (status != SL_STATUS_OK) {
-		app_log_warning(
-		    "[app] sensor readout failure: %s." APP_LOG_NL,
-		    sl_status_get_string(status)
-		);
-		return;
-	}
-	app_log_info(
-	    "[app] got temperature: %d.%02d°C humidity: %d.%01d%%." APP_LOG_NL,
-	    temperature / 100,
-	    temperature % 100,
-	    humidity / 10,
-	    humidity % 10
-	);
-	CORE_ATOMIC_SECTION({
-		app.current_data_point.temperature = temperature;
-		app.current_data_point.humidity    = humidity;
-		app.new_sht4x_data                 = true;
-	});
-
-	// we need to do something
-	app_proceed();
-}
-
-void _app_on_stcc4_readout(
-    sl_status_t status, co2_concentration_t co2, void *user_data
-) {
-	(void)user_data;
-	if (status != SL_STATUS_OK) {
-		app_log_warning(
-		    "[app] co2 readout failure: %s." APP_LOG_NL,
-		    sl_status_get_string(status)
-		);
-		return;
-	}
-	app_log_info("[app] got c02 concentration: %dPPM." APP_LOG_NL, co2);
-	CORE_ATOMIC_SECTION({
-		app.current_data_point.c02 = co2;
-		app.new_stcc4_data         = true;
-	});
-	app_proceed();
-}
-
-void _app_on_sensor_timer_timeout(
-    sl_sleeptimer_timer_handle_t *timer, void *user_data
-) {
-	(void)timer;
-	(void)user_data;
-
-	em_logger_print();
-
-	app.current_data_point.date = sl_sleeptimer_get_time() + app.time_offset;
-	app_log_debug("[app] starting readout." APP_LOG_NL);
-	sl_status_t s = sht4x_read_data(
-	    &app.sht4x_sensor,
-	    SHT4X_MEASURE_HIGH_P,
-	    &_app_on_sht4x_readout,
-	    NULL
-	);
-	if (s != SL_STATUS_OK) {
-		app_log_error(
-		    "[app] could not start SHT4X reading: %s" APP_LOG_NL,
-		    sl_status_get_string(s)
-		);
-	}
-
-	s = lps22hh_oneshot(&app.lps22hh_sensor, &_app_on_lps22hh_readout, NULL);
-	if (s != SL_STATUS_OK) {
-		app_log_error(
-		    "[app] could not start LPS22HH reading: %s" APP_LOG_NL,
-		    sl_status_get_string(s)
-		);
-	}
-};
-
-void _app_on_spiflash_deepsleep(sl_status_t status, void *user_data) {
-	(void)user_data;
-	if (status == SL_STATUS_OK) {
-		app_log_info("[app] deep sleep successful." APP_LOG_NL);
-	} else {
-		app_log_warning(
-		    "[app] deep sleep error: %s." APP_LOG_NL,
-		    sl_status_get_string(status)
-		);
-	}
-}
 
 // Application Init.
 void app_init(void) {
@@ -210,12 +77,6 @@ void app_init(void) {
 	    1000000 / sl_sleeptimer_get_timer_frequency()
 	);
 
-	status = batt_monitor_init();
-	app_assert_status(status);
-
-	status = batt_monitor_start_measurement();
-	app_assert_status(status);
-
 	status = spiflash_init(sl_spidrv_spi0_handle);
 	app_assert_status(status);
 
@@ -225,38 +86,19 @@ void app_init(void) {
 	status = i2c_schd_init(&app.i2c0, sl_i2c_i2c0_handle);
 	app_assert_status(status);
 
-	status = sht4x_init(&app.sht4x_sensor, &app.i2c0, SHT4X_BASE_ADDR);
-	if (status != SL_STATUS_OK) {
-		app_log_warning("No loop started" APP_LOG_NL);
-		return;
-	}
-	lps22hh_config_t config = {
-	    .i2c_bus       = &app.i2c0,
-	    .addrLSBSet    = false,
-	    .interrupt_pin = &app.data_ready,
+	app_es_config_t es_config = {
+	    .i2c_bus = &app.i2c0,
+	    .data_ready_pin =
+	        {
+	            .pin  = LPS22HH_INT_PIN,
+	            .port = LPS22HH_INT_PORT,
+	        },
+	    .readout_period_ms = SENSOR_READOUT_PERIOD_S * 1000,
+	    .callback          = &_app_on_es_readout,
 	};
-	status = lps22hh_init(&app.lps22hh_sensor, &config);
-	if (status != SL_STATUS_OK) {
-		app_log_warning("No loop started" APP_LOG_NL);
-		return;
-	}
 
-	stcc4_init_args_t args = {.i2c_bus = &app.i2c0, .address_pin_set = false};
-	status                 = stcc4_init(&app.stcc4_sensor, &args);
-	if (status != SL_STATUS_OK) {
-		app_log_warning("No loop started" APP_LOG_NL);
-		return;
-	}
-
-	sl_sleeptimer_start_periodic_timer_ms(
-	    &app.sensor_timer,
-	    SENSOR_READOUT_PERIOD_S * 1000,
-	    &_app_on_sensor_timer_timeout,
-	    NULL,
-	    0,
-	    0
-	);
-	app_log_info("Started read loop" APP_LOG_NL);
+	status = app_es_init(&es_config);
+	app_assert_status(status);
 }
 
 #define MIN(a, b) ((a) > (b) ? (b) : (a))
@@ -305,76 +147,10 @@ app_set_legacy_advertiser_data(uint8_t advertising_set, const data_point_t *d) {
 void app_process_action(void) {
 	i2c_schd_process_action(&app.i2c0);
 	journal_process_action();
+	app_es_process_action();
 
 	if (app_is_process_required() == false) {
 		return;
-	}
-
-	bool need_update = false;
-	CORE_DECLARE_IRQ_STATE;
-	CORE_ENTER_ATOMIC();
-	if (app.new_lps22hh_data == true && app.new_sht4x_data == true) {
-		CORE_EXIT_ATOMIC();
-		app_log_debug("[app] starting STCC4 measure." APP_LOG_NL);
-		sl_status_t status = stcc4_start_read_sequence(
-		    &app.stcc4_sensor,
-		    app.current_data_point.temperature,
-		    app.current_data_point.humidity,
-		    app.current_data_point.pressure,
-		    &_app_on_stcc4_readout,
-		    NULL
-		);
-		if (status != SL_STATUS_OK) {
-			app_log_error(
-			    "[app] could not start c02 readout: %s." APP_LOG_NL,
-			    sl_status_get_string(status)
-			);
-		}
-		status = sl_sleeptimer_start_timer_ms(
-		    &app.batt_timer,
-		    40,
-		    &_app_on_batt_timer_timeout,
-		    NULL,
-		    0,
-		    0
-		);
-		if (status != SL_STATUS_OK) {
-			app_log_error(
-			    "[app] could not schedule battery level reading: "
-			    "%s." APP_LOG_NL,
-			    sl_status_get_string(status)
-			);
-		}
-
-		CORE_ENTER_ATOMIC();
-		app.new_lps22hh_data = false;
-		app.new_sht4x_data   = false;
-	}
-	need_update        = app.new_stcc4_data;
-	app.new_stcc4_data = false;
-	CORE_EXIT_ATOMIC();
-
-	if (need_update == false) {
-		return;
-	}
-
-	if (app.current_data_point.date > JOURNAL_MINIMUM_DATE) {
-		sl_status_t status =
-		    journal_add_record((const data_point_t *)&app.current_data_point);
-		if (status != SL_STATUS_OK) {
-			app_log_error(
-			    "[app] could not save record to journal: %s" APP_LOG_NL,
-			    sl_status_get_string(status)
-			);
-		}
-	}
-
-	if (app.is_advertising == true) {
-		sl_status_t sc = app_set_legacy_advertiser_data(
-		    app.advertising_set_handle,
-		    (const data_point_t *)&app.current_data_point
-		);
-		app_assert_status_f(sc);
 	}
 }
 
@@ -400,7 +176,8 @@ void sl_bt_on_event(sl_bt_msg_t *evt) {
 		// Generate data for advertising
 		sc = app_set_legacy_advertiser_data(
 		    app.advertising_set_handle,
-		    (const data_point_t *)&app.current_data_point
+		    app_es_current_data()
+
 		);
 		app_assert_status(sc);
 
@@ -436,7 +213,7 @@ void sl_bt_on_event(sl_bt_msg_t *evt) {
 		// Generate data for advertising
 		sc = app_set_legacy_advertiser_data(
 		    app.advertising_set_handle,
-		    (const data_point_t *)&app.current_data_point
+		    app_es_current_data()
 		);
 
 		app_assert_status(sc);
@@ -479,15 +256,15 @@ void _app_on_gatt_server_user_read_request(
 	sl_status_t sc;
 	switch (req->characteristic) {
 	case gattdb_current_time_epoch: {
-		uint32_t time = sl_sleeptimer_get_time() + app.time_offset;
-		sc            = sl_bt_gatt_server_send_user_read_response(
-            req->connection,
-            req->characteristic,
-            0,
-            sizeof(time),
-            (const uint8_t *)&time,
-            0
-        );
+		sl_sleeptimer_timestamp_t time = app_es_get_current_unix_time();
+		sc = sl_bt_gatt_server_send_user_read_response(
+		    req->connection,
+		    req->characteristic,
+		    0,
+		    sizeof(time),
+		    (const uint8_t *)&time,
+		    0
+		);
 		app_assert_status(sc);
 		break;
 	}
@@ -519,7 +296,7 @@ void _app_on_gatt_server_user_write_request(
 			err = SL_STATUS_BT_ATT_INVALID_ATT_LENGTH & 0xff;
 		} else {
 			memcpy(&now, req->value.data, sizeof(sl_sleeptimer_timestamp_t));
-			app.time_offset = now - sl_sleeptimer_get_time();
+			app_es_set_current_unix_time(now);
 		}
 		sl_bt_gatt_server_send_user_write_response(
 		    req->connection,
@@ -553,19 +330,32 @@ void _app_on_gatt_server_user_write_request(
 }
 
 bool app_is_ok_to_sleep(void) {
-	return journal_is_ok_to_sleep() && i2c_schd_is_ok_to_sleep(&app.i2c0);
+	return journal_is_ok_to_sleep() && i2c_schd_is_ok_to_sleep(&app.i2c0) &&
+	       app_es_is_ok_to_sleep();
 }
 
-void _app_on_batt_timer_timeout(
-    sl_sleeptimer_timer_handle_t *timer, void *user_data
-) {
-	(void)timer;
-	(void)user_data;
-	sl_status_t status = batt_monitor_start_measurement();
+void _app_on_es_readout(sl_status_t status, const data_point_t *point) {
 	if (status != SL_STATUS_OK) {
-		app_log_error(
-		    "[app] could not start battery level measurement: %s." APP_LOG_NL,
-		    sl_status_get_string(status)
-		);
+		return;
+	}
+	if (point->date > JOURNAL_MINIMUM_DATE) {
+		sl_status_t status = journal_add_record(point);
+		if (status != SL_STATUS_OK) {
+			app_log_error(
+			    "[app] could not save new record to journal: %s" APP_LOG_NL,
+			    sl_status_get_string(status)
+			);
+		}
+	}
+
+	if (app.is_advertising == true) {
+		sl_status_t status =
+		    app_set_legacy_advertiser_data(app.advertising_set_handle, point);
+		if (status != SL_STATUS_OK) {
+			app_log_error(
+			    "[app] could not setup advertisement data: %s." APP_LOG_NL,
+			    sl_status_get_string(status)
+			);
+		}
 	}
 }

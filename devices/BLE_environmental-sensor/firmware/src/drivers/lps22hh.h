@@ -31,7 +31,7 @@ typedef struct lps22hh_config {
 	/// default (0x5C).
 	bool               addrLSBSet;
 	/// GPIO pin configured for the sensor's data ready (DRDY) interrupt.
-	const sl_gpio_t   *interrupt_pin;
+	const sl_gpio_t    interrupt_pin;
 } lps22hh_config_t;
 
 /**
@@ -123,8 +123,8 @@ struct lps22hh_handle {
 	uint8_t                      address;
 	sl_sleeptimer_timer_handle_t timer;
 
-	const sl_gpio_t *data_ready_pin;
-	int32_t          interrupt_number;
+	sl_gpio_t data_ready_pin;
+	int32_t   interrupt_number;
 
 	uint8_t read_buffer[3];
 

@@ -19,6 +19,8 @@ add_executable(BLE_environmental_sensor
     # Add additional sources here
 	${PROJECT_SOURCE_DIR}/../src/app.c
 	${PROJECT_SOURCE_DIR}/../src/app.h
+	${PROJECT_SOURCE_DIR}/../src/app_es.c
+	${PROJECT_SOURCE_DIR}/../src/app_es.h
 	${PROJECT_SOURCE_DIR}/../src/types.h
 	${PROJECT_SOURCE_DIR}/../src/drivers/lps22hh.c
 	${PROJECT_SOURCE_DIR}/../src/drivers/lps22hh.h

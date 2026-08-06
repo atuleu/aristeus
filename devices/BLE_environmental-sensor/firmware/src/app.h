@@ -30,11 +30,8 @@
 
 #pragma once
 
-#include "drivers/lps22hh.h"
-#include "drivers/sht4x.h"
-#include "drivers/stcc4.h"
+#include "drivers/i2c_schd.h"
 #include "sl_bt_api.h"
-#include "sl_sleeptimer.h"
 #include "types.h"
 #include <stdbool.h>
 
@@ -48,21 +45,13 @@
 #define SENSOR_READOUT_PERIOD_S 10
 #define BT_ADV_PERIOD_MS        1000
 #endif
-typedef struct app_handle {
-	uint8_t                      advertising_set_handle;
-	sl_sleeptimer_timer_handle_t sensor_timer, batt_timer;
-	volatile bool                is_advertising;
-	i2c_schd_handle_t            i2c0;
-	sht4x_handle_t               sht4x_sensor;
-	const sl_gpio_t              data_ready;
-	lps22hh_handle_t             lps22hh_sensor;
-	stcc4_handle_t               stcc4_sensor;
 
-	volatile data_point_t     current_data_point;
-	volatile bool             new_sht4x_data;
-	volatile bool             new_lps22hh_data;
-	volatile bool             new_stcc4_data;
-	sl_sleeptimer_timestamp_t time_offset;
+typedef struct app_handle {
+	uint8_t       advertising_set_handle;
+	volatile bool is_advertising;
+
+	i2c_schd_handle_t i2c0;
+
 } app_handle_t;
 
 extern app_handle_t app;
@@ -94,30 +83,11 @@ void app_init();
 sl_status_t
 app_set_legacy_advertiser_data(uint8_t advertising_set, const data_point_t *d);
 
-void _app_on_lps22hh_readout(
-    sl_status_t status, pressure_t pressure, void *user_data
-);
-void _app_on_sht4x_readout(
-    sl_status_t   status,
-    temperature_t temperature,
-    humidity_t    humidity,
-    void         *user_data
-);
-
-void _app_on_stcc4_readout(
-    sl_status_t status, co2_concentration_t co2, void *user_data
-);
-void _app_on_sensor_timer_timeout(
-    sl_sleeptimer_timer_handle_t *timer, void *user_data
-);
-
-void _app_on_batt_timer_timeout(
-    sl_sleeptimer_timer_handle_t *timer, void *user_data
-);
-
 void _app_on_gatt_server_user_read_request(
     sl_bt_evt_gatt_server_user_read_request_t *req
 );
 void _app_on_gatt_server_user_write_request(
     sl_bt_evt_gatt_server_user_write_request_t *req
 );
+
+void _app_on_es_readout(sl_status_t status, const data_point_t *point);
