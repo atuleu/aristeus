@@ -222,6 +222,9 @@ sl_status_t app_es_init(const app_es_config_t *config) {
 	}
 	app_log_info("[app_es] started read loop." APP_LOG_NL);
 
+#ifndef PRODUCTION_BUILD
+	_app_es_on_sensor_timer_timeout(NULL, NULL);
+#endif //  PRODUCTION_BUILD
 	return SL_STATUS_OK;
 }
 
