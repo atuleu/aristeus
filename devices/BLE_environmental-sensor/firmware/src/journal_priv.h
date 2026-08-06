@@ -38,6 +38,15 @@ SL_ENUM(journal_operation_t){
     journal_op_erase,
 };
 
+SL_ENUM(journal_read_state_t){
+    journal_read_state_idle = 0,
+    journal_read_state_need_chunk,
+    journal_read_state_reading_chunk,
+    journal_read_state_paused,
+    journal_read_state_resume,
+    journal_read_state_abord,
+};
+
 typedef struct journal {
 	journal_input_queue_t        queue;
 	bool                         preempt_sleeping;
@@ -57,7 +66,9 @@ typedef struct journal {
 	journal_index_t           next_index, first_index;
 	sl_sleeptimer_timestamp_t first_timestamp, last_timestamp;
 
+	volatile journal_read_state_t      read_state;
 	volatile journal_index_t           read_start, read_end;
+	uint8_t                            read_chunk_idx, read_chunk_size;
 	journal_read_callback_t            read_callback;
 	void                              *read_user_data;
 	journal_find_callback_t            find_callback;
@@ -88,9 +99,7 @@ void _journal_mark_current_operation_done(sl_status_t status, void *user_data);
 void _journal_on_write(sl_status_t status, void *user_data);
 void _journal_on_sleep(sl_status_t status, void *user_data);
 
-void _journal_read_send_data_point(const journal_record_t *record);
-void _journal_read_next();
-void _journal_on_chunk_read(sl_status_t status);
+void _journal_read_current_chunk(sl_status_t status);
 
 void _journal_on_find_step(sl_status_t status, void *user_data);
 void _journal_on_find_done(sl_status_t status);
@@ -101,7 +110,7 @@ void _journal_find_step();
 void _journal_complete_find(
     sl_status_t status, journal_index_t index, sl_sleeptimer_timestamp_t ts
 );
-void _journal_complete_read_from_main(sl_status_t status);
+void _journal_complete_read(sl_status_t status);
 void _journal_on_read_first_idx(sl_status_t status, void *user_data);
 void _journal_on_read_last_idx(sl_status_t status, void *user_data);
 void _journal_on_find_next_idx(

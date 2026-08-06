@@ -225,20 +225,22 @@ TEST_F(JournalTest, FullBadCRC) {
 	EXPECT_EQ(journal_find_last_before(11, &on_find, &found), SL_STATUS_EMPTY);
 }
 
-void on_read(sl_status_t status, const data_point_t *dp, void *user_data) {
+journal_read_next_operation_t
+on_read(sl_status_t status, const data_point_t *dp, void *user_data) {
 	sl_sleeptimer_timestamp_t *expected =
 	    reinterpret_cast<sl_sleeptimer_timestamp_t *>(user_data);
 	EXPECT_EQ(status, SL_STATUS_OK);
 	if (*expected == 170) {
 		EXPECT_EQ(dp, nullptr);
-		return;
+		return journal_read_continue;
 	}
 	if (dp == nullptr) {
 		ADD_FAILURE() << "early termination " << *expected;
-		return;
+		return journal_read_discard;
 	}
 	EXPECT_EQ(dp->date, *expected);
 	*expected += 10;
+	return journal_read_continue;
 }
 
 TEST_F(JournalTest, CannotPutMoreThanSize) {

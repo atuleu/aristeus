@@ -184,18 +184,36 @@ bool _journal_start_next_read() {
 	CORE_DECLARE_IRQ_STATE;
 	CORE_ENTER_ATOMIC();
 
-	if (j.read_start >= j.read_end) {
+	if (j.read_state != journal_read_state_need_chunk) {
+		// we do not need a chunk
 		CORE_EXIT_ATOMIC();
-		app_log_debug(
-		    "[journal] attempting to read: nothing to read." APP_LOG_NL
-		);
 		return false;
 	}
 
 	j.operation = journal_op_read;
 	CORE_EXIT_ATOMIC();
 
-	_journal_read_next();
+	j.read_chunk_idx  = 0;
+	j.read_chunk_size = JOURNAL_READ_CHUNK;
+	if ((j.read_end - j.read_start) < JOURNAL_READ_CHUNK) {
+		j.read_chunk_size = j.read_end - j.read_start;
+	}
+
+	sl_status_t status = spiflash_read(
+	    j.read_start * sizeof(journal_record_t),
+	    j.buffer.bytes,
+	    sizeof(journal_record_t) * j.read_chunk_size,
+	    &_journal_mark_current_operation_done,
+	    NULL
+	);
+
+	if (status != SL_STATUS_OK) {
+		_journal_mark_current_operation_done(
+		    SL_STATUS_FLASH_VERIFY_FAILED,
+		    NULL
+		);
+	}
+
 	return true;
 }
 
@@ -259,10 +277,11 @@ sl_status_t journal_read(
 
 	CORE_DECLARE_IRQ_STATE;
 	CORE_ENTER_ATOMIC();
-	if (j.read_callback != NULL) {
+	if (j.read_state != journal_read_state_idle) {
 		CORE_EXIT_ATOMIC();
 		return SL_STATUS_BUSY;
 	}
+	j.read_state     = journal_read_state_need_chunk;
 	j.read_callback  = callback;
 	j.read_user_data = user_data;
 	j.read_start     = start;
@@ -272,27 +291,6 @@ sl_status_t journal_read(
 	_journal_start_next_operation();
 
 	return SL_STATUS_OK;
-}
-
-void _journal_read_next() {
-	journal_index_t end = j.read_start + JOURNAL_READ_CHUNK;
-	if (end > j.read_end) {
-		end = j.read_end;
-	}
-	sl_status_t status = spiflash_read(
-	    j.read_start * sizeof(journal_record_t),
-	    j.buffer.bytes,
-	    sizeof(journal_record_t) * (end - j.read_start),
-	    &_journal_mark_current_operation_done,
-	    NULL
-	);
-
-	if (status != SL_STATUS_OK) {
-		_journal_mark_current_operation_done(
-		    SL_STATUS_FLASH_VERIFY_FAILED,
-		    NULL
-		);
-	}
 }
 
 void _journal_mark_current_operation_done(sl_status_t status, void *user_data) {
@@ -306,36 +304,76 @@ void _journal_mark_current_operation_done(sl_status_t status, void *user_data) {
 	_journal_enter_deepsleep();
 }
 
-void _journal_on_chunk_read(sl_status_t status) {
-
+void _journal_read_current_chunk(sl_status_t status) {
 	if (status != SL_STATUS_OK) {
-		_journal_complete_read_from_main(status);
+		_journal_complete_read(status);
 		return;
 	}
-
-	journal_index_t count = j.read_end - j.read_start;
-
-	if (count > JOURNAL_READ_CHUNK) {
-		count = JOURNAL_READ_CHUNK;
+	CORE_DECLARE_IRQ_STATE;
+	CORE_ENTER_ATOMIC();
+	if (j.read_state == journal_read_state_abord) {
+		// we aborded while spiflash read was in flight
+		CORE_EXIT_ATOMIC();
+		_journal_complete_read(SL_STATUS_ABORT);
+		return;
 	}
+	j.read_state = journal_read_state_reading_chunk;
+	CORE_EXIT_ATOMIC();
 
-	for (uint8_t i = 0; i < count; ++i) {
-		const journal_record_t *record = &j.buffer.records[i];
-		if (journal_record_check_crc(record) == true) {
-			_journal_read_send_data_point(record);
-		} else {
+	const journal_record_t *record = NULL;
+	// find next valid record
+	for (; j.read_chunk_idx < j.read_chunk_size; j.read_chunk_idx++) {
+		record = &j.buffer.records[j.read_chunk_idx];
+		if (journal_record_check_crc(record) == false) {
 			app_log_warning(
-			    "[journal] Bad CRC at address %ld." APP_LOG_NL,
-			    j.read_start + i
+			    "[journal] bad CRC at index %ld." APP_LOG_NL,
+			    j.read_start + j.read_chunk_idx
 			);
+			continue;
+		}
+		data_point_t dp;
+		journal_record_to_data_point(record, &dp);
+		journal_read_next_operation_t next_operation = journal_read_discard;
+		if (j.read_callback) {
+			next_operation =
+			    j.read_callback(SL_STATUS_OK, &dp, j.read_user_data);
+		}
+		CORE_ENTER_ATOMIC();
+		if (j.read_state == journal_read_state_abord) {
+			CORE_EXIT_ATOMIC();
+			_journal_complete_read(SL_STATUS_ABORT);
+			return;
+		}
+
+		switch (next_operation) {
+		case journal_read_continue:
+			CORE_EXIT_ATOMIC();
+			break;
+		case journal_read_pause:
+			j.read_state = journal_read_state_paused;
+			j.read_chunk_idx++;
+			CORE_EXIT_ATOMIC();
+			return;
+		case journal_read_discard:
+			// user discard, all, we are free of any read.
+			j.read_state     = journal_read_state_idle;
+			j.read_callback  = NULL;
+			j.read_user_data = NULL;
+			CORE_EXIT_ATOMIC();
+			return;
 		}
 	}
-
-	j.read_start += count;
+	// full chunk was read
+	j.read_start += j.read_chunk_size;
 
 	if (j.read_start >= j.read_end) {
-		_journal_complete_read_from_main(SL_STATUS_OK);
+		// we are done
+		_journal_complete_read(SL_STATUS_OK);
+		return;
 	}
+	CORE_ATOMIC_SECTION({ j.read_state = journal_read_state_need_chunk; });
+	// re-schedule a read, may fire twice, but its ok.
+	_journal_start_next_operation();
 }
 
 void _journal_read_send_data_point(const journal_record_t *record) {
@@ -506,9 +544,7 @@ sl_status_t journal_init() {
 	j.last_timestamp  = UINT32_MAX;
 	j.first_timestamp = UINT32_MAX;
 
-	j.read_start    = 0;
-	j.read_end      = 0;
-	j.read_callback = NULL;
+	j.read_state = journal_read_state_idle;
 
 	// this will prevent any write before initialization;
 	j.find_callback = NULL;
@@ -789,6 +825,7 @@ void _journal_on_erase(sl_status_t status, void *user_data) {
 void journal_process_action() {
 	journal_operation_t finished_operation;
 	sl_status_t         status;
+
 	CORE_ATOMIC_SECTION({
 		finished_operation = j.operation_done;
 		status             = j.operation_done_status;
@@ -796,11 +833,13 @@ void journal_process_action() {
 	});
 	switch (finished_operation) {
 	case journal_op_none:
-		return;
+		break;
 	case journal_op_read:
-		_journal_on_chunk_read(status);
+		// may re-schedule a read and starts pending operation.
+		_journal_read_current_chunk(status);
 		break;
 	case journal_op_find:
+		// also starts pending operations
 		_journal_on_find_done(status);
 		break;
 	default:
@@ -809,16 +848,41 @@ void journal_process_action() {
 		    finished_operation,
 		    sl_status_get_string(status)
 		);
+		// still we start any pending operation
+		_journal_start_next_operation();
 	}
-	_journal_start_next_operation();
+
+	journal_read_state_t read_state;
+	CORE_ATOMIC_SECTION({
+		read_state = j.read_state;
+		if (j.read_state == journal_read_state_resume) {
+			j.read_state = journal_read_state_reading_chunk;
+		}
+	});
+	switch (read_state) {
+	case journal_read_state_resume:
+		_journal_read_current_chunk(SL_STATUS_OK);
+		break;
+	case journal_read_state_abord:
+		_journal_complete_read(SL_STATUS_ABORT);
+		break;
+	default:
+		// no operation completion pending since either already done, or no
+		// completion, and no resume abord done.
+	}
+
+	// no need to start pending operation. idle should not
+	// read/write/find/erase/sleep starts the operation on the fly if not busy.
+	// resume also through chunk, and abord is just a cleanup.
 }
 
-void _journal_complete_read_from_main(sl_status_t status) {
+void _journal_complete_read(sl_status_t status) {
 	journal_read_callback_t callback;
 	void                   *user_data;
 	CORE_ATOMIC_SECTION({
 		callback         = j.read_callback;
 		user_data        = j.read_user_data;
+		j.read_state     = journal_read_state_idle;
 		j.read_callback  = NULL;
 		j.read_user_data = NULL;
 	});
@@ -843,10 +907,41 @@ void _journal_on_find_done(sl_status_t status) {
 		return;
 	}
 	callback(status, j.low, j.low_ts, user_data);
+
+	_journal_start_next_operation();
 }
 
 bool journal_is_ok_to_sleep() {
 	// we can sleep if there is no completion pending, that requires the
-	// main loop
-	return j.operation_done == journal_op_none;
+	// main loop, or a read resume scheduled.
+	return j.operation_done == journal_op_none &&
+	       j.read_state != journal_read_state_resume &&
+	       j.read_state != journal_read_state_abord;
+}
+
+sl_status_t journal_read_resume() {
+	CORE_DECLARE_IRQ_STATE;
+	CORE_ENTER_ATOMIC();
+	if (j.read_state != journal_read_state_paused) {
+		CORE_EXIT_ATOMIC();
+		return SL_STATUS_INVALID_STATE;
+	}
+	j.read_state = journal_read_state_resume;
+	CORE_EXIT_ATOMIC();
+
+	return SL_STATUS_OK;
+}
+
+sl_status_t journal_read_abord() {
+	CORE_DECLARE_IRQ_STATE;
+	CORE_ENTER_ATOMIC();
+	if (j.read_state == journal_read_state_idle) {
+		CORE_EXIT_ATOMIC();
+		return SL_STATUS_INVALID_STATE;
+	}
+
+	j.read_state = journal_read_state_abord;
+	CORE_EXIT_ATOMIC();
+
+	return SL_STATUS_OK;
 }

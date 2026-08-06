@@ -1,5 +1,6 @@
 #pragma once
 
+#include "sl_enum.h"
 #include "sl_sleeptimer.h"
 #include "sl_status.h"
 #include "types.h"
@@ -46,7 +47,8 @@ bool journal_is_ok_to_sleep();
 typedef uint32_t journal_index_t;
 
 /**
- * Asdynchronously adds a record to the journal.
+ * Asdynchronously adds a record to the journal. Note that the input is queued,
+ * so it won't error if another operation is in flight.
  */
 sl_status_t journal_add_record(const data_point_t *dp);
 
@@ -88,6 +90,14 @@ sl_status_t journal_find_last_before(
     void                     *user_data
 );
 
+SL_ENUM(journal_read_next_operation_t){
+    journal_read_continue = 0, // value consumed, and give another one ASAP.
+    journal_read_pause =
+        1, // value consumed, but wait for a resume to give another one.
+    journal_read_discard = 2, // value consumed, but discard all remaining value
+                              // and stop immediatly.
+};
+
 /**
  * Callback function type for journal_read. The callback is not called from ISR.
  *
@@ -96,8 +106,11 @@ sl_status_t journal_find_last_before(
  * @param point The data point read from the journal, or NULL if the read is
  *       complete or if there was an error.
  * @param user_data User-defined data passed to the callback.
+ *
+ * @return the user should return what to do next with the remaining values to
+ * be read.
  */
-typedef void (*journal_read_callback_t)(
+typedef journal_read_next_operation_t (*journal_read_callback_t)(
     sl_status_t status, const data_point_t *point, void *user_data
 );
 
@@ -119,9 +132,27 @@ sl_status_t journal_read(
 );
 
 /**
+ * Resume read operation ASAP, can be called from ISR.
+ *
+ * @return SL_STATUS_OK or an error otherwise.
+ */
+sl_status_t journal_read_resume();
+
+/**
+ * Abort current read operation. Best effort and some read can still be seen by
+ * the user afterwards.
+ *
+ * @return SL_STATUS_OK or an error otherwise.
+ */
+sl_status_t journal_read_abord();
+
+/**
  * Asynchronously erases all records in the journal. The operation is
  * non-blocking and will complete in the background. The journal will be empty
  * after this operation.
+ *
+ * @return SL_STATUS_BUSY if an operation is currently in flight. SL_STATUS_OK
+ * if the operation is started (but not completed)
  */
 
 sl_status_t journal_erase();
