@@ -129,7 +129,7 @@ battery_level_t batt_monitor_get_current_level() {
 	    {.voltage_mv = 2000, .capacity = 0},
 	};
 
-	if (avdd_mv > 3100) {
+	if (avdd_mv > 3200) {
 		app_log_warning(
 		    "[batt_monitor] likely running on external power supply." APP_LOG_NL
 		);
