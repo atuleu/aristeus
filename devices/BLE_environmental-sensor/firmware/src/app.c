@@ -124,18 +124,19 @@ app_set_legacy_advertiser_data(uint8_t advertising_set, const data_point_t *d) {
 	adv_data[adv_data_len++] = 0x02;
 	adv_data[adv_data_len++] = 0x0A; // AD Type: Xmit Power
 	adv_data[adv_data_len++] = MIN((uint16_t)255, power / 10);
-	adv_data[adv_data_len++] = sizeof(data_point_t) + 3 + 3;
-	adv_data[adv_data_len++] = 0xff; // AD Type: Manufacturer data
-	adv_data[adv_data_len++] = 0xff;
-	adv_data[adv_data_len++] = 0xff; // non -registered manufacturer
 
-	location_t location = location_get();
+	adv_data[adv_data_len++] = sizeof(advertisement_data_t);
 
-	adv_data[adv_data_len++] = location.hive_id;
-	adv_data[adv_data_len++] = location.placement;
-	adv_data[adv_data_len++] = batt_monitor_get_current_level();
-	memcpy(&adv_data[adv_data_len], d, sizeof(data_point_t));
-	adv_data_len += sizeof(data_point_t);
+	advertisement_data_t *app_data =
+	    (advertisement_data_t *)&adv_data[adv_data_len];
+	adv_data_len += sizeof(advertisement_data_t);
+
+	app_data->ad_type         = 0xFF;   // AD Type: Manufacturer data
+	app_data->manufacturer_id = 0xFFFF; // non-registered manufacturer;
+	app_data->location        = location_get();
+	app_data->battery         = batt_monitor_get_current_level();
+	app_data->memory_level    = journal_record_count() >> 8;
+	app_data->measurement     = *d;
 
 	app_assert(adv_data_len <= 31, "adv packet too large");
 

@@ -55,8 +55,8 @@ typedef struct __attribute__((packed)) data_point {
 static_assert(sizeof(data_point_t) == 14, "Data point size mismatch");
 
 typedef struct __attribute__((packed)) advertisement_data {
-	const uint8_t   ad_type;
-	const uint16_t  manufacturer_id;
+	uint8_t         ad_type;
+	uint16_t        manufacturer_id;
 	location_t      location;
 	battery_level_t battery;
 	uint8_t         memory_level;

@@ -960,6 +960,12 @@ sl_status_t journal_read_abord() {
 
 uint16_t journal_record_count() {
 	uint16_t count;
-	CORE_ATOMIC_SECTION({ count = j.next_index; });
+	CORE_ATOMIC_SECTION({
+		if (j.next_index > UINT16_MAX) {
+			count = 0;
+		} else {
+			count = j.next_index;
+		}
+	});
 	return count;
 }
