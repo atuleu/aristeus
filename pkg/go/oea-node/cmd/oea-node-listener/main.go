@@ -81,9 +81,12 @@ type DataPoint struct {
 	CO2         CO2Concentration
 }
 
+var CustomServiceUUID = ble.MustParse("63f3777c-b5d5-4882-b27e-b67ef3cce019")
+var EpochCharUUID = ble.MustParse("386dcd19-e901-4615-b872-b35189ae1754")
+
 func ParseDatapoint(b []byte) (DataPoint, error) {
 	res := DataPoint{
-		Timestamp:   0xffffffff,
+		Timestamp:   time.Unix(-1, 0),
 		Temperature: -0x8000,
 		Humidity:    0xffff,
 		Pressure:    0xFFFFFFFF,
@@ -144,9 +147,50 @@ func onAdvertisement(adv ble.Advertisement) {
 		slog.String("co2", d.Data.CO2.String()),
 	)
 
-	if time.Now().Sub(d.Data.Timestamp).Abs() > 2*time.Minute {
-		slog.Warn("device out of sync")
+	if time.Now().Sub(d.Data.Timestamp).Abs() < 2*time.Minute {
+		return
+	}
+	slog.Warn("device out of sync, connecting")
 
+	client, err := ble.Connect(context.Background(), func(cadv ble.Advertisement) bool {
+		return cadv.Addr().String() == adv.Addr().String()
+	})
+	if err != nil {
+		slog.Error("could not connect to %s", adv.Addr(), ErrAttr(err))
+		return
+	}
+	defer client.Conn().Close()
+
+	profile, err := client.DiscoverProfile(false)
+	if err != nil {
+		slog.Error("could not discover profile", ErrAttr(err))
+		return
+	}
+	var target *ble.Characteristic = nil
+	for _, service := range profile.Services {
+		if service.UUID.Equal(CustomServiceUUID) == false {
+			continue
+		}
+		for _, char := range service.Characteristics {
+			if char.UUID.Equal(EpochCharUUID) == true {
+				target = char
+			}
+		}
+	}
+	if target == nil {
+		slog.Error("could not find EPOCH char")
+		return
+	}
+
+	payload := []byte{}
+	epoch32 := uint32(time.Now().Unix())
+	binary.BigEndian.AppendUint32(payload, epoch32)
+
+	err = client.WriteCharacteristic(target, payload, false)
+	if err != nil {
+		slog.Error("could not set EPOCH", ErrAttr(err))
+	} else {
+		slog.Info("synced device")
 	}
 
 }
