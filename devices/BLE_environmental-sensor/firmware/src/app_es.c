@@ -425,7 +425,16 @@ sl_sleeptimer_timestamp_t app_es_get_current_unix_time() {
 }
 
 void app_es_set_current_unix_time(sl_sleeptimer_timestamp_t now) {
-	CORE_ATOMIC_SECTION({ self.time_offset = now - sl_sleeptimer_get_time(); });
+	uint32_t old_offset;
+	CORE_ATOMIC_SECTION({
+		old_offset       = self.time_offset;
+		self.time_offset = now - sl_sleeptimer_get_time();
+	});
+	uint32_t diff = self.time_offset - old_offset;
+	if (self.new_data_point.date != UINT32_MAX) {
+		self.new_data_point.date += diff;
+	}
+	self.current_data_point.date += diff;
 }
 
 const data_point_t *app_es_current_data() {
