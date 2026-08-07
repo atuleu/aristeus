@@ -731,10 +731,10 @@ void _app_racp_user_write_request_handler(
 	);
 	const char *sep = "{ ";
 	for (int i = 1; i < req->value.len; ++i) {
-		app_log("%s%02X", sep, req->value.data[i]);
+		app_log_append("%s%02X", sep, req->value.data[i]);
 		sep = ", ";
 	}
-	app_log(" }," APP_LOG_NL);
+	app_log_append(" }" APP_LOG_NL);
 #endif // PRODUCTION_BUILD
 	if (req->value.len < 2) {
 		sl_bt_gatt_server_send_user_write_response(
@@ -1009,6 +1009,7 @@ void _app_find_journal_range_inclusive(
     sl_sleeptimer_timestamp_t low,
     sl_sleeptimer_timestamp_t high
 ) {
+
 	app.connection.procedure_in_progress = true;
 	_app_connection_wd_stop(&app.connection);
 	app.connection.procedure_opcode       = opcode;
@@ -1018,7 +1019,23 @@ void _app_find_journal_range_inclusive(
 	// first we search for high
 	sl_status_t status =
 	    journal_find_last_before(high, &_app_on_find_last_before, NULL);
+	if (status == SL_STATUS_EMPTY || status == SL_STATUS_INVALID_RANGE) {
+		// early failure, either empty journal, or all value are bigger than
+		// high.
+		_app_procedure_action(
+		    SL_STATUS_OK,
+		    JOURNAL_INDEX_NPOS,
+		    JOURNAL_INDEX_NPOS
+		);
+		return;
+	}
+
 	if (status != SL_STATUS_OK) {
+		app_log_warning(
+		    "[app] could not run RACP procedure (OpCode:%d): %s." APP_LOG_NL,
+		    opcode,
+		    sl_status_get_string(status)
+		);
 		_app_complete_procedure(racp_rsp_procedure_not_completed);
 		return;
 	}
@@ -1034,12 +1051,7 @@ void _app_on_find_last_before(
 	(void)ts;
 	if (status != SL_STATUS_OK || idx == JOURNAL_INDEX_NPOS) {
 		if (app.connection.procedure_end_value == JOURNAL_INDEX_NPOS) {
-			// we cannot find the high, bound, so no records !!!
-			if (status == SL_STATUS_EMPTY ||
-			    status == SL_STATUS_INVALID_RANGE) {
-				// journal has no data, or data > end timestamp, this is OK case
-				status = SL_STATUS_OK;
-			}
+			// we cannot find the high, bound failure it
 			_app_procedure_action(
 			    status,
 			    JOURNAL_INDEX_NPOS,
@@ -1066,8 +1078,8 @@ void _app_on_find_last_before(
 		return;
 	}
 
-	// end search case; successfull
-	app.connection.procedure_end_value = idx;
+	// end search case; successfull, the end of the range is idx+1!!!!
+	app.connection.procedure_end_value = idx + 1;
 
 	status = journal_find_last_before(
 	    app.connection.procedure_start_target,
@@ -1080,7 +1092,11 @@ void _app_on_find_last_before(
 	}
 
 	if (status == SL_STATUS_EMPTY || status == SL_STATUS_INVALID_RANGE) {
-		_app_procedure_action(SL_STATUS_OK, 0, idx);
+		_app_procedure_action(
+		    SL_STATUS_OK,
+		    0,
+		    app.connection.procedure_end_value
+		);
 		return;
 	}
 
