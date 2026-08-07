@@ -152,20 +152,20 @@ func onAdvertisement(adv ble.Advertisement) {
 	}
 	slog.Warn("device out of sync, connecting")
 
-	client, err := ble.Connect(context.Background(), func(cadv ble.Advertisement) bool {
-		return cadv.Addr().String() == adv.Addr().String()
-	})
+	client, err := ble.Dial(context.Background(), adv.Addr())
 	if err != nil {
 		slog.Error("could not connect to %s", adv.Addr(), ErrAttr(err))
 		return
 	}
 	defer client.Conn().Close()
 
+	slog.Info("fetching profile")
 	profile, err := client.DiscoverProfile(false)
 	if err != nil {
 		slog.Error("could not discover profile", ErrAttr(err))
 		return
 	}
+
 	var target *ble.Characteristic = nil
 	for _, service := range profile.Services {
 		if service.UUID.Equal(CustomServiceUUID) == false {
@@ -184,7 +184,12 @@ func onAdvertisement(adv ble.Advertisement) {
 
 	payload := []byte{}
 	epoch32 := uint32(time.Now().Unix())
-	binary.BigEndian.AppendUint32(payload, epoch32)
+
+	payload = binary.LittleEndian.AppendUint32(payload, epoch32)
+	slog.Info("sending payload",
+		slog.Any("bytes", fmt.Sprintf("%02X", payload)),
+		slog.Int("EPOCH", int(epoch32)),
+	)
 
 	err = client.WriteCharacteristic(target, payload, false)
 	if err != nil {
