@@ -40,7 +40,7 @@ static app_es_handle_t self = {
             .temperature = GATT_TEMPERATURE_NAN,
             .humidity    = GATT_HUMIDITY_NAN,
             .pressure    = GATT_PRESSURE_NAN,
-            .c02         = GATT_CO2_NAN,
+            .co2         = GATT_CO2_NAN,
         },
     .new_data_point =
         {
@@ -48,7 +48,7 @@ static app_es_handle_t self = {
             .temperature = GATT_TEMPERATURE_NAN,
             .humidity    = GATT_HUMIDITY_NAN,
             .pressure    = GATT_PRESSURE_NAN,
-            .c02         = GATT_CO2_NAN,
+            .co2         = GATT_CO2_NAN,
         },
 
     .lps22hh_readout_status = SL_STATUS_NO_STATUS,
@@ -88,7 +88,7 @@ void _app_es_on_stcc4_readout(
 ) {
 	(void)user_data;
 	CORE_ATOMIC_SECTION({
-		self.new_data_point.c02   = co2;
+		self.new_data_point.co2   = co2;
 		self.stcc4_readout_status = status;
 	});
 }
@@ -105,7 +105,7 @@ void _app_es_on_sensor_timer_timeout(
 		self.new_data_point.temperature = GATT_TEMPERATURE_NAN;
 		self.new_data_point.humidity    = GATT_HUMIDITY_NAN;
 		self.new_data_point.pressure    = GATT_PRESSURE_NAN;
-		self.new_data_point.c02         = GATT_CO2_NAN;
+		self.new_data_point.co2         = GATT_CO2_NAN;
 		self.sht4x_done                 = false;
 		self.lps22hh_done               = false;
 	});
@@ -390,10 +390,10 @@ void _app_es_process_stcc4(sl_status_t status) {
 		    sl_status_get_string(status)
 		);
 	} else {
-		self.current_data_point.c02 = self.new_data_point.c02;
+		self.current_data_point.co2 = self.new_data_point.co2;
 		app_log_info(
 		    "[app_es] got CO2 concentration %dppm." APP_LOG_NL,
-		    self.new_data_point.c02
+		    self.new_data_point.co2
 		);
 	}
 	_app_es_complete_readout(SL_STATUS_OK);

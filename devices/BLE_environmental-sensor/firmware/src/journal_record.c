@@ -20,7 +20,7 @@ void journal_record_from_data_point(
 	r->data.temperature = dp->temperature;
 	r->data.humidity    = dp->humidity;
 	r->data.pressure    = dp->pressure;
-	r->data.co2         = dp->c02;
+	r->data.co2         = dp->co2;
 	r->data.crc         = _journal_record_compute_crc(
         (uint8_t *)&r->data,
         sizeof(journal_record_data_t) - sizeof(uint8_t)
@@ -32,7 +32,7 @@ void journal_record_to_data_point(const journal_record_t *r, data_point_t *dp) {
 	dp->temperature = r->data.temperature;
 	dp->humidity    = r->data.humidity;
 	dp->pressure    = r->data.pressure;
-	dp->c02         = r->data.co2;
+	dp->co2         = r->data.co2;
 }
 
 bool journal_record_header_check_crc(const journal_record_header_t *r) {
