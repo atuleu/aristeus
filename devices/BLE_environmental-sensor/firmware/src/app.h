@@ -53,8 +53,9 @@
 #define APP_CONNECTION_TIMEOUT_MS 120 * 1000
 #endif
 
-#define APP_CONNECTION_WD_SIGNAL      0x02
-#define APP_CONNECTION_ACK_INDICATION 0x01
+#define APP_SEND_NEXT_SIGNAL      0x01
+#define APP_CONNECTION_WD_SIGNAL  0x02
+#define APP_DEBUG_RESOURCE_SIGNAL 0x04
 
 typedef struct app_bt_connection {
 	uint8_t                      handle;
@@ -80,7 +81,7 @@ typedef struct app_handle {
 	i2c_schd_handle_t i2c0;
 
 	app_bt_connection_t connection;
-
+	bool                resource_are_low;
 } app_handle_t;
 
 extern app_handle_t app;
@@ -112,9 +113,7 @@ void app_init();
 sl_status_t
 app_set_legacy_advertiser_data(uint8_t advertising_set, const data_point_t *d);
 
-void _app_on_gatt_server_notification_tx_completed(
-    sl_bt_evt_gatt_server_notification_tx_completed_t *evt
-);
+void _app_on_ressource_status(sl_bt_evt_resource_status_t *evt);
 void _app_on_gatt_server_characteristic_status(
     sl_bt_evt_gatt_server_characteristic_status_t *evt
 );

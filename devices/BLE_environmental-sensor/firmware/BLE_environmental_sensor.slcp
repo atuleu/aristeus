@@ -52,6 +52,9 @@ component:
   id: bluetooth_feature_legacy_scanner
 - package: simplicity_sdk
   vendor: silabs
+  id: bluetooth_feature_resource_report
+- package: simplicity_sdk
+  vendor: silabs
   id: bluetooth_feature_sm
 - package: simplicity_sdk
   vendor: silabs

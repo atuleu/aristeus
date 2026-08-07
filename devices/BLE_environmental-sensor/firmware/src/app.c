@@ -57,6 +57,14 @@
 #include <drivers/sht4x.h>
 #include <stdio.h>
 #include <string.h>
+#include <sys/reent.h>
+
+#define BL_LOW_RESSOURCE_THRESHOLD  256
+#define BL_HIGH_RESSOURCE_THRESHOLD (1024 + 256)
+static_assert(
+    BL_HIGH_RESSOURCE_THRESHOLD / 2 > BL_LOW_RESSOURCE_THRESHOLD,
+    "weird behavior of the resource threshold stack to avoid"
+);
 
 app_handle_t app = {
     .advertising_set_handle = SL_BT_INVALID_ADVERTISING_SET_HANDLE,
@@ -66,6 +74,7 @@ app_handle_t app = {
             .racp_enabled                = false,
             .stream_notification_enabled = false,
         },
+    .resource_are_low = false,
 };
 
 // The advertising set handle allocated from Bluetooth stack.
@@ -183,11 +192,9 @@ void sl_bt_on_event(sl_bt_msg_t *evt) {
 	case sl_bt_evt_connection_closed_id:
 		_app_on_bt_connection_closed(&evt->data.evt_connection_closed);
 		break;
-	case sl_bt_evt_gatt_server_notification_tx_completed_id:
-		_app_connection_wd_reset();
-		_app_on_gatt_server_notification_tx_completed(
-		    &evt->data.evt_gatt_server_notification_tx_completed
-		);
+
+	case sl_bt_evt_resource_status_id:
+		_app_on_ressource_status(&evt->data.evt_resource_status);
 		break;
 
 	case sl_bt_evt_gatt_server_characteristic_status_id:
@@ -381,18 +388,66 @@ void _app_on_connection_wd_timeout(
 	});
 }
 
-void _app_on_external_signals(uint32_t events) {
-	if ((events & APP_CONNECTION_WD_SIGNAL) != 0x00) {
-		if (app.connection.wd_fired && _app_is_connected()) {
-			sl_bt_connection_close(app.connection.handle);
-			app_log_warning(
-			    "[app] closing connection after %d.%03ds of "
-			    "inactivity." APP_LOG_NL,
-			    APP_CONNECTION_TIMEOUT_MS / 1000,
-			    APP_CONNECTION_TIMEOUT_MS % 1000
+static inline void _app_on_send_next_signal() {
+	if (app.connection.procedure_in_progress == false ||
+	    app.connection.procedure_opcode == false ||
+	    app.resource_are_low == true) {
+		return;
+	}
+	sl_status_t status = journal_read_resume();
+	if (status != SL_STATUS_OK) {
+		app_log_error(
+		    "[app] could not resume read: %s." APP_LOG_NL,
+		    sl_status_get_string(status)
+		);
 
-			);
-		}
+		_app_complete_procedure(racp_rsp_procedure_not_completed);
+	}
+}
+
+static inline void _app_on_connection_wd_signal() {
+	if (app.connection.wd_fired == false || _app_is_connected() == false) {
+		return;
+	}
+	sl_bt_connection_close(app.connection.handle);
+	app_log_warning(
+	    "[app] closing connection after %d.%03ds of "
+	    "inactivity." APP_LOG_NL,
+	    APP_CONNECTION_TIMEOUT_MS / 1000,
+	    APP_CONNECTION_TIMEOUT_MS % 1000
+
+	);
+}
+
+static inline void _app_on_debug_resource_signal() {
+	uint32_t    total, free;
+	sl_status_t status = sl_bt_resource_get_status(&total, &free);
+	if (status != SL_STATUS_OK) {
+		app_log_error(
+		    "[app] could not poll resources: %s." APP_LOG_NL,
+		    sl_status_get_string(status)
+		);
+		return;
+	}
+
+	app_log_info(
+	    "[app] resources total:%ldB free:%ldB." APP_LOG_NL,
+	    total,
+	    free
+	);
+}
+
+void _app_on_external_signals(uint32_t events) {
+	if ((events & APP_SEND_NEXT_SIGNAL) != 0) {
+		_app_on_send_next_signal();
+	}
+
+	if ((events & APP_CONNECTION_WD_SIGNAL) != 0x00) {
+		_app_on_connection_wd_signal();
+	}
+
+	if ((events & APP_DEBUG_RESOURCE_SIGNAL) != 0x00) {
+		_app_on_debug_resource_signal();
 	}
 }
 
@@ -430,6 +485,12 @@ void _app_on_bt_system_boot() {
 	    SL_BT_INVALID_CONNECTION_HANDLE; // will preempt a spurous WD stop or
 	                                     // journal_read_abord.
 	_app_connection_reset(&app.connection);
+	app_assert_status(status);
+
+	status = sl_bt_resource_set_report_threshold(
+	    BL_LOW_RESSOURCE_THRESHOLD,
+	    BL_HIGH_RESSOURCE_THRESHOLD
+	);
 	app_assert_status(status);
 }
 
@@ -809,7 +870,7 @@ void _app_procedure_action(
     sl_status_t status, journal_index_t start, journal_index_t end
 ) {
 	racp_opcode_t opcode = app.connection.procedure_opcode;
-	app_log_info(
+	app_log_debug(
 	    "[app] running RACP procedure opcode=%02X, range_find_status=%s "
 	    "start=%ld end=%ld." APP_LOG_NL,
 	    opcode,
@@ -985,37 +1046,45 @@ journal_read_next_operation_t _app_on_record_read(
 		_app_complete_procedure(racp_rsp_procedure_not_completed);
 		return journal_read_discard;
 	}
+	// we mark that we have more to send
+	sl_bt_external_signal(APP_SEND_NEXT_SIGNAL);
 
 	return journal_read_pause;
 }
 
-void _app_on_gatt_server_notification_tx_completed(
-    sl_bt_evt_gatt_server_notification_tx_completed_t *evt
-) {
-	app_log_debug(
-	    "[app] notification TX completed handle=%02X count=%d." APP_LOG_NL,
-	    evt->connection,
-	    evt->count
+void _debug_timeout(sl_sleeptimer_timer_handle_t *timer, void *user_data) {
+	(void)timer;
+	(void)user_data;
+	sl_bt_external_signal(APP_DEBUG_RESOURCE_SIGNAL);
+}
+
+void _app_on_ressource_status(sl_bt_evt_resource_status_t *evt) {
+	static sl_sleeptimer_timer_handle_t debug_timer;
+	if (evt->free_bytes <= BL_LOW_RESSOURCE_THRESHOLD) {
+		app_log_warning(
+		    "[app] BT stack low on resource (%ldB)." APP_LOG_NL,
+		    evt->free_bytes
+		);
+		app.resource_are_low = true;
+		sl_sleeptimer_start_periodic_timer_ms(
+		    &debug_timer,
+		    1000,
+		    &_debug_timeout,
+		    NULL,
+		    0,
+		    0
+		);
+
+		return;
+	}
+	sl_sleeptimer_stop_timer(&debug_timer);
+	app_log_info(
+	    "[app] BT stack high on resources %ldB." APP_LOG_NL,
+	    evt->free_bytes
 	);
-
-	if (evt->connection != app.connection.handle || evt->count == 0) {
-		return;
-	}
-	if (app.connection.procedure_in_progress == false ||
-	    app.connection.procedure_opcode != racp_opcode_report_records) {
-		app_log_warning("[app] spurious notification handling, was EOR reached?"
-		);
-		return;
-	}
-
-	sl_status_t status = journal_read_resume();
-	if (status != SL_STATUS_OK) {
-		app_log_error(
-		    "[app] could not resume journal reading: %s." APP_LOG_NL,
-		    sl_status_get_string(status)
-		);
-		_app_complete_procedure(racp_rsp_procedure_not_completed);
-	}
+	app.resource_are_low = false;
+	// we continue to send if needed on high resource available
+	sl_bt_external_signal(APP_SEND_NEXT_SIGNAL);
 }
 
 void _app_complete_procedure(racp_rsp_t rsp_code) {
