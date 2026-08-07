@@ -127,7 +127,7 @@ void _app_es_on_sensor_timer_timeout(
 	);
 	if (s != SL_STATUS_OK) {
 		app_log_error(
-		    "[app_es] could not start SHT4X reading: %s" APP_LOG_NL,
+		    "[app_es] could not start SHT4X reading: %s." APP_LOG_NL,
 		    sl_status_get_string(s)
 		);
 		CORE_ATOMIC_SECTION({
@@ -142,7 +142,7 @@ void _app_es_on_sensor_timer_timeout(
 	);
 	if (s != SL_STATUS_OK) {
 		app_log_error(
-		    "[app_es] could not start LPS22HH reading: %s" APP_LOG_NL,
+		    "[app_es] could not start LPS22HH reading: %s." APP_LOG_NL,
 		    sl_status_get_string(s)
 		);
 		CORE_ATOMIC_SECTION({
@@ -397,7 +397,7 @@ void _app_es_process_lps22hh(sl_status_t status) {
 	self.current_data_point.pressure = self.new_data_point.pressure;
 
 	app_log_info(
-	    "[app_es] pressure: %ld.%03ld. hPa" APP_LOG_NL,
+	    "[app_es] pressure: %ld.%03ldhPa." APP_LOG_NL,
 	    self.new_data_point.pressure / 1000,
 	    self.new_data_point.pressure % 1000
 	);
