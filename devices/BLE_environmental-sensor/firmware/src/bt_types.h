@@ -11,13 +11,13 @@ extern "C" {
 // https://bitbucket.org/bluetooth-SIG/public/src/main/gss/org.bluetooth.characteristic.record_access_control_point.yaml
 
 SL_ENUM(racp_opcode_t){
-    racp_opcode_reserved            = 0x00,
-    racp_opcode_report_records      = 0x01,
-    racp_opcode_delete_records      = 0x02,
-    racp_opcode_abort_operation     = 0x03, // operator must be null, no operand
-    racp_opcode_report_number       = 0x04,
-    racp_opcode_rsp_number_response = 0x05,
-    racp_opcode_rsp_response_code   = 0x06,
+    racp_opcode_reserved        = 0x00,
+    racp_opcode_report_records  = 0x01,
+    racp_opcode_delete_records  = 0x02,
+    racp_opcode_abort_operation = 0x03, // operator must be null, no operand
+    racp_opcode_report_number   = 0x04,
+    racp_opcode_number_rsp      = 0x05,
+    racp_opcode_rsp             = 0x06,
 
 };
 
@@ -35,7 +35,7 @@ SL_ENUM(racp_rsp_t){
     /// Reserved for future use.
     racp_rsp_reserved                = 0x00,
     /// Normal response for successful operation.
-    racp_rsp_sucess                  = 0x01,
+    racp_rsp_success                 = 0x01,
     /// Error response if the unsupported Op Code is received.
     racp_rsp_opcode_not_supported    = 0x02,
     /// Error response if Operator received does not meet the requirement of the
@@ -50,9 +50,9 @@ SL_ENUM(racp_rsp_t){
     /// criteria. With racp_opcode_report_number
     /// racp_opcode_rtsp_number_response with value 0 is used when no record are
     /// found.
-    racp_rsp_code_no_record_found    = 0x06,
+    racp_rsp_no_record_found         = 0x06,
     /// Abort is sucessful.
-    racp_rsp_code_abort_sucessful    = 0x07,
+    racp_rsp_abort_sucessful         = 0x07,
     /// Error response if procedure connot be completed for any reason.
     racp_rsp_procedure_not_completed = 0x08,
     /// Error response if unsupported operand is received.

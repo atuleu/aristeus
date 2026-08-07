@@ -61,11 +61,18 @@ typedef struct app_bt_connection {
 	sl_sleeptimer_timer_handle_t wd;
 	volatile bool                wd_fired;
 
-	bool stream_enabled;
-	bool racp_enabled;
-	bool inflight_indication;
-	bool procedure_in_progress;
+	bool                      stream_notification_enabled;
+	bool                      racp_enabled;
+	bool                      inflight_indication;
+	bool                      procedure_in_progress;
+	sl_sleeptimer_timestamp_t procedure_start_target;
+	journal_index_t           procedure_end_value;
+	racp_opcode_t             procedure_opcode;
+
 } app_bt_connection_t;
+
+void _app_connection_reset(app_bt_connection_t *conn);
+void _app_connection_init(app_bt_connection_t *conn, uint8_t handle);
 
 typedef struct app_handle {
 	uint8_t advertising_set_handle;
@@ -105,13 +112,18 @@ void app_init();
 sl_status_t
 app_set_legacy_advertiser_data(uint8_t advertising_set, const data_point_t *d);
 
+void _app_on_gatt_server_notification_tx_completed(
+    sl_bt_evt_gatt_server_notification_tx_completed_t *evt
+);
+void _app_on_gatt_server_characteristic_status(
+    sl_bt_evt_gatt_server_characteristic_status_t *evt
+);
 void _app_on_gatt_server_user_read_request(
     sl_bt_evt_gatt_server_user_read_request_t *req
 );
 void _app_on_gatt_server_user_write_request(
     sl_bt_evt_gatt_server_user_write_request_t *req
 );
-
 void _app_on_external_signals(uint32_t events);
 
 void _app_on_es_readout(sl_status_t status, const data_point_t *point);
@@ -119,9 +131,6 @@ void _app_on_es_readout(sl_status_t status, const data_point_t *point);
 void _app_on_bt_system_boot();
 void _app_on_bt_connection_opened(sl_bt_evt_connection_opened_t *evt);
 void _app_on_bt_connection_closed(sl_bt_evt_connection_closed_t *evt);
-void _app_on_gatt_server_characteristic_status(
-    sl_bt_evt_gatt_server_characteristic_status_t *evt
-);
 void _app_connection_wd_start();
 void _app_connection_wd_stop();
 void _app_connection_wd_reset();
@@ -129,25 +138,18 @@ void _app_on_connection_wd_timeout(
     sl_sleeptimer_timer_handle_t *timer, void *user_data
 );
 
-void _app_stream_data_notification_handler(
-    sl_bt_evt_gatt_server_characteristic_status_t *evt
-);
-void _app_racp_notification_handler(
-    sl_bt_evt_gatt_server_characteristic_status_t *evt
-);
-
 void _app_racp_user_write_request_handler(
     sl_bt_evt_gatt_server_user_write_request_t *req
 );
 
-typedef void (*_app_on_journal_range_callback_t)(
-    sl_status_t status, journal_index_t start, journal_index_t end
+void _app_stream_data_notification_handler(
+    sl_bt_evt_gatt_server_characteristic_status_t *evt
+);
+void _app_racp_indication_handler(
+    sl_bt_evt_gatt_server_characteristic_status_t *evt
 );
 
-void _app_racp_range_operation(
-    sl_bt_evt_gatt_server_user_write_request_t *req,
-    _app_on_journal_range_callback_t            action
-);
+void _app_racp_range_operation(sl_bt_evt_gatt_server_user_write_request_t *req);
 
 void _app_racp_delete_records(sl_bt_evt_gatt_server_user_write_request_t *req);
 
@@ -157,11 +159,16 @@ void _app_racp_send_response(racp_opcode_t opcode, racp_rsp_t error);
 void _app_on_indication_confirmation();
 
 void _app_find_journal_range_inclusive(
-    racp_opcode_t                    opcode,
-    sl_sleeptimer_timestamp_t        low,
-    sl_sleeptimer_timestamp_t        high,
-    _app_on_journal_range_callback_t action
+    racp_opcode_t             opcode,
+    sl_sleeptimer_timestamp_t low,
+    sl_sleeptimer_timestamp_t high
 );
+
+void _app_procedure_action(
+    sl_status_t status, journal_index_t start, journal_index_t end
+);
+
+void _app_complete_procedure(racp_rsp_t rsp_code);
 
 void _app_readout_range(
     sl_status_t status, journal_index_t start, journal_index_t end
@@ -174,4 +181,8 @@ void _app_on_find_last_before(
     journal_index_t           idx,
     sl_sleeptimer_timestamp_t ts,
     void                     *user_data
+);
+
+journal_read_next_operation_t _app_on_record_read(
+    sl_status_t status, const data_point_t *point, void *user_data
 );

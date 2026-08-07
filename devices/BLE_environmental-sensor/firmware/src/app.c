@@ -62,9 +62,9 @@ app_handle_t app = {
     .advertising_set_handle = SL_BT_INVALID_ADVERTISING_SET_HANDLE,
     .connection =
         {
-            .handle         = SL_BT_INVALID_CONNECTION_HANDLE,
-            .racp_enabled   = false,
-            .stream_enabled = false,
+            .handle                      = SL_BT_INVALID_CONNECTION_HANDLE,
+            .racp_enabled                = false,
+            .stream_notification_enabled = false,
         },
 };
 
@@ -183,6 +183,13 @@ void sl_bt_on_event(sl_bt_msg_t *evt) {
 	case sl_bt_evt_connection_closed_id:
 		_app_on_bt_connection_closed(&evt->data.evt_connection_closed);
 		break;
+	case sl_bt_evt_gatt_server_notification_tx_completed_id:
+		_app_connection_wd_reset();
+		_app_on_gatt_server_notification_tx_completed(
+		    &evt->data.evt_gatt_server_notification_tx_completed
+		);
+		break;
+
 	case sl_bt_evt_gatt_server_characteristic_status_id:
 		_app_connection_wd_reset();
 		_app_on_gatt_server_characteristic_status(
@@ -304,6 +311,35 @@ void _app_connection_wd_reset() {
 	app_log_debug("[app] connection WD reset." APP_LOG_NL);
 }
 
+void _app_connection_reset(app_bt_connection_t *conn) {
+	if (conn->handle != SL_BT_INVALID_CONNECTION_HANDLE) {
+		_app_connection_wd_stop();
+		if (conn->procedure_in_progress == true &&
+		    conn->procedure_opcode == racp_opcode_report_records) {
+			journal_read_abord();
+		}
+	}
+
+	conn->handle                      = SL_BT_INVALID_CONNECTION_HANDLE;
+	conn->wd_fired                    = false;
+	conn->stream_notification_enabled = false;
+	conn->racp_enabled                = false;
+	conn->inflight_indication         = false;
+	conn->procedure_in_progress       = false;
+	conn->procedure_opcode            = racp_opcode_reserved;
+}
+
+void _app_connection_init(app_bt_connection_t *conn, uint8_t handle) {
+	conn->handle                      = handle;
+	conn->wd_fired                    = false;
+	conn->stream_notification_enabled = false;
+	conn->racp_enabled                = false;
+	conn->inflight_indication         = false;
+	conn->procedure_in_progress       = false;
+	conn->procedure_opcode            = racp_opcode_reserved;
+	_app_connection_wd_start();
+}
+
 void _app_connection_wd_start() {
 	CORE_ATOMIC_SECTION({
 		sl_sleeptimer_start_timer_ms(
@@ -389,20 +425,15 @@ void _app_on_bt_system_boot() {
 	    app.advertising_set_handle,
 	    sl_bt_legacy_advertiser_connectable
 	);
-	app.connection.handle                = SL_BT_INVALID_CONNECTION_HANDLE;
-	app.connection.racp_enabled          = false;
-	app.connection.stream_enabled        = false;
-	app.connection.inflight_indication   = false;
-	app.connection.procedure_in_progress = false;
+	// just to ensure we start from unitialized everywhere
+	app.connection.handle =
+	    SL_BT_INVALID_CONNECTION_HANDLE; // will preempt a spurous WD stop or
+	                                     // journal_read_abord.
+	_app_connection_reset(&app.connection);
 	app_assert_status(status);
 }
 
 void _app_on_bt_connection_opened(sl_bt_evt_connection_opened_t *evt) {
-	app.connection.handle                = evt->connection;
-	app.connection.stream_enabled        = false;
-	app.connection.racp_enabled          = false;
-	app.connection.inflight_indication   = false;
-	app.connection.procedure_in_progress = false;
 	app_log_info(
 	    "[app] connected with %02X:%02X:%02X:%02X:%02X:%02X." APP_LOG_NL,
 	    evt->address.addr[0],
@@ -412,18 +443,14 @@ void _app_on_bt_connection_opened(sl_bt_evt_connection_opened_t *evt) {
 	    evt->address.addr[4],
 	    evt->address.addr[5]
 	);
-	_app_connection_wd_start();
+	_app_connection_init(&app.connection, evt->connection);
 }
 
 void _app_on_bt_connection_closed(sl_bt_evt_connection_closed_t *evt) {
 	(void)evt;
-	_app_connection_wd_stop();
+	_app_connection_reset(&app.connection);
+
 	app_log_info("[app] disconnected." APP_LOG_NL);
-	app.connection.handle                = SL_BT_INVALID_CONNECTION_HANDLE;
-	app.connection.stream_enabled        = false;
-	app.connection.racp_enabled          = false;
-	app.connection.inflight_indication   = false;
-	app.connection.procedure_in_progress = false;
 	// Generate data for advertising
 
 	sl_status_t status = app_set_legacy_advertiser_data(
@@ -445,6 +472,10 @@ void _app_on_bt_connection_closed(sl_bt_evt_connection_closed_t *evt) {
 void _app_on_gatt_server_user_write_request(
     sl_bt_evt_gatt_server_user_write_request_t *req
 ) {
+	app_log_debug(
+	    "[app] GATT user write request: %d." APP_LOG_NL,
+	    req->characteristic
+	);
 	gatt_ecode_t err = gatt_ecode_succeed;
 	switch (req->characteristic) {
 	case gattdb_current_time_epoch: {
@@ -497,7 +528,7 @@ void _app_on_gatt_server_characteristic_status(
 		_app_stream_data_notification_handler(evt);
 		break;
 	case gattdb_record_access_control_point:
-		_app_racp_notification_handler(evt);
+		_app_racp_indication_handler(evt);
 		break;
 	default:
 		app_log_warning(
@@ -516,21 +547,21 @@ void _app_stream_data_notification_handler(
 	    status->client_config_flags
 	);
 
-	if ((status->status_flags & sl_bt_gatt_server_confirmation) ==
-	    sl_bt_gatt_server_confirmation) {
-		_app_on_indication_confirmation();
-	}
-
 	if ((status->status_flags & sl_bt_gatt_server_client_config) == 0x00) {
 		return;
 	}
 
 	// we set the configuration from the client. Only interested on indications.
-	app.connection.racp_enabled =
-	    (status->status_flags & sl_bt_gatt_server_indication) != 0x00;
+	app.connection.stream_notification_enabled =
+	    (status->client_config_flags & sl_bt_gatt_server_notification) != 0x00;
+
+	app_log_info(
+	    "[app] stream data notification enabled: %s" APP_LOG_NL,
+	    app.connection.stream_notification_enabled ? "true" : "false"
+	);
 }
 
-void _app_racp_notification_handler(
+void _app_racp_indication_handler(
     sl_bt_evt_gatt_server_characteristic_status_t *status
 ) {
 	app_log_debug(
@@ -550,7 +581,12 @@ void _app_racp_notification_handler(
 
 	// we set the configuration from the client. Only interested on indications.
 	app.connection.racp_enabled =
-	    (status->status_flags & sl_bt_gatt_server_indication) != 0x00;
+	    (status->client_config_flags & sl_bt_gatt_server_indication) != 0x00;
+
+	app_log_info(
+	    "[app] RACP indication enabled: %s" APP_LOG_NL,
+	    app.connection.racp_enabled ? "true" : "false"
+	);
 }
 
 void _app_racp_user_write_request_handler(
@@ -578,7 +614,7 @@ void _app_racp_user_write_request_handler(
 		return;
 	}
 
-	if (app.connection.stream_enabled == false ||
+	if (app.connection.stream_notification_enabled == false ||
 	    app.connection.racp_enabled == false) {
 		app_log_warning(
 		    "[app] client did not enable indication for stream data or "
@@ -608,13 +644,13 @@ void _app_racp_user_write_request_handler(
 
 	switch (opcode) {
 	case racp_opcode_report_records:
-		_app_racp_range_operation(req, &_app_readout_range);
+		_app_racp_range_operation(req);
 		break;
 	case racp_opcode_delete_records:
 		_app_racp_delete_records(req);
 		break;
 	case racp_opcode_report_number:
-		_app_racp_range_operation(req, &_app_count_range);
+		_app_racp_range_operation(req);
 		break;
 	case racp_opcode_abort_operation:
 		// normally it is a mandatory one, but we do not implement it so we
@@ -631,7 +667,7 @@ void _app_racp_user_write_request_handler(
 
 void _app_racp_send_number_of_records(uint16_t number) {
 	uint8_t buffer[4] = {
-	    racp_opcode_rsp_number_response,
+	    racp_opcode_number_rsp,
 	    racp_operator_null,
 	    number & 0xff,
 	    number >> 8,
@@ -653,12 +689,8 @@ void _app_racp_send_number_of_records(uint16_t number) {
 }
 
 void _app_racp_send_response(racp_opcode_t opcode, racp_rsp_t response_code) {
-	uint8_t buffer[4] = {
-	    racp_opcode_rsp_response_code,
-	    racp_operator_null,
-	    opcode,
-	    response_code
-	};
+	uint8_t buffer[4] =
+	    {racp_opcode_rsp, racp_operator_null, opcode, response_code};
 	sl_status_t status = sl_bt_gatt_server_send_indication(
 	    app.connection.handle,
 	    gattdb_record_access_control_point,
@@ -681,16 +713,9 @@ void _app_on_indication_confirmation() {
 		return;
 	}
 	app.connection.inflight_indication = false;
-	if (app.connection.procedure_in_progress == false) {
-		return;
-	}
-
-	// TODO: resume reading procedure.
 }
 
-void _app_racp_range_operation(
-    sl_bt_evt_gatt_server_user_write_request_t *req,
-    _app_on_journal_range_callback_t            action
+void _app_racp_range_operation(sl_bt_evt_gatt_server_user_write_request_t *req
 ) {
 	racp_opcode_t   opcode = req->value.data[0];
 	racp_operator_t operator= req->value.data[1];
@@ -703,7 +728,7 @@ void _app_racp_range_operation(
 			_app_racp_send_response(opcode, racp_rsp_invalid_operand);
 			return;
 		}
-		_app_find_journal_range_inclusive(opcode, 0, UINT32_MAX, action);
+		_app_find_journal_range_inclusive(opcode, 0, UINT32_MAX);
 		return;
 	}
 	case racp_operator_le:
@@ -718,14 +743,9 @@ void _app_racp_range_operation(
 		    ((uint32_t)req->value.data[5] << 16) |
 		    ((uint32_t)req->value.data[6] << 24);
 		if (opcode == racp_operator_ge) {
-			_app_find_journal_range_inclusive(
-			    opcode,
-			    operand,
-			    UINT32_MAX,
-			    action
-			);
+			_app_find_journal_range_inclusive(opcode, operand, UINT32_MAX);
 		} else {
-			_app_find_journal_range_inclusive(opcode, 0, operand, action);
+			_app_find_journal_range_inclusive(opcode, 0, operand);
 		}
 		return;
 	}
@@ -747,12 +767,7 @@ void _app_racp_range_operation(
 		    ((uint32_t)req->value.data[9] << 16) |
 		    ((uint32_t)req->value.data[10] << 24);
 
-		_app_find_journal_range_inclusive(
-		    opcode,
-		    low_operand,
-		    high_operand,
-		    action
-		);
+		_app_find_journal_range_inclusive(opcode, low_operand, high_operand);
 		return;
 	}
 	default:
@@ -782,7 +797,7 @@ void _app_racp_delete_records(sl_bt_evt_gatt_server_user_write_request_t *req) {
 			return;
 		}
 
-		_app_racp_send_response(opcode, racp_rsp_sucess);
+		_app_racp_send_response(opcode, racp_rsp_success);
 		break;
 	}
 	default:
@@ -790,51 +805,222 @@ void _app_racp_delete_records(sl_bt_evt_gatt_server_user_write_request_t *req) {
 	}
 }
 
+void _app_procedure_action(
+    sl_status_t status, journal_index_t start, journal_index_t end
+) {
+	racp_opcode_t opcode = app.connection.procedure_opcode;
+	app_log_info(
+	    "[app] running RACP procedure opcode=%02X, range_find_status=%s "
+	    "start=%ld end=%ld." APP_LOG_NL,
+	    opcode,
+	    sl_status_get_string(status),
+	    start,
+	    end
+	);
+
+	switch (opcode) {
+	case racp_opcode_report_records:
+		_app_readout_range(status, start, end);
+		break;
+	case racp_opcode_report_number:
+		_app_count_range(status, start, end);
+		break;
+	default:
+		app_log_error(
+		    "[app] spurious procedure action for opcode=%02X." APP_LOG_NL,
+		    opcode
+		);
+		_app_racp_send_response(opcode, racp_rsp_procedure_not_completed);
+	}
+}
+
 void _app_readout_range(
     sl_status_t status, journal_index_t start, journal_index_t end
 ) {
 	if (status != SL_STATUS_OK || end <= start) {
-		app.connection.procedure_in_progress = false;
-		_app_racp_send_response(
-		    racp_opcode_report_records,
-		    racp_rsp_code_no_record_found
-		);
+		app_log_warning("[app] nothing to read." APP_LOG_NL);
+		_app_complete_procedure(racp_rsp_no_record_found);
 		return;
 	}
-
-	// TODO: Implement the asynchronous reading.
-	_app_racp_send_response(
-	    racp_opcode_report_records,
-	    racp_rsp_procedure_not_completed
-	);
-	// TODO: remove this once not failing straight away
-	app.connection.procedure_in_progress = false;
+	app_log_info("[app] starting to read." APP_LOG_NL);
+	status = journal_read(start, end, &_app_on_record_read, NULL);
+	if (status != SL_STATUS_OK) {
+		_app_complete_procedure(racp_rsp_procedure_not_completed);
+	}
 }
 
 void _app_count_range(
     sl_status_t status, journal_index_t start, journal_index_t end
 ) {
-	app.connection.procedure_in_progress = false;
 	if (status != SL_STATUS_OK || end < start) {
-		_app_racp_send_response(
-		    racp_opcode_report_records,
-		    racp_rsp_procedure_not_completed
-		);
+		app_log_warning("[app] report no record found." APP_LOG_NL);
+		_app_complete_procedure(racp_rsp_procedure_not_completed);
+		return;
 	}
 
+	app_log_info("[app] reporting %ld records." APP_LOG_NL, end - start);
+
+	app.connection.procedure_in_progress = false;
+	app.connection.procedure_opcode      = racp_opcode_reserved;
 	_app_racp_send_number_of_records(end - start);
 }
 
 void _app_find_journal_range_inclusive(
-    racp_opcode_t                    opcode,
-    sl_sleeptimer_timestamp_t        low,
-    sl_sleeptimer_timestamp_t        high,
-    _app_on_journal_range_callback_t action
+    racp_opcode_t             opcode,
+    sl_sleeptimer_timestamp_t low,
+    sl_sleeptimer_timestamp_t high
 ) {
-	app.connection.procedure_in_progress = true;
-	// TODO:  implement the aysnchronous search
-	_app_racp_send_response(opcode, racp_rsp_procedure_not_completed);
+	app.connection.procedure_in_progress  = true;
+	app.connection.procedure_opcode       = opcode;
+	app.connection.procedure_start_target = (low > 0) ? low - 1 : 0;
+	app.connection.procedure_end_value    = JOURNAL_INDEX_NPOS;
 
-	// TODO: remove this once not failing straight away
+	// first we search for high
+	sl_status_t status =
+	    journal_find_last_before(high, &_app_on_find_last_before, NULL);
+	if (status != SL_STATUS_OK) {
+		_app_complete_procedure(racp_rsp_procedure_not_completed);
+		return;
+	}
+}
+
+void _app_on_find_last_before(
+    sl_status_t               status,
+    journal_index_t           idx,
+    sl_sleeptimer_timestamp_t ts,
+    void                     *user_data
+) {
+	(void)user_data;
+	(void)ts;
+	if (status != SL_STATUS_OK || idx == JOURNAL_INDEX_NPOS) {
+		if (app.connection.procedure_end_value == JOURNAL_INDEX_NPOS) {
+			// we cannot find the high, bound, so no records !!!
+			if (status == SL_STATUS_EMPTY ||
+			    status == SL_STATUS_INVALID_RANGE) {
+				// journal has no data, or data > end timestamp, this is OK case
+				status = SL_STATUS_OK;
+			}
+			_app_procedure_action(
+			    status,
+			    JOURNAL_INDEX_NPOS,
+			    JOURNAL_INDEX_NPOS
+			);
+		} else {
+			// the journal could not find the value
+			_app_procedure_action(
+			    status,
+			    JOURNAL_INDEX_NPOS,
+			    app.connection.procedure_end_value
+			);
+		}
+		return;
+	}
+
+	if (app.connection.procedure_end_value != JOURNAL_INDEX_NPOS) {
+		// start search case, successful.
+		_app_procedure_action(
+		    SL_STATUS_OK,
+		    idx,
+		    app.connection.procedure_end_value
+		);
+		return;
+	}
+
+	// end search case; successfull
+	app.connection.procedure_end_value = idx;
+
+	status = journal_find_last_before(
+	    app.connection.procedure_start_target,
+	    &_app_on_find_last_before,
+	    NULL
+	);
+
+	if (status == SL_STATUS_OK) {
+		return;
+	}
+
+	if (status == SL_STATUS_EMPTY || status == SL_STATUS_INVALID_RANGE) {
+		_app_procedure_action(SL_STATUS_OK, 0, idx);
+		return;
+	}
+
+	// we must fail it, as we will not be called back.
+	_app_procedure_action(status, JOURNAL_INDEX_NPOS, JOURNAL_INDEX_NPOS);
+}
+
+journal_read_next_operation_t _app_on_record_read(
+    sl_status_t status, const data_point_t *point, void *user_data
+) {
+	(void)user_data;
+
+	if (status != SL_STATUS_OK) {
+		app_log_error(
+		    "[app] record read issue: %s." APP_LOG_NL,
+		    sl_status_get_string(status)
+		);
+		_app_complete_procedure(racp_rsp_procedure_not_completed);
+		return journal_read_discard;
+	}
+
+	if (point == NULL) {
+		app_log_info("[app] End Of Record." APP_LOG_NL);
+		// we are at the last record
+		_app_complete_procedure(racp_rsp_success);
+		return journal_read_continue;
+	}
+	status = sl_bt_gatt_server_send_notification(
+	    app.connection.handle,
+	    gattdb_stream_data,
+	    sizeof(data_point_t),
+	    (const uint8_t *)point
+	);
+	if (status != SL_STATUS_OK) {
+		app_log_error(
+		    "[app] could not stream data point ts=%ld notification: "
+		    "%s." APP_LOG_NL,
+		    point->date,
+		    sl_status_get_string(status)
+		);
+		app.connection.inflight_indication = false;
+		_app_complete_procedure(racp_rsp_procedure_not_completed);
+		return journal_read_discard;
+	}
+
+	return journal_read_pause;
+}
+
+void _app_on_gatt_server_notification_tx_completed(
+    sl_bt_evt_gatt_server_notification_tx_completed_t *evt
+) {
+	app_log_debug(
+	    "[app] notification TX completed handle=%02X count=%d." APP_LOG_NL,
+	    evt->connection,
+	    evt->count
+	);
+
+	if (evt->connection != app.connection.handle || evt->count == 0) {
+		return;
+	}
+	if (app.connection.procedure_in_progress == false ||
+	    app.connection.procedure_opcode != racp_opcode_report_records) {
+		app_log_warning("[app] spurious notification handling, was EOR reached?"
+		);
+		return;
+	}
+
+	sl_status_t status = journal_read_resume();
+	if (status != SL_STATUS_OK) {
+		app_log_error(
+		    "[app] could not resume journal reading: %s." APP_LOG_NL,
+		    sl_status_get_string(status)
+		);
+		_app_complete_procedure(racp_rsp_procedure_not_completed);
+	}
+}
+
+void _app_complete_procedure(racp_rsp_t rsp_code) {
 	app.connection.procedure_in_progress = false;
+	racp_opcode_t opcode                 = app.connection.procedure_opcode;
+	app.connection.procedure_opcode      = racp_opcode_reserved;
+	_app_racp_send_response(opcode, rsp_code);
 }
