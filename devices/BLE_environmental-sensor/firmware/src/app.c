@@ -187,7 +187,33 @@ void sl_bt_on_event(sl_bt_msg_t *evt) {
 
 	case sl_bt_evt_connection_opened_id:
 		_app_on_bt_connection_opened(&evt->data.evt_connection_opened);
+		sl_bt_connection_set_parameters(
+		    app.connection.handle,
+		    80 / 1.25,  // 100ms
+		    100 / 1.25, // 200ms
+		    1,          // latency
+		    60,         // 600ms timeout
+		    0x0000,
+		    0xffff
+		);
+
 		break;
+
+	case sl_bt_evt_connection_parameters_id: {
+#ifndef PRODUCTION_BUILD
+		sl_bt_evt_connection_parameters_t *p =
+		    &evt->data.evt_connection_parameters;
+
+		app_log_info(
+		    "[app]  connection interval: %dms,latency: %d "
+		    "timeout:%dms." APP_LOG_NL,
+		    (uint16_t)(p->interval * 1.25f),
+		    p->latency,
+		    p->timeout * 10
+		);
+#endif // PRODUCTION_BUILD
+		break;
+	}
 
 	case sl_bt_evt_connection_closed_id:
 		_app_on_bt_connection_closed(&evt->data.evt_connection_closed);
@@ -198,17 +224,17 @@ void sl_bt_on_event(sl_bt_msg_t *evt) {
 		break;
 
 	case sl_bt_evt_gatt_server_characteristic_status_id:
-		_app_connection_wd_reset();
+		_app_connection_wd_reset(&app.connection);
 		_app_on_gatt_server_characteristic_status(
 		    &evt->data.evt_gatt_server_characteristic_status
 		);
 		break;
 	case sl_bt_evt_gatt_server_attribute_value_id:
-		_app_connection_wd_reset();
+		_app_connection_wd_reset(&app.connection);
 		// do nothing.
 		break;
 	case sl_bt_evt_gatt_server_user_read_request_id: {
-		_app_connection_wd_reset();
+		_app_connection_wd_reset(&app.connection);
 		sl_bt_evt_gatt_server_user_read_request_t *req =
 		    &evt->data.evt_gatt_server_user_read_request;
 		_app_on_gatt_server_user_read_request(req);
@@ -216,7 +242,7 @@ void sl_bt_on_event(sl_bt_msg_t *evt) {
 	}
 
 	case sl_bt_evt_gatt_server_user_write_request_id: {
-		_app_connection_wd_reset();
+		_app_connection_wd_reset(&app.connection);
 		sl_bt_evt_gatt_server_user_write_request_t *req =
 		    &evt->data.evt_gatt_server_user_write_request;
 		_app_on_gatt_server_user_write_request(req);
@@ -324,24 +350,9 @@ bool _app_is_connected() {
 	return app.connection.handle != SL_BT_INVALID_CONNECTION_HANDLE;
 }
 
-void _app_connection_wd_reset() {
-	CORE_ATOMIC_SECTION({
-		sl_sleeptimer_restart_timer_ms(
-		    &app.connection.wd,
-		    APP_CONNECTION_TIMEOUT_MS,
-		    &_app_on_connection_wd_timeout,
-		    NULL,
-		    0,
-		    0
-		);
-		app.connection.wd_fired = false;
-	});
-	app_log_debug("[app] connection WD reset." APP_LOG_NL);
-}
-
 void _app_connection_reset(app_bt_connection_t *conn) {
 	if (conn->handle != SL_BT_INVALID_CONNECTION_HANDLE) {
-		_app_connection_wd_stop();
+		_app_connection_wd_stop(&app.connection);
 		if (conn->procedure_in_progress == true &&
 		    conn->procedure_opcode == racp_opcode_report_records) {
 			journal_read_abord();
@@ -365,10 +376,25 @@ void _app_connection_init(app_bt_connection_t *conn, uint8_t handle) {
 	conn->inflight_indication         = false;
 	conn->procedure_in_progress       = false;
 	conn->procedure_opcode            = racp_opcode_reserved;
-	_app_connection_wd_start();
+	_app_connection_wd_start(&app.connection);
 }
 
-void _app_connection_wd_start() {
+void _app_connection_wd_reset(app_bt_connection_t *conn) {
+	CORE_ATOMIC_SECTION({
+		sl_sleeptimer_restart_timer_ms(
+		    &conn->wd,
+		    APP_CONNECTION_TIMEOUT_MS,
+		    &_app_on_connection_wd_timeout,
+		    NULL,
+		    0,
+		    0
+		);
+		conn->wd_fired = false;
+	});
+	app_log_debug("[app] connection WD reset." APP_LOG_NL);
+}
+
+void _app_connection_wd_start(app_bt_connection_t *conn) {
 	CORE_ATOMIC_SECTION({
 		sl_sleeptimer_start_timer_ms(
 		    &app.connection.wd,
@@ -378,15 +404,17 @@ void _app_connection_wd_start() {
 		    0,
 		    0
 		);
-		app.connection.wd_fired = false;
+		conn->wd_fired  = false;
+		conn->wd_ignore = false;
 	});
 	app_log_debug("[app] connection WD started." APP_LOG_NL);
 }
 
-void _app_connection_wd_stop() {
+void _app_connection_wd_stop(app_bt_connection_t *conn) {
+	sl_status_t status;
 	CORE_ATOMIC_SECTION({
-		sl_sleeptimer_start_timer_ms(
-		    &app.connection.wd,
+		status = sl_sleeptimer_start_timer_ms(
+		    &conn->wd,
 		    APP_CONNECTION_TIMEOUT_MS,
 		    &_app_on_connection_wd_timeout,
 		    NULL,
@@ -394,6 +422,9 @@ void _app_connection_wd_stop() {
 		    0
 		);
 		app.connection.wd_fired = false;
+		if (status != SL_STATUS_OK) {
+			conn->wd_ignore = true;
+		}
 	});
 	app_log_debug("[app] connection WD stopped." APP_LOG_NL);
 }
@@ -404,8 +435,10 @@ void _app_on_connection_wd_timeout(
 	(void)timer;
 	(void)user_data;
 	CORE_ATOMIC_SECTION({
-		sl_bt_external_signal(APP_CONNECTION_WD_SIGNAL);
-		app.connection.wd_fired = true;
+		if (app.connection.wd_ignore == false) {
+			sl_bt_external_signal(APP_CONNECTION_WD_SIGNAL);
+			app.connection.wd_fired = true;
+		}
 	});
 }
 
@@ -440,24 +473,6 @@ static inline void _app_on_connection_wd_signal() {
 	);
 }
 
-static inline void _app_on_debug_resource_signal() {
-	uint32_t    total, free;
-	sl_status_t status = sl_bt_resource_get_status(&total, &free);
-	if (status != SL_STATUS_OK) {
-		app_log_error(
-		    "[app] could not poll resources: %s." APP_LOG_NL,
-		    sl_status_get_string(status)
-		);
-		return;
-	}
-
-	app_log_info(
-	    "[app] resources total:%ldB free:%ldB." APP_LOG_NL,
-	    total,
-	    free
-	);
-}
-
 void _app_on_external_signals(uint32_t events) {
 	if ((events & APP_SEND_NEXT_SIGNAL) != 0) {
 		_app_on_send_next_signal();
@@ -466,16 +481,25 @@ void _app_on_external_signals(uint32_t events) {
 	if ((events & APP_CONNECTION_WD_SIGNAL) != 0x00) {
 		_app_on_connection_wd_signal();
 	}
-
-	if ((events & APP_DEBUG_RESOURCE_SIGNAL) != 0x00) {
-		_app_on_debug_resource_signal();
-	}
 }
 
 void _app_on_bt_system_boot() {
+	sl_status_t status;
+
+	// sets TX power
+	int16_t min_power, max_power;
+	status = sl_bt_system_set_tx_power(-20, 0, &min_power, &max_power);
+	app_assert_status(status);
+	app_log_info(
+	    "[app] BT power settings min: %d.%ddBm max:%d.%ddBm." APP_LOG_NL,
+	    min_power / 10,
+	    min_power % 10,
+	    max_power / 10,
+	    max_power % 10
+	);
+
 	// Create an advertising set.
-	sl_status_t status =
-	    sl_bt_advertiser_create_set(&app.advertising_set_handle);
+	status = sl_bt_advertiser_create_set(&app.advertising_set_handle);
 
 	app_assert_status(status);
 
@@ -699,6 +723,7 @@ void _app_racp_user_write_request_handler(
     sl_bt_evt_gatt_server_user_write_request_t *req
 ) {
 	racp_opcode_t opcode = req->value.data[0];
+#ifndef PRODUCTION_BUILD
 	app_log_debug(
 	    "[app] RACP write request OPCODE:%02X len=%d data=",
 	    opcode,
@@ -710,7 +735,7 @@ void _app_racp_user_write_request_handler(
 		sep = ", ";
 	}
 	app_log(" }," APP_LOG_NL);
-
+#endif // PRODUCTION_BUILD
 	if (req->value.len < 2) {
 		sl_bt_gatt_server_send_user_write_response(
 		    req->connection,
@@ -948,6 +973,14 @@ void _app_readout_range(
 		_app_complete_procedure(racp_rsp_no_record_found);
 		return;
 	}
+
+	if (status != SL_STATUS_OK) {
+		app_log_warning(
+		    "[app] could not change connection parameters: %s." APP_LOG_NL,
+		    sl_status_get_string(status)
+		);
+	}
+
 	app_log_info("[app] starting to read." APP_LOG_NL);
 	status = journal_read(start, end, &_app_on_record_read, NULL);
 	if (status != SL_STATUS_OK) {
@@ -976,7 +1009,8 @@ void _app_find_journal_range_inclusive(
     sl_sleeptimer_timestamp_t low,
     sl_sleeptimer_timestamp_t high
 ) {
-	app.connection.procedure_in_progress  = true;
+	app.connection.procedure_in_progress = true;
+	_app_connection_wd_stop(&app.connection);
 	app.connection.procedure_opcode       = opcode;
 	app.connection.procedure_start_target = (low > 0) ? low - 1 : 0;
 	app.connection.procedure_end_value    = JOURNAL_INDEX_NPOS;
@@ -1091,38 +1125,23 @@ journal_read_next_operation_t _app_on_record_read(
 		_app_complete_procedure(racp_rsp_procedure_not_completed);
 		return journal_read_discard;
 	}
+
 	// we mark that we have more to send
 	sl_bt_external_signal(APP_SEND_NEXT_SIGNAL);
 
 	return journal_read_pause;
 }
 
-void _debug_timeout(sl_sleeptimer_timer_handle_t *timer, void *user_data) {
-	(void)timer;
-	(void)user_data;
-	sl_bt_external_signal(APP_DEBUG_RESOURCE_SIGNAL);
-}
-
 void _app_on_ressource_status(sl_bt_evt_resource_status_t *evt) {
-	static sl_sleeptimer_timer_handle_t debug_timer;
 	if (evt->free_bytes <= BL_LOW_RESSOURCE_THRESHOLD) {
 		app_log_warning(
 		    "[app] BT stack low on resource (%ldB)." APP_LOG_NL,
 		    evt->free_bytes
 		);
 		app.resource_are_low = true;
-		sl_sleeptimer_start_periodic_timer_ms(
-		    &debug_timer,
-		    1000,
-		    &_debug_timeout,
-		    NULL,
-		    0,
-		    0
-		);
 
 		return;
 	}
-	sl_sleeptimer_stop_timer(&debug_timer);
 	app_log_info(
 	    "[app] BT stack high on resources %ldB." APP_LOG_NL,
 	    evt->free_bytes
@@ -1137,4 +1156,6 @@ void _app_complete_procedure(racp_rsp_t rsp_code) {
 	racp_opcode_t opcode                 = app.connection.procedure_opcode;
 	app.connection.procedure_opcode      = racp_opcode_reserved;
 	_app_racp_send_response(opcode, rsp_code);
+	// we re-start the WD at the end of the procedure.
+	_app_connection_wd_start(&app.connection);
 }
