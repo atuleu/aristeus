@@ -117,5 +117,14 @@ Summary: This control point is used with a service to provide basic management f
         <write authenticated="false" bonded="false" encrypted="false"/>
       </properties>
     </characteristic>
+
+    <!--Pressure-->
+    <characteristic const="false" id="current_pressure" name="Pressure" sourceId="" uuid="5fb17afb-13dd-4709-8076-35ba1f207d48">
+      <value length="0" type="user" variable_length="false">00</value>
+      <properties>
+        <read authenticated="false" bonded="false" encrypted="false"/>
+        <write authenticated="false" bonded="false" encrypted="false"/>
+      </properties>
+    </characteristic>
   </service>
 </gatt>

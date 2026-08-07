@@ -64,6 +64,7 @@ SL_ENUM(racp_rsp_t){
 
 SL_ENUM(gatt_ecode_t){
     gatt_ecode_succeed                  = 0x00,
+    gatt_ecode_invalid_handle           = 0x01,
     gatt_ecode_procedure_in_progress    = 0x80,
     gatt_ecode_not_indicated            = 0x81,
     gatt_ecode_invalid_attribute_length = 0x0d,

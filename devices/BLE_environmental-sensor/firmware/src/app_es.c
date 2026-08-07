@@ -7,13 +7,18 @@
 #include "drivers/sht4x.h"
 #include "drivers/stcc4.h"
 #include "em_logger.h"
+#include "nvm3_default.h"
+#include "nvm3_generic.h"
 #include "sl_core.h"
 #include "sl_sleeptimer.h"
 #include "sl_status.h"
 #include "types.h"
 #include "utils/status.h"
+#include <stdint.h>
 
 #define SL_STATUS_NO_STATUS 0xFFFF
+
+#define NVM3_PRESSURE_OFFSET_KEY (NVM3_KEY_MIN + 0x00011)
 
 typedef struct app_es_handle {
 	sl_sleeptimer_timer_handle_t sensor_timer, batt_timer;
@@ -31,6 +36,7 @@ typedef struct app_es_handle {
 	sl_sleeptimer_timestamp_t time_offset;
 
 	app_es_readout_callback_t callback;
+	pressure_t                pressure_offset;
 } app_es_handle_t;
 
 static app_es_handle_t self = {
@@ -57,6 +63,7 @@ static app_es_handle_t self = {
     .lps22hh_done           = false,
     .sht4x_done             = false,
     .time_offset            = 0,
+    .pressure_offset        = 0,
 };
 
 void _app_es_on_lps22hh_readout(
@@ -64,7 +71,7 @@ void _app_es_on_lps22hh_readout(
 ) {
 	(void)user_data;
 	CORE_ATOMIC_SECTION({
-		self.new_data_point.pressure = pressure;
+		self.new_data_point.pressure = pressure + self.pressure_offset;
 		self.lps22hh_readout_status  = status;
 	});
 }
@@ -202,6 +209,20 @@ sl_status_t app_es_init(const app_es_config_t *config) {
 		    sl_status_get_string(status)
 		);
 		return status;
+	}
+
+	status = nvm3_readData(
+	    nvm3_defaultHandle,
+	    NVM3_PRESSURE_OFFSET_KEY,
+	    &self.pressure_offset,
+	    sizeof(pressure_t)
+	);
+	if (status != SL_STATUS_OK) {
+		app_log_warning(
+		    "[app_es] could not retrieve saved pressure offset: %s." APP_LOG_NL,
+		    sl_status_get_string(status)
+		);
+		self.pressure_offset = 0;
 	}
 
 	status = sl_sleeptimer_start_periodic_timer_ms(
@@ -432,4 +453,45 @@ void _app_es_complete_readout(sl_status_t status) {
 	data_point_t new_data_point;
 	CORE_ATOMIC_SECTION({ new_data_point = self.new_data_point; });
 	self.callback(status, &new_data_point);
+}
+
+pressure_t app_es_current_pressure() {
+	if (self.current_data_point.pressure == GATT_PRESSURE_NAN) {
+		return GATT_PRESSURE_NAN;
+	}
+	return self.current_data_point.pressure;
+}
+
+sl_status_t app_es_tare_pressure(pressure_t pressure) {
+	if (self.current_data_point.pressure == GATT_PRESSURE_NAN) {
+		return SL_STATUS_INVALID_STATE;
+	}
+	pressure_t new_offset =
+	    pressure - self.current_data_point.pressure - self.pressure_offset;
+
+	sl_status_t status = nvm3_writeData(
+	    nvm3_defaultHandle,
+	    NVM3_PRESSURE_OFFSET_KEY,
+	    &new_offset,
+	    sizeof(pressure_t)
+	);
+	if (status != SL_STATUS_OK) {
+		app_log_error(
+		    "[app_es] could not save new pressure offset: %s." APP_LOG_NL,
+		    sl_status_get_string(status)
+		);
+		return SL_STATUS_FAIL;
+	}
+
+	CORE_ATOMIC_SECTION({ self.pressure_offset = new_offset; });
+	self.current_data_point.pressure = pressure;
+	app_log_info(
+	    "[app_es] new pressure offset %ld.%03ldhPa current pressure "
+	    "%ld.%03ldhPa." APP_LOG_NL,
+	    (int32_t)pressure / 1000,
+	    (int32_t)pressure % 1000,
+	    self.current_data_point.pressure / 1000,
+	    self.current_data_point.pressure % 1000
+	);
+	return SL_STATUS_OK;
 }

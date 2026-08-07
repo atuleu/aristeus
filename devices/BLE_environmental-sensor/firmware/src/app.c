@@ -243,7 +243,7 @@ void _app_on_gatt_server_user_read_request(
 		sc = sl_bt_gatt_server_send_user_read_response(
 		    req->connection,
 		    req->characteristic,
-		    0,
+		    gatt_ecode_succeed,
 		    sizeof(time),
 		    (const uint8_t *)&time,
 		    0
@@ -251,20 +251,41 @@ void _app_on_gatt_server_user_read_request(
 		app_assert_status(sc);
 		break;
 	}
-	case gattdb_hive_location:
+	case gattdb_hive_location: {
 		location_t current_location = location_get();
 		sc                          = sl_bt_gatt_server_send_user_read_response(
             req->connection,
             req->characteristic,
-            0,
+            gatt_ecode_succeed,
             sizeof(location_t),
             (const uint8_t *)&current_location,
             0
         );
 		app_assert_status(sc);
 		break;
+	}
+	case gattdb_current_pressure: {
+		pressure_t p = app_es_current_pressure();
+		sc           = sl_bt_gatt_server_send_user_read_response(
+            req->connection,
+            gattdb_current_pressure,
+            gatt_ecode_succeed,
+            sizeof(pressure_t),
+            (const uint8_t *)&p,
+            0
+        );
+		break;
+	}
 	default:
 		app_log_error("[app] unknown characteristic read request");
+		sl_bt_gatt_server_send_user_read_response(
+		    req->connection,
+		    req->characteristic,
+		    gatt_ecode_invalid_handle,
+		    0,
+		    NULL,
+		    0
+		);
 	}
 }
 
@@ -573,11 +594,35 @@ void _app_on_gatt_server_user_write_request(
 		);
 		break;
 	}
+	case gattdb_current_pressure: {
+		pressure_t new_pressure;
+		err = gatt_ecode_succeed;
+		if (req->value.len != sizeof(pressure_t)) {
+			err = gatt_ecode_invalid_attribute_length;
+		} else {
+			memcpy(&new_pressure, req->value.data, sizeof(pressure_t));
+			sl_status_t sc = app_es_tare_pressure(new_pressure);
+			if (sc != SL_STATUS_OK) {
+				err = gatt_ecode_write_request_rejected;
+			}
+		}
+		sl_bt_gatt_server_send_user_write_response(
+		    req->connection,
+		    req->characteristic,
+		    err
+		);
+		break;
+	}
 	case gattdb_record_access_control_point:
 		_app_racp_user_write_request_handler(req);
 		break;
 	default:
 		app_log_error("[app] unknown characteristic write request");
+		sl_bt_gatt_server_send_user_write_response(
+		    req->connection,
+		    req->characteristic,
+		    gatt_ecode_invalid_handle
+		);
 	}
 }
 

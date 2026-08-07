@@ -72,6 +72,17 @@ bool                      app_es_is_ok_to_sleep();
  */
 void app_es_process_action();
 
+/**
+ * returns current pressure.
+ *
+ */
+pressure_t app_es_current_pressure();
+
+/**
+ * Tares the pressure to the provided value. Will save it in NVM
+ */
+sl_status_t app_es_tare_pressure(pressure_t pressure);
+
 void _app_es_on_lps22hh_readout(
     sl_status_t status, pressure_t pressure, void *user_data
 );
