@@ -64,7 +64,8 @@ typedef struct journal {
 	} write_buffer;
 
 	journal_index_t           next_index, first_index;
-	sl_sleeptimer_timestamp_t first_timestamp, last_timestamp;
+	sl_sleeptimer_timestamp_t first_timestamp, last_timestamp,
+	    last_queued_timestamp;
 
 	volatile journal_read_state_t      read_state;
 	volatile journal_index_t           read_start, read_end;
@@ -113,7 +114,7 @@ void _journal_complete_find(
 void _journal_complete_read(sl_status_t status);
 void _journal_on_read_first_idx(sl_status_t status, void *user_data);
 void _journal_on_read_last_idx(sl_status_t status, void *user_data);
-void _journal_on_find_next_idx(
+void _journal_on_find_last_written_idx(
     sl_status_t               status,
     journal_index_t           index,
     sl_sleeptimer_timestamp_t ts,

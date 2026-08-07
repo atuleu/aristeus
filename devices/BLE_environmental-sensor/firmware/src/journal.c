@@ -66,7 +66,7 @@ journal_t j = {
 };
 
 sl_status_t journal_add_record(const data_point_t *dp) {
-	if (dp->date <= j.last_timestamp || dp->date == UINT32_MAX) {
+	if (dp->date <= j.last_queued_timestamp || dp->date == UINT32_MAX) {
 		return SL_STATUS_INVALID_PARAMETER;
 	}
 	CORE_DECLARE_IRQ_STATE;
@@ -80,7 +80,7 @@ sl_status_t journal_add_record(const data_point_t *dp) {
 		CORE_EXIT_ATOMIC();
 		return SL_STATUS_BUSY;
 	}
-	j.last_timestamp = dp->date;
+	j.last_queued_timestamp = dp->date;
 	if (j.first_index == JOURNAL_INDEX_NPOS) {
 		j.first_index     = j.next_index;
 		j.first_timestamp = dp->date;
@@ -128,8 +128,9 @@ void _journal_start_next_operation() {
 }
 
 bool _journal_start_next_write() {
-	data_point_t    dp;
-	journal_index_t index;
+	data_point_t              dp;
+	journal_index_t           index;
+	sl_sleeptimer_timestamp_t old_last_timestamp;
 	CORE_DECLARE_IRQ_STATE;
 	CORE_ENTER_ATOMIC();
 
@@ -149,9 +150,11 @@ bool _journal_start_next_write() {
 		return false;
 	}
 
-	j.operation = journal_op_write;
-	index       = j.next_index;
+	j.operation        = journal_op_write;
+	index              = j.next_index;
+	old_last_timestamp = j.last_timestamp;
 	j.next_index += 1;
+	j.last_timestamp = dp.date;
 	CORE_EXIT_ATOMIC();
 
 	app_log_info("[journal] writing at %ld ts=%ld." APP_LOG_NL, index, dp.date);
@@ -168,7 +171,9 @@ bool _journal_start_next_write() {
 	if (status != SL_STATUS_OK) {
 		CORE_ATOMIC_SECTION({
 			j.operation = journal_op_none;
+			// revert the head state of the journal on early failure.
 			j.next_index -= 1;
+			j.last_timestamp = old_last_timestamp;
 		});
 		app_log_error(
 		    "[journal] could not write: %s." APP_LOG_NL,
@@ -539,10 +544,11 @@ sl_status_t journal_init() {
 	j.operation_done        = journal_op_none;
 	j.operation_done_status = SL_STATUS_OK;
 
-	j.next_index      = JOURNAL_INDEX_NPOS;
-	j.first_index     = JOURNAL_INDEX_NPOS;
-	j.last_timestamp  = UINT32_MAX;
-	j.first_timestamp = UINT32_MAX;
+	j.next_index            = JOURNAL_INDEX_NPOS;
+	j.first_index           = JOURNAL_INDEX_NPOS;
+	j.last_timestamp        = UINT32_MAX;
+	j.last_queued_timestamp = UINT32_MAX;
+	j.first_timestamp       = UINT32_MAX;
 
 	j.read_state = journal_read_state_idle;
 
@@ -589,11 +595,12 @@ void _journal_on_read_first_idx(sl_status_t status, void *user_data) {
 			);
 			// uninitialized memory
 			// disable search as we are empty.
-			j.first_index     = JOURNAL_INDEX_NPOS;
-			j.first_timestamp = UINT32_MAX;
+			j.first_index           = JOURNAL_INDEX_NPOS;
+			j.first_timestamp       = UINT32_MAX;
 			// enable write at index under_read, (previous could have bad CRC
-			j.next_index      = j.under_read;
-			j.last_timestamp  = 0;
+			j.next_index            = j.under_read;
+			j.last_timestamp        = UINT32_MAX;
+			j.last_queued_timestamp = 0;
 			CORE_ATOMIC_SECTION({ j.operation = journal_op_none; });
 			_journal_start_next_operation();
 			return;
@@ -674,8 +681,10 @@ void _journal_on_read_last_idx(sl_status_t status, void *user_data) {
 	status = _journal_read_timestamp(&ts);
 	if (status == SL_STATUS_OK) {
 		if (ts != UINT32_MAX) {
-			j.last_timestamp = ts;
-			j.next_index     = JOURNAL_SIZE;
+			j.last_timestamp        = ts;
+			// also disable write, because we are actually full.
+			j.last_queued_timestamp = UINT32_MAX;
+			j.next_index            = JOURNAL_SIZE;
 			CORE_ATOMIC_SECTION({ j.operation = journal_op_none; });
 			_journal_start_next_operation();
 			return;
@@ -684,7 +693,7 @@ void _journal_on_read_last_idx(sl_status_t status, void *user_data) {
 		j.high           = j.under_read;
 		j.target         = UINT32_MAX;
 		j.under_read     = (j.high + j.low) / 2;
-		j.find_callback  = _journal_on_find_next_idx;
+		j.find_callback  = _journal_on_find_last_written_idx;
 		j.find_user_data = NULL;
 		_journal_find_step();
 		return;
@@ -710,7 +719,7 @@ void _journal_on_read_last_idx(sl_status_t status, void *user_data) {
 	return;
 }
 
-void _journal_on_find_next_idx(
+void _journal_on_find_last_written_idx(
     sl_status_t               status,
     journal_index_t           index,
     sl_sleeptimer_timestamp_t timestamp,
@@ -724,12 +733,14 @@ void _journal_on_find_next_idx(
 		    "%s." APP_LOG_NL,
 		    sl_status_get_string(status)
 		);
-		j.next_index     = JOURNAL_INDEX_NPOS;
-		j.last_timestamp = UINT32_MAX;
+		j.next_index            = JOURNAL_INDEX_NPOS;
+		j.last_timestamp        = UINT32_MAX;
+		j.last_queued_timestamp = UINT32_MAX;
 		return;
 	}
-	j.last_timestamp = timestamp;
-	j.next_index     = index + 1;
+	j.last_timestamp        = timestamp;
+	j.last_queued_timestamp = timestamp;
+	j.next_index            = index + 1;
 	app_log_info(
 	    "[journal] found next index at %ld for times > %ld." APP_LOG_NL,
 	    j.next_index,
@@ -812,10 +823,11 @@ void _journal_on_erase(sl_status_t status, void *user_data) {
 	CORE_DECLARE_IRQ_STATE;
 	CORE_ENTER_ATOMIC();
 	if (status == SL_STATUS_OK) {
-		j.first_index     = JOURNAL_INDEX_NPOS;
-		j.first_timestamp = UINT32_MAX;
-		j.last_timestamp  = 0;
-		j.next_index      = 0;
+		j.first_index           = JOURNAL_INDEX_NPOS;
+		j.first_timestamp       = UINT32_MAX;
+		j.last_timestamp        = UINT32_MAX;
+		j.last_queued_timestamp = 0; // allow enqueuing
+		j.next_index            = 0;
 	}
 	j.operation = journal_op_none;
 	CORE_EXIT_ATOMIC();
@@ -944,4 +956,10 @@ sl_status_t journal_read_abord() {
 	CORE_EXIT_ATOMIC();
 
 	return SL_STATUS_OK;
+}
+
+uint16_t journal_record_count() {
+	uint16_t count;
+	CORE_ATOMIC_SECTION({ count = j.next_index; });
+	return count;
 }

@@ -110,13 +110,18 @@ TEST_F(JournalTest, EmptyInitialization) {
 	journal_init();
 	waitNotBusy();
 	EXPECT_EQ(j.next_index, 0);
-	EXPECT_EQ(j.last_timestamp, 0);
+	EXPECT_EQ(j.last_timestamp, UINT32_MAX);
+	EXPECT_EQ(j.last_queued_timestamp, 0);
 	EXPECT_EQ(j.first_index, JOURNAL_INDEX_NPOS);
 	EXPECT_EQ(j.first_timestamp, UINT32_MAX);
 	EXPECT_TRUE(spiflash_sleeping());
 
 	journal_find_result found;
 	EXPECT_EQ(journal_find_last_before(8, &on_find, &found), SL_STATUS_EMPTY);
+	EXPECT_EQ(
+	    journal_find_last_before(UINT32_MAX, &on_find, &found),
+	    SL_STATUS_EMPTY
+	);
 
 	data_point_t dp = {
 	    .date = 10,
@@ -150,7 +155,8 @@ TEST_F(JournalTest, BadCRCAtFirst) {
 	waitNotBusy();
 	EXPECT_TRUE(spiflash_sleeping());
 	EXPECT_EQ(j.next_index, 2);
-	EXPECT_EQ(j.last_timestamp, 0);
+	EXPECT_EQ(j.last_timestamp, UINT32_MAX);
+	EXPECT_EQ(j.last_queued_timestamp, 0);
 	EXPECT_EQ(j.first_index, JOURNAL_INDEX_NPOS);
 	EXPECT_EQ(j.first_timestamp, UINT32_MAX);
 
@@ -250,7 +256,8 @@ TEST_F(JournalTest, CannotPutMoreThanSize) {
 	EXPECT_TRUE(spiflash_sleeping());
 
 	EXPECT_EQ(j.next_index, 0);
-	EXPECT_EQ(j.last_timestamp, 0);
+	EXPECT_EQ(j.last_queued_timestamp, 0);
+	EXPECT_EQ(j.last_timestamp, UINT32_MAX);
 	EXPECT_EQ(j.first_index, JOURNAL_INDEX_NPOS);
 	EXPECT_EQ(j.first_timestamp, UINT32_MAX);
 

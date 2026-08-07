@@ -53,6 +53,17 @@ typedef uint32_t journal_index_t;
 sl_status_t journal_add_record(const data_point_t *dp);
 
 /**
+ * Return the current journal record count.
+ *
+ * @note the enqueued record are not counted, only actually written or in-flight
+ * write record.
+ *
+ * @warning record with bad CRC are also counted. Only a full read could
+ * accurately return the number of that are stored without errors.
+ */
+uint16_t journal_record_count();
+
+/**
  * Callback function type for journal_find_last_before. The callback is not
  * called from ISR.
  *
