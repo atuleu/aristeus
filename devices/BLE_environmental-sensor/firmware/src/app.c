@@ -348,6 +348,25 @@ void _app_on_es_readout(sl_status_t status, const data_point_t *point) {
 	if (status != SL_STATUS_OK) {
 		return;
 	}
+
+#ifdef APP_TEST_BATTERY
+	//  replace in voltage in pressure
+	data_point_t *toModify = (data_point_t *)point;
+	toModify->pressure = ((uint32_t)batt_monitor_loaded_voltage_mV() << 16) |
+	                     ((uint32_t)batt_monitor_open_voltage_mV() << 0);
+
+	static uint8_t recorded = -1;
+
+	if (point->date > JOURNAL_MINIMUM_DATE && (++recorded % 32) == 0) {
+		sl_status_t status = journal_add_record(point);
+		if (status != SL_STATUS_OK) {
+			app_log_error(
+			    "[app] could not save new record to journal: %s" APP_LOG_NL,
+			    sl_status_get_string(status)
+			);
+		}
+	}
+#else
 	if (point->date > JOURNAL_MINIMUM_DATE) {
 		sl_status_t status = journal_add_record(point);
 		if (status != SL_STATUS_OK) {
@@ -357,7 +376,7 @@ void _app_on_es_readout(sl_status_t status, const data_point_t *point) {
 			);
 		}
 	}
-
+#endif
 	if (_app_is_connected() == false) {
 		sl_status_t status =
 		    app_set_legacy_advertiser_data(app.advertising_set_handle, point);
@@ -367,17 +386,6 @@ void _app_on_es_readout(sl_status_t status, const data_point_t *point) {
 			    sl_status_get_string(status)
 			);
 		}
-	}
-	uint16_t open   = batt_monitor_open_voltage_mV();
-	uint16_t loaded = batt_monitor_loaded_voltage_mV();
-	float    R      = ((float)open - (float)loaded) / 0.004f;
-	if (open != 0xffff && loaded != 0xffff) {
-		app_log_info(
-		    "[app] battery voltage open: %dmV loaded: %dmV R=%dmΩ." APP_LOG_NL,
-		    open,
-		    loaded,
-		    (uint16_t)R
-		);
 	}
 }
 

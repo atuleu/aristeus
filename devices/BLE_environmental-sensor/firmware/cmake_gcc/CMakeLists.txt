@@ -14,6 +14,7 @@ include(BLE_environmental_sensor.cmake)
 set_property(TARGET slc PROPERTY C_STANDARD 23)
 
 option(PRODUCTION_BUILD Off "Production build")
+option(TEST_BATTERY Off "Test the battery with very fast loop, and report voltage instead of pressure")
 
 add_executable(BLE_environmental_sensor
     # Add additional sources here
@@ -71,6 +72,13 @@ if (PRODUCTION_BUILD)
 		# Set additional compiler flags here
 		-DPRODUCTION_BUILD
 		-DSL_POWER_MANAGER_DEBUG=0
+	)
+endif()
+
+if(TEST_BATTERY)
+	target_compile_options(BLE_environmental_sensor PUBLIC
+		# Set additional compiler flags here
+		-DAPP_TEST_BATTERY
 	)
 endif()
 

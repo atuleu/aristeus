@@ -46,18 +46,25 @@
 #ifdef PRODUCTION_BUILD
 #define SENSOR_READOUT_PERIOD_S   60
 #define BT_ADV_PERIOD_MS          5000
-#define APP_CONNECTION_TIMEOUT_MS 10 * 1000
+#define APP_CONNECTION_TIMEOUT_MS (10 * 1000)
 #else
 #define SENSOR_READOUT_PERIOD_S   10
 #define BT_ADV_PERIOD_MS          1000
-#define APP_CONNECTION_TIMEOUT_MS 60 * 1000
+#define APP_CONNECTION_TIMEOUT_MS (60 * 1000)
 #endif
+
+#ifdef APP_TEST_BATTERY
+#define SENSOR_READOUT_PERIOD_S   1
+#define BT_ADV_PERIOD_MS          500
+#define APP_CONNECTION_TIMEOUT_MS (10 * 1000)
+#endif // APP_TEST_BATTERY
 
 #define APP_SEND_NEXT_SIGNAL      0x01
 #define APP_CONNECTION_WD_SIGNAL  0x02
 #define APP_DEBUG_RESOURCE_SIGNAL 0x04
 
-#define APP_BATT_TIMER_HANDLE 1
+#define APP_BATT_TIMER_HANDLE          1
+#define APP_CONNECTION_WD_TIMER_HANDLE 2
 
 typedef struct app_bt_connection {
 	uint8_t                      handle;
