@@ -13,6 +13,7 @@
 #include "sl_sleeptimer.h"
 #include "sl_status.h"
 #include "types.h"
+#include "utils/jitter.h"
 #include "utils/status.h"
 #include <stdint.h>
 
@@ -298,7 +299,9 @@ sl_status_t _app_es_start_co2_readout() {
 }
 
 void _app_es_schedule_batt_measurement() {
-	batt_monitor_start_loaded_measurement(sl_sleeptimer_ms_to_tick(40));
+	batt_monitor_start_loaded_measurement(
+	    sl_sleeptimer_ms_to_tick(37) + jitter()
+	);
 }
 
 bool app_es_is_ok_to_sleep() {

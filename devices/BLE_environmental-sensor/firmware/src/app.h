@@ -57,6 +57,8 @@
 #define APP_CONNECTION_WD_SIGNAL  0x02
 #define APP_DEBUG_RESOURCE_SIGNAL 0x04
 
+#define APP_BATT_TIMER_HANDLE 1
+
 typedef struct app_bt_connection {
 	uint8_t                      handle;
 	sl_sleeptimer_timer_handle_t wd;
@@ -120,6 +122,8 @@ void app_init();
 
 sl_status_t
 app_set_legacy_advertiser_data(uint8_t advertising_set, const data_point_t *d);
+
+sl_status_t _app_start_advertise();
 
 void _app_on_ressource_status(sl_bt_evt_resource_status_t *evt);
 void _app_on_gatt_server_characteristic_status(
@@ -187,3 +191,5 @@ void _app_on_find_last_before(
 journal_read_next_operation_t _app_on_record_read(
     sl_status_t status, const data_point_t *point, void *user_data
 );
+
+void _app_on_soft_timer(sl_bt_evt_system_soft_timer_t *evt);

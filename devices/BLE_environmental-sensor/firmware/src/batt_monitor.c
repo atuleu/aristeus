@@ -18,7 +18,7 @@
 
 #define ADC_CLK_FREQ 1000000
 
-#define OPEN_VOLTAGE_MV_SIZE 8
+#define OPEN_VOLTAGE_MV_SIZE 32
 static_assert(
     (OPEN_VOLTAGE_MV_SIZE & (OPEN_VOLTAGE_MV_SIZE - 1)) == 0,
     "OPEN_VOLTAGE_MV_SIZE must be a power of 2"

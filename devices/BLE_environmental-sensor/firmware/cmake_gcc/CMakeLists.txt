@@ -37,6 +37,8 @@ add_executable(BLE_environmental_sensor
 	${PROJECT_SOURCE_DIR}/../src/utils/crc8.h
 	${PROJECT_SOURCE_DIR}/../src/utils/status.c
 	${PROJECT_SOURCE_DIR}/../src/utils/status.h
+	${PROJECT_SOURCE_DIR}/../src/utils/jitter.c
+	${PROJECT_SOURCE_DIR}/../src/utils/jitter.h
 	${PROJECT_SOURCE_DIR}/../src/em_logger.h
 	${PROJECT_SOURCE_DIR}/../src/em_logger.c
 	${PROJECT_SOURCE_DIR}/../src/journal.h

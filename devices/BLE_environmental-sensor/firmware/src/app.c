@@ -53,6 +53,7 @@
 #include "pin_config.h"
 #include "sl_spidrv_instances.h"
 #include "types.h"
+#include "utils/jitter.h"
 #include "utils/status.h"
 #include <drivers/sht4x.h>
 #include <stdio.h>
@@ -159,6 +160,22 @@ app_set_legacy_advertiser_data(uint8_t advertising_set, const data_point_t *d) {
 	);
 }
 
+sl_status_t _app_start_advertise() {
+	sl_status_t status = sl_bt_legacy_advertiser_start(
+	    app.advertising_set_handle,
+	    sl_bt_legacy_advertiser_connectable
+	);
+	if (status != SL_STATUS_OK) {
+		return status;
+	}
+	return sl_bt_system_set_lazy_soft_timer(
+	    32768 * BT_ADV_PERIOD_MS / 1000,
+	    32768 * 20 / 1000,
+	    APP_BATT_TIMER_HANDLE,
+	    false
+	);
+}
+
 // Application Process Action.
 void app_process_action(void) {
 	i2c_schd_process_action(&app.i2c0);
@@ -186,6 +203,7 @@ void sl_bt_on_event(sl_bt_msg_t *evt) {
 		break;
 
 	case sl_bt_evt_connection_opened_id:
+		sl_bt_system_set_lazy_soft_timer(0, 0, APP_BATT_TIMER_HANDLE, true);
 		_app_on_bt_connection_opened(&evt->data.evt_connection_opened);
 		sl_bt_connection_set_parameters(
 		    app.connection.handle,
@@ -254,6 +272,9 @@ void sl_bt_on_event(sl_bt_msg_t *evt) {
 		_app_on_external_signals(signals);
 		break;
 
+	case sl_bt_evt_system_soft_timer_id:
+		_app_on_soft_timer(&evt->data.evt_system_soft_timer);
+		break;
 	default:
 		break;
 	}
@@ -521,10 +542,9 @@ void _app_on_bt_system_boot() {
 	); // max. num. adv. events
 	app_assert_status(status);
 	// Start advertising and enable connections.
-	status = sl_bt_legacy_advertiser_start(
-	    app.advertising_set_handle,
-	    sl_bt_legacy_advertiser_connectable
-	);
+	status = _app_start_advertise();
+	app_assert(status);
+
 	// just to ensure we start from unitialized everywhere
 	app.connection.handle =
 	    SL_BT_INVALID_CONNECTION_HANDLE; // will preempt a spurous WD stop or
@@ -567,11 +587,7 @@ void _app_on_bt_connection_closed(sl_bt_evt_connection_closed_t *evt) {
 	app_assert_status(status);
 
 	// Restart advertising after client has disconnected.
-	status = sl_bt_legacy_advertiser_start(
-	    app.advertising_set_handle,
-	    sl_bt_legacy_advertiser_connectable
-	);
-
+	status = _app_start_advertise();
 	app_assert_status(status);
 }
 
@@ -1174,4 +1190,19 @@ void _app_complete_procedure(racp_rsp_t rsp_code) {
 	_app_racp_send_response(opcode, rsp_code);
 	// we re-start the WD at the end of the procedure.
 	_app_connection_wd_start(&app.connection);
+}
+
+void _app_on_soft_timer(sl_bt_evt_system_soft_timer_t *evt) {
+	switch (evt->handle) {
+	case APP_BATT_TIMER_HANDLE:
+		batt_monitor_start_open_measurement(
+		    sl_sleeptimer_ms_to_tick(17) + jitter()
+		);
+		break;
+	default:
+		app_log_warning(
+		    "[app] spurious timer event HANDLE=%d." APP_LOG_NL,
+		    evt->handle
+		);
+	}
 }
