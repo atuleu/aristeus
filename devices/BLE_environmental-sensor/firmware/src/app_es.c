@@ -118,6 +118,8 @@ void _app_es_on_sensor_timer_timeout(
 		self.lps22hh_done               = false;
 	});
 
+	batt_monitor_preempt_open();
+
 	app_log_debug("[app_es] starting readout." APP_LOG_NL);
 
 	sl_status_t s = sht4x_read_data(
@@ -159,22 +161,6 @@ sl_status_t app_es_init(const app_es_config_t *config) {
 	self.callback = config->callback;
 
 	sl_status_t status;
-
-	status = batt_monitor_init();
-	if (status != SL_STATUS_OK) {
-		app_log_warning(
-		    "[app_es] : could not init battery measurement: %s." APP_LOG_NL,
-		    sl_status_get_string(status)
-		);
-		status = batt_monitor_start_loaded_measurement(0);
-		if (status != SL_STATUS_OK) {
-			app_log_error(
-			    "[app_es] could not start battery measure: %s." APP_LOG_NL,
-			    sl_status_get_string(status)
-			);
-		}
-	}
-
 	status = sht4x_init(&self.sht4x_sensor, config->i2c_bus, SHT4X_BASE_ADDR);
 	if (status != SL_STATUS_OK) {
 		app_log_warning(
@@ -245,6 +231,7 @@ sl_status_t app_es_init(const app_es_config_t *config) {
 	app_log_info("[app_es] started read loop." APP_LOG_NL);
 
 	_app_es_on_sensor_timer_timeout(NULL, NULL);
+
 	return SL_STATUS_OK;
 }
 
@@ -433,6 +420,7 @@ void _app_es_complete_readout(sl_status_t status) {
 	data_point_t new_data_point;
 	CORE_ATOMIC_SECTION({ new_data_point = self.new_data_point; });
 	self.callback(status, &new_data_point);
+	batt_monitor_enable_open();
 }
 
 pressure_t app_es_current_pressure() {

@@ -4,6 +4,7 @@
 #include <stdint.h>
 
 #include "app_log.h"
+#include "batt_monitor.h"
 #include "sl_core.h"
 #include "sl_sleeptimer.h"
 #include "sl_status.h"
@@ -157,6 +158,8 @@ bool _journal_start_next_write() {
 	j.last_timestamp = dp.date;
 	CORE_EXIT_ATOMIC();
 
+	batt_monitor_preempt_open();
+
 	app_log_info("[journal] writing at %ld ts=%ld." APP_LOG_NL, index, dp.date);
 	journal_record_from_data_point(j.write_buffer.record, &dp);
 
@@ -169,6 +172,7 @@ bool _journal_start_next_write() {
 	);
 
 	if (status != SL_STATUS_OK) {
+		batt_monitor_enable_open();
 		CORE_ATOMIC_SECTION({
 			j.operation = journal_op_none;
 			// revert the head state of the journal on early failure.
@@ -248,6 +252,7 @@ bool _journal_start_next_find() {
 		);
 		return true;
 	}
+
 	j.under_read           = (j.low + j.high) / 2;
 	j.bad_crc_towards_high = true;
 	_journal_find_step();
@@ -265,6 +270,7 @@ void _journal_on_write(sl_status_t status, void *user_data) {
 		);
 	}
 	_journal_start_next_operation();
+	batt_monitor_enable_open();
 }
 
 sl_status_t journal_read(
@@ -293,6 +299,8 @@ sl_status_t journal_read(
 	j.read_end       = end;
 	CORE_EXIT_ATOMIC();
 
+	batt_monitor_preempt_open();
+
 	_journal_start_next_operation();
 
 	return SL_STATUS_OK;
@@ -311,7 +319,7 @@ void _journal_mark_current_operation_done(sl_status_t status, void *user_data) {
 
 void _journal_read_current_chunk(sl_status_t status) {
 	if (status != SL_STATUS_OK) {
-		_journal_complete_read(status);
+		_journal_on_read_done(status);
 		return;
 	}
 	CORE_DECLARE_IRQ_STATE;
@@ -319,7 +327,7 @@ void _journal_read_current_chunk(sl_status_t status) {
 	if (j.read_state == journal_read_state_abord) {
 		// we aborded while spiflash read was in flight
 		CORE_EXIT_ATOMIC();
-		_journal_complete_read(SL_STATUS_ABORT);
+		_journal_on_read_done(SL_STATUS_ABORT);
 		return;
 	}
 	j.read_state = journal_read_state_reading_chunk;
@@ -346,7 +354,7 @@ void _journal_read_current_chunk(sl_status_t status) {
 		CORE_ENTER_ATOMIC();
 		if (j.read_state == journal_read_state_abord) {
 			CORE_EXIT_ATOMIC();
-			_journal_complete_read(SL_STATUS_ABORT);
+			_journal_on_read_done(SL_STATUS_ABORT);
 			return;
 		}
 
@@ -373,7 +381,7 @@ void _journal_read_current_chunk(sl_status_t status) {
 
 	if (j.read_start >= j.read_end) {
 		// we are done
-		_journal_complete_read(SL_STATUS_OK);
+		_journal_on_read_done(SL_STATUS_OK);
 		return;
 	}
 	CORE_ATOMIC_SECTION({ j.read_state = journal_read_state_need_chunk; });
@@ -433,6 +441,8 @@ sl_status_t journal_find_last_before(
 	j.low            = JOURNAL_INDEX_NPOS;
 	j.high           = JOURNAL_INDEX_NPOS;
 	CORE_EXIT_ATOMIC();
+
+	batt_monitor_preempt_open();
 
 	_journal_start_next_operation();
 
@@ -556,6 +566,8 @@ sl_status_t journal_init() {
 	j.find_callback = NULL;
 	j.under_read    = 0;
 
+	batt_monitor_preempt_open();
+
 	sl_status_t status = spiflash_read(
 	    sizeof(journal_record_t) * j.under_read,
 	    j.find_buffer.bytes,
@@ -565,6 +577,7 @@ sl_status_t journal_init() {
 	);
 	if (status != SL_STATUS_OK) {
 		CORE_ATOMIC_SECTION({ j.operation = journal_op_none; });
+		batt_monitor_enable_open();
 		app_log_error(
 		    "[journal] could not look for first index %ld: %s." APP_LOG_NL,
 		    j.under_read,
@@ -583,6 +596,7 @@ void _journal_on_read_first_idx(sl_status_t status, void *user_data) {
 		    j.under_read,
 		    sl_status_get_string(status)
 		);
+		batt_monitor_enable_open();
 		return;
 	}
 	sl_sleeptimer_timestamp_t ts;
@@ -603,6 +617,7 @@ void _journal_on_read_first_idx(sl_status_t status, void *user_data) {
 			j.last_queued_timestamp = 0;
 			CORE_ATOMIC_SECTION({ j.operation = journal_op_none; });
 			_journal_start_next_operation();
+			batt_monitor_enable_open();
 			return;
 		}
 		j.first_index     = j.under_read;
@@ -631,7 +646,9 @@ void _journal_on_read_first_idx(sl_status_t status, void *user_data) {
 			    sl_status_get_string(status)
 			);
 			_journal_start_next_operation();
+			batt_monitor_enable_open();
 		}
+
 		return;
 	}
 
@@ -641,6 +658,7 @@ void _journal_on_read_first_idx(sl_status_t status, void *user_data) {
 		app_log_error("[journal] memory is initialized with bad memory");
 		CORE_ATOMIC_SECTION({ j.operation = journal_op_none; });
 		_journal_start_next_operation();
+		batt_monitor_enable_open();
 		return;
 	}
 
@@ -661,6 +679,7 @@ void _journal_on_read_first_idx(sl_status_t status, void *user_data) {
 		);
 		_journal_start_next_operation();
 	}
+	batt_monitor_enable_open();
 
 	return;
 }
@@ -675,10 +694,12 @@ void _journal_on_read_last_idx(sl_status_t status, void *user_data) {
 		);
 		CORE_ATOMIC_SECTION({ j.operation = journal_op_none; });
 		_journal_start_next_operation();
+		batt_monitor_enable_open();
 		return;
 	}
 	sl_sleeptimer_timestamp_t ts;
 	status = _journal_read_timestamp(&ts);
+
 	if (status == SL_STATUS_OK) {
 		if (ts != UINT32_MAX) {
 			j.last_timestamp        = ts;
@@ -687,6 +708,7 @@ void _journal_on_read_last_idx(sl_status_t status, void *user_data) {
 			j.next_index            = JOURNAL_SIZE;
 			CORE_ATOMIC_SECTION({ j.operation = journal_op_none; });
 			_journal_start_next_operation();
+			batt_monitor_enable_open();
 			return;
 		}
 		j.operation      = journal_op_find;
@@ -696,6 +718,7 @@ void _journal_on_read_last_idx(sl_status_t status, void *user_data) {
 		j.find_callback  = _journal_on_find_last_written_idx;
 		j.find_user_data = NULL;
 		_journal_find_step();
+		// find_step will ultimately enable batt_monitoring
 		return;
 	}
 
@@ -715,6 +738,7 @@ void _journal_on_read_last_idx(sl_status_t status, void *user_data) {
 		    j.under_read,
 		    sl_status_get_string(status)
 		);
+		batt_monitor_enable_open();
 	}
 	return;
 }
@@ -808,10 +832,13 @@ sl_status_t journal_erase() {
 	j.operation = journal_op_erase;
 	CORE_EXIT_ATOMIC();
 
+	batt_monitor_preempt_open();
+
 	sl_status_t status =
 	    spiflash_erase(0, SPIFLASH_SIZE, &_journal_on_erase, NULL);
 
 	if (status == SL_STATUS_OK) {
+		batt_monitor_enable_open();
 		CORE_ATOMIC_SECTION(j.operation = journal_op_none;);
 	}
 
@@ -832,6 +859,7 @@ void _journal_on_erase(sl_status_t status, void *user_data) {
 	j.operation = journal_op_none;
 	CORE_EXIT_ATOMIC();
 	_journal_start_next_operation();
+	batt_monitor_enable_open();
 }
 
 void journal_process_action() {
@@ -876,7 +904,7 @@ void journal_process_action() {
 		_journal_read_current_chunk(SL_STATUS_OK);
 		break;
 	case journal_read_state_abord:
-		_journal_complete_read(SL_STATUS_ABORT);
+		_journal_on_read_done(SL_STATUS_ABORT);
 		break;
 	default:
 		// no operation completion pending since either already done, or no
@@ -888,7 +916,7 @@ void journal_process_action() {
 	// resume also through chunk, and abord is just a cleanup.
 }
 
-void _journal_complete_read(sl_status_t status) {
+void _journal_on_read_done(sl_status_t status) {
 	journal_read_callback_t callback;
 	void                   *user_data;
 	CORE_ATOMIC_SECTION({
@@ -900,9 +928,11 @@ void _journal_complete_read(sl_status_t status) {
 	});
 
 	if (callback == NULL) {
+		batt_monitor_enable_open();
 		return;
 	}
 	callback(status, NULL, user_data);
+	batt_monitor_enable_open();
 }
 
 void _journal_on_find_done(sl_status_t status) {
@@ -916,11 +946,13 @@ void _journal_on_find_done(sl_status_t status) {
 	});
 
 	if (callback == NULL) {
+		batt_monitor_enable_open();
 		return;
 	}
 	callback(status, j.low, j.low_ts, user_data);
 
 	_journal_start_next_operation();
+	batt_monitor_enable_open();
 }
 
 bool journal_is_ok_to_sleep() {

@@ -111,7 +111,7 @@ void _journal_find_step();
 void _journal_complete_find(
     sl_status_t status, journal_index_t index, sl_sleeptimer_timestamp_t ts
 );
-void _journal_complete_read(sl_status_t status);
+void _journal_on_read_done(sl_status_t status);
 void _journal_on_read_first_idx(sl_status_t status, void *user_data);
 void _journal_on_read_last_idx(sl_status_t status, void *user_data);
 void _journal_on_find_last_written_idx(

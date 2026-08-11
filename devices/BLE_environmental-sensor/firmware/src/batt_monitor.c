@@ -8,6 +8,7 @@
 #include "sl_power_manager_config.h"
 #include "sl_sleeptimer.h"
 #include "sl_status.h"
+#include "utils/status.h"
 #include <stdint.h>
 #include <sys/reent.h>
 
@@ -81,12 +82,27 @@ SL_ENUM(_batt_monitor_next_measurement){
     _batt_monitor_next_loaded,
 };
 
+const char *
+_batt_monitor_next_measurement_string(_batt_monitor_next_measurement t) {
+	switch (t) {
+	case _batt_monitor_next_none:
+		return "<NONE>";
+	case _batt_monitor_next_loaded:
+		return "loaded";
+	case _batt_monitor_next_open:
+		return "open";
+	default:
+		return "UNKNOWN";
+	}
+}
+
 typedef struct batt_monitor {
 
 	sl_sleeptimer_timer_handle_t            delay_timer;
 	battery_level_t                         current_level;
 	volatile _batt_monitor_next_measurement next_measurement;
 	volatile bool                           has_new_data;
+	volatile uint8_t                        preempt_open;
 
 	voltage_averager_LOADED_t loaded_voltage;
 	voltage_averager_OPEN_t   open_voltage;
@@ -99,6 +115,7 @@ static batt_monitor_t self = {
     .current_level    = BATTERY_NAN,
     .next_measurement = _batt_monitor_next_none,
     .has_new_data     = false,
+    .preempt_open     = 0,
 };
 
 sl_status_t batt_monitor_init() {
@@ -200,7 +217,7 @@ battery_level_t batt_monitor_get_current_level() {
 	}
 
 	uint16_t avdd_mv = batt_monitor_loaded_voltage_mV();
-	app_log_info("[batt_monitor] measured AVDD=%lumV." APP_LOG_NL, avdd_mv);
+	app_log_info("[batt_monitor] measured AVDD=%dumV." APP_LOG_NL, avdd_mv);
 
 #define CR2032_MODEL_ENTRY_SIZE 8
 	static batt_model_entry_t cr2032_model[CR2032_MODEL_ENTRY_SIZE] = {
@@ -288,10 +305,13 @@ sl_status_t _batt_monitor_start_measurement(
 		CORE_ENTER_ATOMIC();
 		self.next_measurement = _batt_monitor_next_none;
 		CORE_EXIT_ATOMIC();
-		app_log_error(
-		    "[batt_monitor] could not start measurement: %s." APP_LOG_NL,
-		    sl_status_get_string(status)
-		);
+		if (type != _batt_monitor_next_open && status != SL_STATUS_BUSY) {
+			app_log_error(
+			    "[batt_monitor] could not start %s measurement: %s." APP_LOG_NL,
+			    _batt_monitor_next_measurement_string(type),
+			    sl_status_get_string(status)
+			);
+		}
 	}
 	return status;
 }
@@ -303,20 +323,38 @@ void _batt_monitor_on_delay_timeout(
 	(void)user_data;
 	sl_status_t status = _batt_monitor_start_next_measurement();
 	if (status != SL_STATUS_OK) {
-		CORE_ATOMIC_SECTION(self.next_measurement = _batt_monitor_next_none;);
-		app_log_error(
-		    "[batt_monitor] could not start measurement: %s." APP_LOG_NL,
-		    sl_status_get_string(status)
-		);
+		_batt_monitor_next_measurement type;
+		CORE_ATOMIC_SECTION({
+			type                  = self.next_measurement;
+			self.next_measurement = _batt_monitor_next_none;
+		});
+		if (type != _batt_monitor_next_open && status != SL_STATUS_BUSY) {
+			app_log_error(
+			    "[batt_monitor] could not start %s measurement: %s." APP_LOG_NL,
+			    _batt_monitor_next_measurement_string(type),
+			    sl_status_get_string(status)
+			);
+		}
 	}
 }
 
 sl_status_t _batt_monitor_start_next_measurement() {
 	_batt_monitor_next_measurement type;
-	CORE_ATOMIC_SECTION({ type = self.next_measurement; });
-	if (type == _batt_monitor_next_none) {
+	CORE_DECLARE_IRQ_STATE;
+	CORE_ENTER_ATOMIC();
+
+	if (self.next_measurement == _batt_monitor_next_none) {
+		CORE_EXIT_ATOMIC();
 		return SL_STATUS_INVALID_STATE;
 	}
+	if (self.next_measurement == _batt_monitor_next_open &&
+	    self.preempt_open > 0) {
+		CORE_EXIT_ATOMIC();
+		return SL_STATUS_BUSY;
+	}
+	type = self.next_measurement;
+	CORE_EXIT_ATOMIC();
+
 	sl_status_t status = sl_clock_manager_enable_bus_clock(SL_BUS_CLOCK_IADC0);
 	if (status != SL_STATUS_OK) {
 		return status;
@@ -326,7 +364,7 @@ sl_status_t _batt_monitor_start_next_measurement() {
 
 	app_log_debug(
 	    "[batt_monitor] %s measurement started." APP_LOG_NL,
-	    type == _batt_monitor_next_loaded ? "loaded" : "open"
+	    _batt_monitor_next_measurement_string(type)
 	);
 
 	return SL_STATUS_OK;
@@ -347,9 +385,39 @@ sl_status_t batt_monitor_start_loaded_measurement(uint32_t delay_ticks) {
 }
 
 uint16_t batt_monitor_open_voltage_mV() {
-	return (OPEN_voltage_get(&self.open_voltage) * self.vref) / 4095;
+	uint16_t value = OPEN_voltage_get(&self.open_voltage);
+	if (value == 0xffff) {
+		return 0xffff;
+	}
+	return (value * self.vref) / 4095;
 }
 
 uint16_t batt_monitor_loaded_voltage_mV() {
-	return (LOADED_voltage_get(&self.loaded_voltage) * self.vref) / 4095;
+	uint16_t value = LOADED_voltage_get(&self.loaded_voltage);
+	if (value == 0xffff) {
+		return 0xffff;
+	}
+	return (value * self.vref) / 4095;
+}
+
+void batt_monitor_preempt_open() {
+	uint8_t p;
+	CORE_ATOMIC_SECTION({
+		if (self.preempt_open < 255) {
+			self.preempt_open += 1;
+		}
+		p = self.preempt_open;
+	});
+	app_log_debug("[batt_monitor] premption increased to %d." APP_LOG_NL, p);
+}
+
+void batt_monitor_enable_open() {
+	uint8_t p;
+	CORE_ATOMIC_SECTION({
+		if (self.preempt_open > 0) {
+			self.preempt_open -= 1;
+		}
+		p = self.preempt_open;
+	});
+	app_log_debug("[batt_monitor] premption decreased to %d." APP_LOG_NL, p);
 }

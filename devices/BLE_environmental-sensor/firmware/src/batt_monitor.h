@@ -20,6 +20,9 @@ sl_status_t batt_monitor_start_loaded_measurement(uint32_t delay_ticks);
 uint16_t batt_monitor_open_voltage_mV();
 uint16_t batt_monitor_loaded_voltage_mV();
 
+void batt_monitor_preempt_open();
+void batt_monitor_enable_open();
+
 #ifdef __cplusplus
 }
 #endif //__cplusplus

@@ -96,6 +96,9 @@ void app_init(void) {
 	status = spiflash_init(sl_spidrv_spi0_handle);
 	app_assert_status(status);
 
+	status = batt_monitor_init();
+	app_assert_status(status);
+
 	status = journal_init();
 	app_assert_status(status);
 
@@ -365,6 +368,17 @@ void _app_on_es_readout(sl_status_t status, const data_point_t *point) {
 			);
 		}
 	}
+	uint16_t open   = batt_monitor_open_voltage_mV();
+	uint16_t loaded = batt_monitor_loaded_voltage_mV();
+	float    R      = ((float)open - (float)loaded) / 0.004f;
+	if (open != 0xffff && loaded != 0xffff) {
+		app_log_info(
+		    "[app] battery voltage open: %dmV loaded: %dmV R=%dmΩ." APP_LOG_NL,
+		    open,
+		    loaded,
+		    (uint16_t)R
+		);
+	}
 }
 
 bool _app_is_connected() {
@@ -543,7 +557,7 @@ void _app_on_bt_system_boot() {
 	app_assert_status(status);
 	// Start advertising and enable connections.
 	status = _app_start_advertise();
-	app_assert(status);
+	app_assert_status(status);
 
 	// just to ensure we start from unitialized everywhere
 	app.connection.handle =
