@@ -21,7 +21,7 @@
 #define NVM3_PRESSURE_OFFSET_KEY (NVM3_KEY_MIN + 0x00011)
 
 typedef struct app_es_handle {
-	sl_sleeptimer_timer_handle_t sensor_timer, batt_timer;
+	sl_sleeptimer_timer_handle_t sensor_timer;
 	sht4x_handle_t               sht4x_sensor;
 	lps22hh_handle_t             lps22hh_sensor;
 	stcc4_handle_t               stcc4_sensor;
@@ -165,7 +165,7 @@ sl_status_t app_es_init(const app_es_config_t *config) {
 		    "[app_es] : could not init battery measurement: %s." APP_LOG_NL,
 		    sl_status_get_string(status)
 		);
-		status = batt_monitor_start_measurement();
+		status = batt_monitor_start_loaded_measurement(0);
 		if (status != SL_STATUS_OK) {
 			app_log_error(
 			    "[app_es] could not start battery measure: %s." APP_LOG_NL,
@@ -298,22 +298,7 @@ sl_status_t _app_es_start_co2_readout() {
 }
 
 void _app_es_schedule_batt_measurement() {
-	sl_status_t status = sl_sleeptimer_start_timer_ms(
-	    &self.batt_timer,
-	    40,
-	    &_app_es_on_batt_timer_timeout,
-	    NULL,
-	    0,
-	    0
-	);
-
-	if (status != SL_STATUS_OK) {
-		app_log_error(
-		    "[app_es] could not schedule battery level reading: "
-		    "%s." APP_LOG_NL,
-		    sl_status_get_string(status)
-		);
-	}
+	batt_monitor_start_loaded_measurement(sl_sleeptimer_ms_to_tick(40));
 }
 
 bool app_es_is_ok_to_sleep() {
@@ -439,21 +424,6 @@ void app_es_set_current_unix_time(sl_sleeptimer_timestamp_t now) {
 
 const data_point_t *app_es_current_data() {
 	return &self.current_data_point;
-}
-
-void _app_es_on_batt_timer_timeout(
-    sl_sleeptimer_timer_handle_t *timer, void *user_data
-) {
-	(void)timer;
-	(void)user_data;
-	sl_status_t status = batt_monitor_start_measurement();
-	if (status != SL_STATUS_OK) {
-		app_log_error(
-		    "[app_es] could not start battery level measurement: "
-		    "%s." APP_LOG_NL,
-		    sl_status_get_string(status)
-		);
-	}
 }
 
 void _app_es_complete_readout(sl_status_t status) {

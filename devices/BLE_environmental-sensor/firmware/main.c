@@ -27,6 +27,7 @@
  * 3. This notice may not be removed or altered from any source distribution.
  *
  ******************************************************************************/
+
 #include "sl_component_catalog.h"
 #include "sl_main_init.h"
 #if defined(SL_CATALOG_POWER_MANAGER_PRESENT)
@@ -39,6 +40,7 @@
 #endif // SL_CATALOG_KERNEL_PRESENT
 
 int main(void) {
+
 	// Initialize Silicon Labs device, system, service(s) and protocol stack(s).
 	// Note that if the kernel is present, the start task will be started and
 	// software component initialization will take place there.

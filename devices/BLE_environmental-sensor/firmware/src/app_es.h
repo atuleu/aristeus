@@ -100,10 +100,6 @@ void _app_es_on_sensor_timer_timeout(
     sl_sleeptimer_timer_handle_t *timer, void *user_data
 );
 
-void _app_es_on_batt_timer_timeout(
-    sl_sleeptimer_timer_handle_t *timer, void *user_data
-);
-
 sl_status_t _app_es_start_co2_readout();
 void        _app_es_schedule_batt_measurement();
 
