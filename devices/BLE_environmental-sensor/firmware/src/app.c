@@ -396,6 +396,7 @@ void _app_connection_reset(app_bt_connection_t *conn) {
 
 	conn->handle                      = SL_BT_INVALID_CONNECTION_HANDLE;
 	conn->wd_fired                    = false;
+	conn->wd_ignore                   = false;
 	conn->stream_notification_enabled = false;
 	conn->racp_enabled                = false;
 	conn->inflight_indication         = false;
@@ -406,6 +407,7 @@ void _app_connection_reset(app_bt_connection_t *conn) {
 void _app_connection_init(app_bt_connection_t *conn, uint8_t handle) {
 	conn->handle                      = handle;
 	conn->wd_fired                    = false;
+	conn->wd_ignore                   = false;
 	conn->stream_notification_enabled = false;
 	conn->racp_enabled                = false;
 	conn->inflight_indication         = false;
@@ -415,8 +417,9 @@ void _app_connection_init(app_bt_connection_t *conn, uint8_t handle) {
 }
 
 void _app_connection_wd_reset(app_bt_connection_t *conn) {
+	sl_status_t status;
 	CORE_ATOMIC_SECTION({
-		sl_sleeptimer_restart_timer_ms(
+		status = sl_sleeptimer_restart_timer_ms(
 		    &conn->wd,
 		    APP_CONNECTION_TIMEOUT_MS,
 		    &_app_on_connection_wd_timeout,
@@ -426,12 +429,20 @@ void _app_connection_wd_reset(app_bt_connection_t *conn) {
 		);
 		conn->wd_fired = false;
 	});
-	app_log_debug("[app] connection WD reset." APP_LOG_NL);
+	if (status == SL_STATUS_OK) {
+		app_log_debug("[app] connection WD reset." APP_LOG_NL);
+	} else {
+		app_log_error(
+		    "[app] could not reset WD timer: %s." APP_LOG_NL,
+		    sl_status_get_string(status)
+		);
+	}
 }
 
 void _app_connection_wd_start(app_bt_connection_t *conn) {
+	sl_status_t status;
 	CORE_ATOMIC_SECTION({
-		sl_sleeptimer_start_timer_ms(
+		status = sl_sleeptimer_start_timer_ms(
 		    &app.connection.wd,
 		    APP_CONNECTION_TIMEOUT_MS,
 		    &_app_on_connection_wd_timeout,
@@ -442,26 +453,34 @@ void _app_connection_wd_start(app_bt_connection_t *conn) {
 		conn->wd_fired  = false;
 		conn->wd_ignore = false;
 	});
-	app_log_debug("[app] connection WD started." APP_LOG_NL);
+
+	if (status == SL_STATUS_OK) {
+		app_log_debug("[app] connection WD started." APP_LOG_NL);
+	} else {
+		app_log_error(
+		    "[app] could not start connection timer: %s." APP_LOG_NL,
+		    sl_status_get_string(status)
+		);
+	}
 }
 
 void _app_connection_wd_stop(app_bt_connection_t *conn) {
 	sl_status_t status;
 	CORE_ATOMIC_SECTION({
-		status = sl_sleeptimer_start_timer_ms(
-		    &conn->wd,
-		    APP_CONNECTION_TIMEOUT_MS,
-		    &_app_on_connection_wd_timeout,
-		    NULL,
-		    0,
-		    0
-		);
+		status                  = sl_sleeptimer_stop_timer(&conn->wd);
 		app.connection.wd_fired = false;
 		if (status != SL_STATUS_OK) {
 			conn->wd_ignore = true;
 		}
 	});
-	app_log_debug("[app] connection WD stopped." APP_LOG_NL);
+	if (status == SL_STATUS_OK) {
+		app_log_debug("[app] connection WD stopped." APP_LOG_NL);
+	} else {
+		app_log_error(
+		    "[app] could not stop WD: %s." APP_LOG_NL,
+		    sl_status_get_string(status)
+		);
+	}
 }
 
 void _app_on_connection_wd_timeout(
