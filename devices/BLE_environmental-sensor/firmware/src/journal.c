@@ -837,7 +837,7 @@ sl_status_t journal_erase() {
 	sl_status_t status =
 	    spiflash_erase(0, SPIFLASH_SIZE, &_journal_on_erase, NULL);
 
-	if (status == SL_STATUS_OK) {
+	if (status != SL_STATUS_OK) {
 		batt_monitor_enable_open();
 		CORE_ATOMIC_SECTION(j.operation = journal_op_none;);
 	}
