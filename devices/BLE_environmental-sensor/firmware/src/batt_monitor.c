@@ -40,7 +40,7 @@ static_assert(LOADED_VOLTAGE_MV_SIZE <= 256, "OPEN_VOLTAGE_SIZE is too large");
 #define IMPLEMENT_VOLTAGE_AVERAGER(Name)                                       \
 	typedef struct voltage_averager_##Name {                                   \
 		volatile uint16_t voltage_mV[VA_SIZE(Name)];                           \
-		volatile uint8_t  size;                                                \
+		volatile uint32_t size;                                                \
 	} VA_SNAME(Name);                                                          \
 	void Name##_voltage_init(VA_SNAME(Name) * self) {                          \
 		for (uint8_t i = 0; i < VA_SIZE(Name); ++i) {                          \
@@ -49,7 +49,7 @@ static_assert(LOADED_VOLTAGE_MV_SIZE <= 256, "OPEN_VOLTAGE_SIZE is too large");
 		self->size = 0;                                                        \
 	}                                                                          \
 	void Name##_voltage_add(VA_SNAME(Name) * self, uint16_t value) {           \
-		self->voltage_mV[self->size++] = value;                                \
+		self->voltage_mV[(self->size++) & VA_MASK(Name)] = value;              \
 	}                                                                          \
 	uint16_t Name##_voltage_get(VA_SNAME(Name) * self) {                       \
 		uint8_t i;                                                             \
@@ -70,7 +70,7 @@ static_assert(LOADED_VOLTAGE_MV_SIZE <= 256, "OPEN_VOLTAGE_SIZE is too large");
 		if (self->size == 0) {                                                 \
 			return 0xFFFF;                                                     \
 		}                                                                      \
-		return self->voltage_mV[self->size - 1];                               \
+		return self->voltage_mV[(self->size - 1) & VA_MASK(Name)];             \
 	}
 
 IMPLEMENT_VOLTAGE_AVERAGER(OPEN)

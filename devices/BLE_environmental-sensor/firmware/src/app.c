@@ -125,8 +125,8 @@ void app_init(void) {
 
 sl_status_t
 app_set_legacy_advertiser_data(uint8_t advertising_set, const data_point_t *d) {
-	int16_t power;
-	sl_bt_system_get_tx_power_setting(NULL, NULL, NULL, &power, NULL);
+	int16_t power, a0, a1, a2, a3;
+	sl_bt_system_get_tx_power_setting(&a0, &a1, &a2, &power, &a3);
 
 	uint8_t adv_data[31];
 	uint8_t adv_data_len     = 0;
@@ -171,6 +171,7 @@ sl_status_t _app_start_advertise() {
 	if (status != SL_STATUS_OK) {
 		return status;
 	}
+
 	return sl_bt_system_set_lazy_soft_timer(
 	    32768 * BT_ADV_PERIOD_MS / 1000,
 	    32768 * 20 / 1000,
@@ -278,6 +279,7 @@ void sl_bt_on_event(sl_bt_msg_t *evt) {
 	case sl_bt_evt_system_soft_timer_id:
 		_app_on_soft_timer(&evt->data.evt_system_soft_timer);
 		break;
+
 	default:
 		break;
 	}
