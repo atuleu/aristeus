@@ -1,13 +1,8 @@
-all: arisble check
+DIRS:= pkg/arisble cmd/aristeus
 
+TARGETS := all check clean install
 
-arisble:
-	make -C pkg/arisble
+.PHONY: $(TARGETS) $(DIRS)
 
-check: arisble
-	make -C pkg/arisble check
-
-clean:
-	echo "Nothing to clean yet"
-
-.PHONE: clean check arisble
+$(TARGETS): %:
+	@for dir in $(DIRS); do $(MAKE) -C $$dir $@; done
