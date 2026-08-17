@@ -22,12 +22,12 @@ func (t Temperature) String() string {
 
 func checkLength(d []byte, size int) error {
 	if len(d) < size {
-		return fmt.Errorf("unsuficient bytes %d (%d required)", len(d), size)
+		return fmt.Errorf("unsuficient bytes len:%d (%d required)", len(d), size)
 	}
 	return nil
 }
 
-func (t *Temperature) BinaryUnmarshal(d []byte) error {
+func (t *Temperature) UnmarshalBinary(d []byte) error {
 	if err := checkLength(d, 2); err != nil {
 		return err
 	}
@@ -50,10 +50,10 @@ func (h Humidity) String() string {
 	if h == HumidityNaN {
 		return "NaN"
 	}
-	return strconv.FormatFloat(float64(h)/10, 'f', 1, 64)
+	return strconv.FormatFloat(float64(h)/10, 'f', 1, 64) + "%"
 }
 
-func (h *Humidity) BinaryUnmarshal(d []byte) error {
+func (h *Humidity) UnmarshalBinary(d []byte) error {
 	if err := checkLength(d, 2); err != nil {
 		return err
 	}
@@ -79,7 +79,7 @@ func (p Pressure) String() string {
 	return strconv.FormatFloat(float64(p)/1000.0, 'f', 3, 64) + "hPa"
 }
 
-func (p *Pressure) BinaryUnmarshal(d []byte) error {
+func (p *Pressure) UnmarshalBinary(d []byte) error {
 	if err := checkLength(d, 4); err != nil {
 		return err
 	}
@@ -127,7 +127,7 @@ func (c CO2Concentration) String() string {
 	return strconv.FormatInt(int64(c), 10) + "PPM"
 }
 
-func (c *CO2Concentration) BinaryUnmarshal(d []byte) error {
+func (c *CO2Concentration) UnmarshalBinary(d []byte) error {
 	if err := checkLength(d, 2); err != nil {
 		return err
 	}
@@ -154,7 +154,7 @@ func (l BatteryLevel) String() string {
 	return strconv.FormatInt(int64(l), 10) + "%"
 }
 
-func (l *BatteryLevel) BinaryUnmarshal(d []byte) error {
+func (l *BatteryLevel) UnmarshalBinary(d []byte) error {
 	if err := checkLength(d, 1); err != nil {
 		return err
 	}
@@ -175,7 +175,7 @@ func (u MemoryUsage) String() string {
 	return strconv.FormatFloat(100.0*float64(u)/255.0, 'f', 1, 64) + "%"
 }
 
-func (u *MemoryUsage) BinaryUnmarshal(d []byte) error {
+func (u *MemoryUsage) UnmarshalBinary(d []byte) error {
 	if err := checkLength(d, 1); err != nil {
 		return err
 	}
@@ -218,18 +218,18 @@ func (p Placement) String() string {
 		res += " back"
 	}
 
-	if (p & PlacementLeft) != 0x00 {
-		res += " left"
-	} else {
-		res += " righ"
-	}
-
 	if (p & PlacementInside) != 0x00 {
 		res += " inside"
 	}
 
 	if (p & PlacementOutside) != 0x00 {
 		res += " outside"
+	}
+
+	if (p & PlacementLeft) != 0x00 {
+		res += " left"
+	} else {
+		res += " right"
 	}
 
 	return res
@@ -241,7 +241,7 @@ type Location struct {
 }
 
 func (l Location) String() string {
-	return "Hive:" + strconv.FormatInt(int64(l.HiveID), 10) + " Placement: " + l.Placement.String()
+	return "Hive:" + strconv.FormatInt(int64(l.HiveID), 10) + " Placement:" + l.Placement.String()
 }
 
 func (l *Location) UnmarshalBinary(d []byte) error {
@@ -283,19 +283,20 @@ func (d *DataPoint) UnmarshalBinary(data []byte) error {
 	if err := checkLength(data, 14); err != nil {
 		return err
 	}
-	if err := d.Timestamp.UnmarshalBinary(data[0:4]); err != nil {
+	if err := d.Timestamp.UnmarshalBinary(data[0:4]); err != nil { // coverage-ignore
 		return err
 	}
-	if err := d.Temperature.BinaryUnmarshal(data[4:6]); err != nil {
+	if err := d.Temperature.UnmarshalBinary(data[4:6]); err != nil { // coverage-ignore
 		return err
 	}
-	if err := d.Humidity.BinaryUnmarshal(data[6:8]); err != nil {
+	if err := d.Humidity.UnmarshalBinary(data[6:8]); err != nil { // coverage-ignore
 		return err
 	}
-	if err := d.Pressure.BinaryUnmarshal(data[8:12]); err != nil {
+	if err := d.Pressure.UnmarshalBinary(data[8:12]); err != nil { // coverage-ignore
 		return err
 	}
-	if err := d.CO2.BinaryUnmarshal(data[12:14]); err != nil {
+	if err := d.CO2.UnmarshalBinary(data[12:14]); err != nil { // coverage-ignore
+
 		return err
 	}
 	return nil
@@ -309,19 +310,19 @@ type AdvertisementData struct {
 }
 
 func (adv *AdvertisementData) UnmarshalBinary(data []byte) error {
-	if err := checkLength(data, 20); err != nil {
+	if err := checkLength(data, 18); err != nil {
 		return err
 	}
-	if err := adv.Location.UnmarshalBinary(data[0:2]); err != nil {
+	if err := adv.Location.UnmarshalBinary(data[0:2]); err != nil { // coverage-ignore
 		return err
 	}
-	if err := adv.Battery.BinaryUnmarshal(data[2:3]); err != nil {
+	if err := adv.Battery.UnmarshalBinary(data[2:3]); err != nil { // coverage-ignore
 		return err
 	}
-	if err := adv.Memory.BinaryUnmarshal(data[3:4]); err != nil {
+	if err := adv.Memory.UnmarshalBinary(data[3:4]); err != nil { // coverage-ignore
 		return err
 	}
-	if err := adv.CurrentPoint.UnmarshalBinary(data[4:18]); err != nil {
+	if err := adv.CurrentPoint.UnmarshalBinary(data[4:18]); err != nil { // coverage-ignore
 		return err
 	}
 	return nil
