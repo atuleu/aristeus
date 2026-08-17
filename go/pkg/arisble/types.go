@@ -94,6 +94,28 @@ func (p Pressure) Float64() float64 {
 	return float64(p) / 1000.0
 }
 
+type Voltage uint16
+
+const VoltageNaN = Voltage(0xFFFF)
+
+func (v Voltage) String() string {
+	if v == VoltageNaN {
+		return "NaN"
+	}
+	return strconv.FormatFloat(float64(v)/1000.0, 'f', 3, 64) + "V"
+}
+
+func (v Voltage) Float64() float64 {
+	if v == VoltageNaN {
+		return math.NaN()
+	}
+	return float64(v) / 1000.0
+}
+
+func (p Pressure) ToVoltage() (Voltage, Voltage) {
+	return Voltage(p >> 16), Voltage(p & 0xffff)
+}
+
 type CO2Concentration uint16
 
 const CO2ConcentrationNaN = CO2Concentration(0xFFFF)
