@@ -5,6 +5,7 @@
 #include "sl_core.h"
 #include "sl_device_clock.h"
 #include "sl_interrupt_manager.h"
+#include "sl_power_manager.h"
 #include "sl_power_manager_config.h"
 #include "sl_sleeptimer.h"
 #include "sl_status.h"
@@ -162,6 +163,7 @@ sl_status_t batt_monitor_init() {
 }
 
 void IADC_IRQHandler(void) {
+	sl_power_manager_remove_em_requirement(SL_POWER_MANAGER_EM1);
 	IADC_Result_t result = IADC_pullSingleFifoResult(IADC0);
 	if (result.data > 4095) {
 		result.data = 4095;
@@ -339,7 +341,9 @@ void _batt_monitor_on_delay_timeout(
 }
 
 sl_status_t _batt_monitor_start_next_measurement() {
+#if APP_LOG_ENABLE == 1
 	_batt_monitor_next_measurement type;
+#endif // APP_LOG_ENABLE == 1
 	CORE_DECLARE_IRQ_STATE;
 	CORE_ENTER_ATOMIC();
 
@@ -352,13 +356,17 @@ sl_status_t _batt_monitor_start_next_measurement() {
 		CORE_EXIT_ATOMIC();
 		return SL_STATUS_BUSY;
 	}
+#if APP_LOG_ENABLE == 1
 	type = self.next_measurement;
+#endif // APP_LOG_ENABLE == 1
 	CORE_EXIT_ATOMIC();
 
 	sl_status_t status = sl_clock_manager_enable_bus_clock(SL_BUS_CLOCK_IADC0);
 	if (status != SL_STATUS_OK) {
 		return status;
 	}
+	sl_power_manager_add_em_requirement(SL_POWER_MANAGER_EM1);
+
 	IADC0->EN_SET = IADC_EN_EN;
 	IADC_command(IADC0, iadcCmdStartSingle);
 
@@ -401,23 +409,31 @@ uint16_t batt_monitor_loaded_voltage_mV() {
 }
 
 void batt_monitor_preempt_open() {
+#if APP_LOG_ENABLE == 1
 	uint8_t p;
+#endif //
 	CORE_ATOMIC_SECTION({
 		if (self.preempt_open < 255) {
 			self.preempt_open += 1;
 		}
+#if APP_LOG_ENABLE == 1
 		p = self.preempt_open;
+#endif // APP_LOG_ENABLE == 1
 	});
 	app_log_debug("[batt_monitor] premption increased to %d." APP_LOG_NL, p);
 }
 
 void batt_monitor_enable_open() {
+#if APP_LOG_ENABLE == 1
 	uint8_t p;
+#endif // APP_LOG_ENABLE == 1
 	CORE_ATOMIC_SECTION({
 		if (self.preempt_open > 0) {
 			self.preempt_open -= 1;
 		}
+#if APP_LOG_ENABLE == 1
 		p = self.preempt_open;
+#endif // APP_LOG_ENABLE == 1
 	});
 	app_log_debug("[batt_monitor] premption decreased to %d." APP_LOG_NL, p);
 }
