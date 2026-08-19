@@ -82,6 +82,27 @@ app_handle_t app = {
 
 // Application Init.
 void app_init(void) {
+	sl_sleeptimer_delay_millisecond(5);
+	fflush(stdout);
+
+	const char *banner[] = {
+	    "\n\033[31m █████  \033[33m██████  \033[93m██ ███████ ",
+	    "\033[32m████████ \033[36m███████ \033[34m██    ██ \033[35m███████\n",
+	    "\033[31m██   ██ \033[33m██   ██ \033[93m██ ██      ",
+	    "\033[32m   ██    \033[36m██      \033[34m██    ██ \033[35m██\n",
+	    "\033[31m███████ \033[33m██████  \033[93m██ ███████ ",
+	    "\033[32m   ██    \033[36m█████   \033[34m██    ██ \033[35m███████\n",
+	    "\033[31m██   ██ \033[33m██   ██ \033[93m██      ██ ",
+	    "\033[32m   ██    \033[36m██      \033[34m██    ██ \033[35m     ██\n",
+	    "\033[31m██   ██ \033[33m██   ██ \033[93m██ ███████ ",
+	    "\033[32m   ██    \033[36m███████ \033[34m ██████  \033[35m███████\n",
+	    "\033[m\n",
+	};
+
+	for (size_t i = 0; i < 11; ++i) {
+		printf("%s", banner[i]);
+		sl_sleeptimer_delay_millisecond(5);
+	}
 
 	sl_status_t status;
 
@@ -171,7 +192,6 @@ sl_status_t _app_start_advertise() {
 	if (status != SL_STATUS_OK) {
 		return status;
 	}
-
 	return sl_bt_system_set_lazy_soft_timer(
 	    32768 * BT_ADV_PERIOD_MS / 1000,
 	    32768 * 20 / 1000,
