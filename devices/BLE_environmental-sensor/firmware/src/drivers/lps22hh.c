@@ -1,6 +1,8 @@
 
 #include "app.h"
+#include "app_config.h"
 #include "drivers/i2c_schd.h"
+#include "utils/status.h"
 #include <stdint.h>
 
 #include <sl_core.h>
@@ -186,27 +188,37 @@ sl_status_t lps22hh_init(lps22hh_handle_t *self, lps22hh_config_t *config) {
 	self->oneshot_callback  = NULL;
 	self->oneshot_user_data = NULL;
 
-	uint8_t     whoAmI;
-	sl_status_t sc = lps22hh_read_blocking(self, 0x0f, 1, &whoAmI);
-	if (sc != SL_STATUS_OK) {
+	uint8_t whoAmI;
+
+	sl_status_t status;
+	for (uint8_t i = 0; i < (DEVICE_INIT_CONNECT_MAX_TRIES - 1); ++i) {
+		status = lps22hh_read_blocking(self, 0x0f, 1, &whoAmI);
+		if (status == SL_STATUS_OK) {
+			break;
+		}
 		app_log_warning(
-		    "[LPS22HH] no devices at %s.0x%x found, retrying in "
-		    "80ms" APP_LOG_NL,
+		    "[LPS22HH] no device at %s.0x%x found, retrying in "
+		    "%dms, reason: %s" APP_LOG_NL,
+		    i2c_schd_get_instance_name(self->i2c_bus),
+		    self->address,
+		    DEVICE_CONNECT_RETRIES_TIMEOUT_MS,
+		    sl_status_get_string(status)
+		);
+
+		sl_sleeptimer_delay_millisecond(DEVICE_CONNECT_RETRIES_TIMEOUT_MS);
+	}
+
+	if (status != SL_STATUS_OK) {
+		status = lps22hh_read_blocking(self, 0x0f, 1, &whoAmI);
+	}
+
+	if (status != SL_STATUS_OK) {
+		app_log_error(
+		    "[LPS22HH] no device at %s.0x%x found" APP_LOG_NL,
 		    i2c_schd_get_instance_name(self->i2c_bus),
 		    self->address
 		);
-
-		sl_sleeptimer_delay_millisecond(80);
-		sc = lps22hh_read_blocking(self, 0x0f, 1, &whoAmI);
-
-		if (sc != SL_STATUS_OK) {
-			app_log_error(
-			    "[LPS22HH] devices at %s.0x%x found" APP_LOG_NL,
-			    i2c_schd_get_instance_name(self->i2c_bus),
-			    self->address
-			);
-			return SL_STATUS_INITIALIZATION;
-		}
+		return SL_STATUS_INITIALIZATION;
 	}
 
 	if (whoAmI != 0xb3) {
@@ -236,8 +248,8 @@ sl_status_t lps22hh_init(lps22hh_handle_t *self, lps22hh_config_t *config) {
 
 	// first make sure IF_ADD_INC_SET is set, so we can read/write multiple
 	// registers in one TX.
-	sc = lps22hh_write_blocking(self, 2, config_buffer);
-	if (sc != SL_STATUS_OK) {
+	status = lps22hh_write_blocking(self, 2, config_buffer);
+	if (status != SL_STATUS_OK) {
 		app_log_error(
 		    "[LPS22HH %s.0x%x] could not set IF_ADD_INC" APP_LOG_NL,
 		    i2c_schd_get_instance_name(self->i2c_bus),
@@ -249,8 +261,8 @@ sl_status_t lps22hh_init(lps22hh_handle_t *self, lps22hh_config_t *config) {
 	config_buffer[1] = 0x00; // One-shot mode, no low-pass no BDU no SIM.
 
 	// rewrites all control register
-	sc = lps22hh_write_blocking(self, sizeof(config_buffer), config_buffer);
-	if (sc != SL_STATUS_OK) {
+	status = lps22hh_write_blocking(self, sizeof(config_buffer), config_buffer);
+	if (status != SL_STATUS_OK) {
 		app_log_error(
 		    "[LPS22HH %s.0x%x] could not set config" APP_LOG_NL,
 		    i2c_schd_get_instance_name(self->i2c_bus),
@@ -259,12 +271,12 @@ sl_status_t lps22hh_init(lps22hh_handle_t *self, lps22hh_config_t *config) {
 		return SL_STATUS_INITIALIZATION;
 	}
 
-	sc = sl_gpio_set_pin_mode(
+	status = sl_gpio_set_pin_mode(
 	    &self->data_ready_pin,
 	    SL_GPIO_MODE_INPUT_PULL,
 	    false
 	);
-	if (sc != SL_STATUS_OK) {
+	if (status != SL_STATUS_OK) {
 		app_log_error(
 		    "[LPS22HH %s.0x%x] could not set  pin mode" APP_LOG_NL,
 		    i2c_schd_get_instance_name(self->i2c_bus),
@@ -274,8 +286,8 @@ sl_status_t lps22hh_init(lps22hh_handle_t *self, lps22hh_config_t *config) {
 	}
 
 	bool dummy;
-	sc = sl_gpio_get_pin_input(&self->data_ready_pin, &dummy);
-	if (sc != SL_STATUS_OK) {
+	status = sl_gpio_get_pin_input(&self->data_ready_pin, &dummy);
+	if (status != SL_STATUS_OK) {
 		app_log_error(
 		    "[LPS22HH %s.0x%x] could not read pin" APP_LOG_NL,
 		    i2c_schd_get_instance_name(self->i2c_bus),

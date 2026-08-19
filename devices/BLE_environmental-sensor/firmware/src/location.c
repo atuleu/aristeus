@@ -17,7 +17,7 @@ location_t location_get() {
 		    sizeof(location_t)
 		);
 		if (status != SL_STATUS_OK) {
-			app_log_error(
+			app_log_warning(
 			    "[location] could not read location: %s." APP_LOG_NL,
 			    sl_status_get_string(status)
 			);

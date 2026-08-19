@@ -1,0 +1,4 @@
+#pragma once
+
+#define DEVICE_INIT_CONNECT_MAX_TRIES     10
+#define DEVICE_CONNECT_RETRIES_TIMEOUT_MS 20

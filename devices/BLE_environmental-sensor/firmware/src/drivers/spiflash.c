@@ -1,4 +1,5 @@
 #include "spiflash.h"
+#include "app_config.h"
 #include "app_log.h"
 #include "ecode.h"
 #include "sl_core.h"
@@ -200,15 +201,33 @@ sl_status_t spiflash_init(SPIDRV_Handle_t spi) {
 	_spiflash_CS_high();
 
 	uint8_t     buffer[4];
-	sl_status_t status = _spiflash_read_id_blocking(buffer, 3);
-	if (status != SL_STATUS_OK) {
-		app_log_error(
-		    "[spiflash] could not find mx25 device on SPI bus: "
-		    "%s." APP_LOG_NL,
+	sl_status_t status;
+
+	for (uint8_t i = 0; i < (DEVICE_INIT_CONNECT_MAX_TRIES - 1); ++i) {
+		status = _spiflash_read_id_blocking(buffer, 3);
+		if (status == SL_STATUS_OK) {
+			break;
+		}
+		app_log_warning(
+		    "[spiflash] could not find mx25 device on SPI bus retrying in "
+		    "%dms, reason: %s." APP_LOG_NL,
+		    DEVICE_CONNECT_RETRIES_TIMEOUT_MS,
 		    sl_status_get_string(status)
 		);
-		return status;
+		sl_sleeptimer_delay_millisecond(DEVICE_CONNECT_RETRIES_TIMEOUT_MS);
 	}
+
+	if (status != SL_STATUS_OK) {
+		status = _spiflash_read_id_blocking(buffer, 3);
+	}
+
+	if (status != SL_STATUS_OK) {
+		app_log_error(
+		    "[spiflash] could not find mx25 device on SPI bus: %s." APP_LOG_NL,
+		    sl_status_get_string(status)
+		);
+	}
+
 	if (buffer[0] != 0xC2 || buffer[1] != 0x28 || buffer[2] != 0x14) {
 		app_log_error(
 		    "[spiflash] found unexpected device ID. ManufacturerID: %02X (ex.: "

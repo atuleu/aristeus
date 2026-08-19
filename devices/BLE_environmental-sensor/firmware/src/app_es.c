@@ -159,11 +159,10 @@ sl_status_t app_es_init(const app_es_config_t *config) {
 		return SL_STATUS_NULL_POINTER;
 	}
 	self.callback = config->callback;
-
 	sl_status_t status;
 	status = sht4x_init(&self.sht4x_sensor, config->i2c_bus, SHT4X_BASE_ADDR);
 	if (status != SL_STATUS_OK) {
-		app_log_warning(
+		app_log_error(
 		    "[app_es] no loop started: SHT4x init failed: %s." APP_LOG_NL,
 		    sl_status_get_string(status)
 		);
@@ -178,7 +177,7 @@ sl_status_t app_es_init(const app_es_config_t *config) {
 
 	status = lps22hh_init(&self.lps22hh_sensor, &config_lps22hh);
 	if (status != SL_STATUS_OK) {
-		app_log_warning(
+		app_log_error(
 		    "[app_es] no loop started: LPS22HH init failed: %s." APP_LOG_NL,
 		    sl_status_get_string(status)
 		);
@@ -191,7 +190,7 @@ sl_status_t app_es_init(const app_es_config_t *config) {
 	};
 	status = stcc4_init(&self.stcc4_sensor, &args);
 	if (status != SL_STATUS_OK) {
-		app_log_warning(
+		app_log_error(
 		    "[app_es] no loop started: STCC4 init failed: %s." APP_LOG_NL,
 		    sl_status_get_string(status)
 		);
@@ -222,7 +221,7 @@ sl_status_t app_es_init(const app_es_config_t *config) {
 	);
 
 	if (status != SL_STATUS_OK) {
-		app_log_warning(
+		app_log_error(
 		    "[app_es] no loop started: periodic timer failed: %s." APP_LOG_NL,
 		    sl_status_get_string(status)
 		);

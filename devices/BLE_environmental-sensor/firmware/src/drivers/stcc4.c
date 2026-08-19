@@ -1,4 +1,5 @@
 #include "stcc4.h"
+#include "app_config.h"
 #include "app_log.h"
 #include "drivers/i2c_schd.h"
 #include "sl_core.h"
@@ -241,17 +242,28 @@ sl_status_t stcc4_init(stcc4_handle_t *self, stcc4_init_args_t *args) {
 	}
 
 	uint32_t    serial_number;
-	sl_status_t status =
-	    _stcc4_read_serial_number_blocking(self, &serial_number);
-	if (status != SL_STATUS_OK) {
+	sl_status_t status;
+
+	for (uint8_t i = 0; i < (DEVICE_INIT_CONNECT_MAX_TRIES - 1); ++i) {
+		status = _stcc4_read_serial_number_blocking(self, &serial_number);
+		if (status == SL_STATUS_OK) {
+			break;
+		}
 		app_log_warning(
-		    "[STCC4] No device found at %s.0x%02X, retrying in 80ms" APP_LOG_NL,
+		    "[STCC4] No device found at %s.0x%02X, retrying in %dms, reason: "
+		    "%s" APP_LOG_NL,
 		    i2c_schd_get_instance_name(self->i2c_bus),
-		    self->address
+		    self->address,
+		    DEVICE_CONNECT_RETRIES_TIMEOUT_MS,
+		    sl_status_get_string(status)
 		);
-		sl_sleeptimer_delay_millisecond(80);
+		sl_sleeptimer_delay_millisecond(DEVICE_CONNECT_RETRIES_TIMEOUT_MS);
+	}
+
+	if (status != SL_STATUS_OK) {
 		status = _stcc4_read_serial_number_blocking(self, &serial_number);
 	}
+
 	if (status != SL_STATUS_OK) {
 		app_log_error(
 		    "[STCC4] No device found at %s.0x%02X." APP_LOG_NL,
@@ -266,6 +278,7 @@ sl_status_t stcc4_init(stcc4_handle_t *self, stcc4_init_args_t *args) {
 	    i2c_schd_get_instance_name(self->i2c_bus),
 	    self->address
 	);
+
 	status = _stcc4_send_command_blocking(
 	    self,
 	    stcc4_cmd_enter_sleep_mode,
@@ -273,6 +286,7 @@ sl_status_t stcc4_init(stcc4_handle_t *self, stcc4_init_args_t *args) {
 	    NULL,
 	    0
 	);
+
 	if (status != SL_STATUS_OK) {
 		app_log_error(
 		    "[STCC4] device found at %s.0x%02X. But could not enter deep "

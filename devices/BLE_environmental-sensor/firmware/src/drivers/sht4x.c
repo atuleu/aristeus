@@ -8,6 +8,7 @@
 
 #include <app_log.h>
 
+#include "app_config.h"
 #include "drivers/i2c_schd.h"
 #include "sl_core.h"
 #include "types.h"
@@ -26,25 +27,28 @@ sht4x_init(sht4x_handle_t *self, i2c_schd_handle_t *i2c, uint8_t addr) {
 	self->command_buffer = 0;
 	self->callback.ptr   = NULL;
 
-	result = sht4x_read_serial_number_blocking(self);
-	if (result.status == SL_STATUS_OK) {
-		app_log_info(
-		    "[SHT4x] found device at %s.0x%x: %lx" APP_LOG_NL,
+	for (uint8_t i = 0; i < (DEVICE_INIT_CONNECT_MAX_TRIES - 1); ++i) {
+		result = sht4x_read_serial_number_blocking(self);
+		if (result.status == SL_STATUS_OK) {
+			break;
+		}
+		return SL_STATUS_OK;
+
+		app_log_warning(
+		    "[SHT4x] no device found at %s.0x%x, retrying in %dms, reason: "
+		    "%s" APP_LOG_NL,
 		    i2c_schd_get_instance_name(i2c),
 		    addr,
-		    result.data.serial_number
+		    DEVICE_CONNECT_RETRIES_TIMEOUT_MS,
+		    sl_status_get_string(result.status)
 		);
-		return SL_STATUS_OK;
+		sl_sleeptimer_delay_millisecond(DEVICE_CONNECT_RETRIES_TIMEOUT_MS);
 	}
 
-	app_log_warning(
-	    "[SHT4x] no device found at %s.0x%x, retrying in 80ms" APP_LOG_NL,
-	    i2c_schd_get_instance_name(i2c),
-	    addr
-	);
-	sl_sleeptimer_delay_millisecond(80);
+	if (result.status != SL_STATUS_OK) {
+		result = sht4x_read_serial_number_blocking(self);
+	}
 
-	result = sht4x_read_serial_number_blocking(self);
 	if (result.status != SL_STATUS_OK) {
 		app_log_error(
 		    "[SHT4x] no device found at %s.0x%x" APP_LOG_NL,
@@ -55,11 +59,12 @@ sht4x_init(sht4x_handle_t *self, i2c_schd_handle_t *i2c, uint8_t addr) {
 	}
 
 	app_log_info(
-	    "[SHT4x] device found at %s.0x%x SN:%lx" APP_LOG_NL,
+	    "[SHT4x] found device at %s.0x%x: %lx" APP_LOG_NL,
 	    i2c_schd_get_instance_name(i2c),
 	    addr,
 	    result.data.serial_number
 	);
+
 	return SL_STATUS_OK;
 }
 

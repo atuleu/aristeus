@@ -74,11 +74,7 @@
 
 // <e APP_LOG_ENABLE> Application Logging
 // <i> Enables Logging.
-#ifdef PRODUCTION_BUILD
-#define APP_LOG_ENABLE 0
-#else // PRODUCTION_BUILD
 #define APP_LOG_ENABLE 1
-#endif // PRODUCTION_BUILD
 
 // <h> General
 
@@ -118,8 +114,11 @@
 // <APP_LOG_LEVEL_ERROR=> ERROR
 // <APP_LOG_LEVEL_CRITICAL=> CRITICAL
 // <i> Default: DEBUG
+#ifdef PRODUCTION_BUILD
+#define APP_LOG_LEVEL_FILTER_THRESHOLD APP_LOG_LEVEL_WARNING
+#else
 #define APP_LOG_LEVEL_FILTER_THRESHOLD APP_LOG_LEVEL_DEBUG
-
+#endif
 // </e>
 
 // <e APP_LOG_LEVEL_MASK_ENABLE> Mask filter
