@@ -80,6 +80,47 @@ app_handle_t app = {
 
 // The advertising set handle allocated from Bluetooth stack.
 
+#define REINIT_TIMEOUT_MS 100
+
+static sl_sleeptimer_timer_handle_t reinit_timer;
+
+void _app_reinit_timer_timeout(
+    sl_sleeptimer_timer_handle_t *timer, void *user_data
+) {
+	(void)timer;
+	(void)user_data;
+
+	app_es_config_t es_config = {
+	    .i2c_bus = &app.i2c0,
+	    .data_ready_pin =
+	        {
+	            .pin  = LPS22HH_INT_PIN,
+	            .port = LPS22HH_INT_PORT,
+	        },
+	    .readout_period_ms = SENSOR_READOUT_PERIOD_S * 1000,
+	    .callback          = &_app_on_es_readout,
+	};
+
+	sl_status_t status = app_es_init(&es_config);
+
+	if (status != SL_STATUS_OK) {
+		app_log_warning(
+		    "[app] could not setup sensors, re-init in %dms, reason: %s",
+		    REINIT_TIMEOUT_MS,
+		    sl_status_get_string(status)
+		);
+
+		sl_sleeptimer_start_timer_ms(
+		    &reinit_timer,
+		    100,
+		    &_app_reinit_timer_timeout,
+		    NULL,
+		    0,
+		    0
+		);
+	}
+}
+
 // Application Init.
 void app_init(void) {
 	sl_sleeptimer_delay_millisecond(5);
@@ -126,19 +167,7 @@ void app_init(void) {
 	status = i2c_schd_init(&app.i2c0, sl_i2c_i2c0_handle);
 	app_assert_status(status);
 
-	app_es_config_t es_config = {
-	    .i2c_bus = &app.i2c0,
-	    .data_ready_pin =
-	        {
-	            .pin  = LPS22HH_INT_PIN,
-	            .port = LPS22HH_INT_PORT,
-	        },
-	    .readout_period_ms = SENSOR_READOUT_PERIOD_S * 1000,
-	    .callback          = &_app_on_es_readout,
-	};
-
-	status = app_es_init(&es_config);
-	app_assert_status(status);
+	_app_reinit_timer_timeout(NULL, NULL);
 }
 
 #define MIN(a, b) ((a) > (b) ? (b) : (a))
