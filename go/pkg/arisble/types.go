@@ -112,7 +112,7 @@ func (v Voltage) Float64() float64 {
 	return float64(v) / 1000.0
 }
 
-func (p Pressure) ToVoltage() (Voltage, Voltage) {
+func (p Pressure) ToVoltage() (loaded Voltage, open Voltage) {
 	return Voltage(p >> 16), Voltage(p & 0xffff)
 }
 
@@ -255,6 +255,10 @@ func (l *Location) UnmarshalBinary(d []byte) error {
 
 type Timestamp uint32
 
+func NewTimestamp(t time.Time) Timestamp {
+	return Timestamp(min(t.Unix(), int64(0xFFFFFFFF)))
+}
+
 func (t Timestamp) ToTime() time.Time {
 	return time.Unix(int64(t), 0)
 }
@@ -269,6 +273,10 @@ func (t *Timestamp) UnmarshalBinary(d []byte) error {
 	}
 	*t = Timestamp(binary.LittleEndian.Uint32(d))
 	return nil
+}
+
+func (t Timestamp) AppendBinary(d []byte) ([]byte, error) {
+	return binary.LittleEndian.AppendUint32(d, uint32(t)), nil
 }
 
 type DataPoint struct {
