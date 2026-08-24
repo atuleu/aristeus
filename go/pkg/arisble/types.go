@@ -255,8 +255,14 @@ func (l *Location) UnmarshalBinary(d []byte) error {
 
 type Timestamp uint32
 
+const TimestampNaN = Timestamp(0xFFFFFFFF)
+
 func NewTimestamp(t time.Time) Timestamp {
-	return Timestamp(min(t.Unix(), int64(0xFFFFFFFF)))
+	ts := t.Unix()
+	if ts < 0 || ts > int64(TimestampNaN) {
+		return TimestampNaN
+	}
+	return Timestamp(ts)
 }
 
 func (t Timestamp) ToTime() time.Time {
@@ -275,8 +281,8 @@ func (t *Timestamp) UnmarshalBinary(d []byte) error {
 	return nil
 }
 
-func (t Timestamp) AppendBinary(d []byte) ([]byte, error) {
-	return binary.LittleEndian.AppendUint32(d, uint32(t)), nil
+func (t Timestamp) AppendBinary(d []byte) []byte {
+	return binary.LittleEndian.AppendUint32(d, uint32(t))
 }
 
 type DataPoint struct {
