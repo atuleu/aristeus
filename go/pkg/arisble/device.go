@@ -20,7 +20,7 @@ type BLEDeviceConn struct {
 	onData func([]byte)
 	onRACP func([]byte)
 
-	racp, stream, epoch *ble.Characteristic
+	racp, stream, epoch, location, pressure *ble.Characteristic
 }
 
 func NewBLEDeviceConn(dev ble.Device, ctx context.Context, addr ble.Addr) (conn *BLEDeviceConn, err error) {
@@ -64,20 +64,18 @@ func (c *BLEDeviceConn) Close() error {
 	return err
 }
 
-func (c *BLEDeviceConn) ensureEPOCH() error {
-	if c.epoch != nil {
-		return nil
+func (c *BLEDeviceConn) ensureCharacteristic(char *ble.Characteristic, UUID ble.UUID) (*ble.Characteristic, error) {
+	if char != nil {
+		return char, nil
 	}
-
-	chars, err := c.client.DiscoverCharacteristics([]ble.UUID{EpochCharUUID}, c.service)
+	chars, err := c.client.DiscoverCharacteristics([]ble.UUID{UUID}, c.service)
 	if err != nil {
-		return fmt.Errorf("could not discover characteristics for `%s`: %w", c.address, err)
+		return nil, fmt.Errorf("could not discover characteristics for device '%s': %w", c.address, err)
 	}
 	if len(chars) == 0 {
-		return fmt.Errorf("device is missing characteristics %s", EpochCharUUID)
+		return nil, fmt.Errorf("device '%s' is missing characteristics %s", c.address, UUID)
 	}
-	c.epoch = chars[0]
-	return nil
+	return chars[0], nil
 }
 
 func (c *BLEDeviceConn) ensureRACPCharacteristics() error {
@@ -137,7 +135,8 @@ func (c *BLEDeviceConn) ensureRACPCharacteristics() error {
 }
 
 func (c *BLEDeviceConn) SynchronizeBLEDevice() error {
-	err := c.ensureEPOCH()
+	var err error
+	c.epoch, err = c.ensureCharacteristic(c.epoch, EpochCharUUID)
 	if err != nil {
 		return err
 	}
@@ -322,4 +321,55 @@ func (c *BLEDeviceConn) CountRecords(since, until Timestamp) (<-chan RACPResult[
 		return nil, err
 	}
 	return result, nil
+}
+
+func (c *BLEDeviceConn) GetLocation() (Location, error) {
+	var err error
+	c.location, err = c.ensureCharacteristic(c.location, HiveLocationUUID)
+	if err != nil {
+		return Location{}, err
+	}
+
+	data, err := c.client.ReadCharacteristic(c.location)
+
+	if err != nil {
+		return Location{}, fmt.Errorf("could not read HiveLocation for '%s': %w", c.address, err)
+	}
+
+	res := Location{}
+	return res, res.UnmarshalBinary(data)
+}
+
+func (c *BLEDeviceConn) SetLocation(l Location) error {
+	var err error
+	c.location, err = c.ensureCharacteristic(c.location, HiveLocationUUID)
+	if err != nil {
+		return err
+	}
+
+	payload := l.MarshalBinary(nil)
+
+	err = c.client.WriteCharacteristic(c.location, payload, false)
+	if err != nil {
+		return fmt.Errorf("could not write HiveLocation for '%s': %w", c.address, err)
+	}
+
+	return nil
+}
+
+func (c *BLEDeviceConn) SetPressure(p Pressure) error {
+	var err error
+	c.pressure, err = c.ensureCharacteristic(c.pressure, PressureUUID)
+	if err != nil {
+		return err
+	}
+
+	payload := p.MarshalBinary(nil)
+
+	err = c.client.WriteCharacteristic(c.pressure, payload, false)
+	if err != nil {
+		return fmt.Errorf("could not write pressure for '%s': %w", c.address, err)
+	}
+
+	return nil
 }

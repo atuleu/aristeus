@@ -72,6 +72,14 @@ type Pressure uint32
 
 const PressureNaN = Pressure(0xFFFFFFFF)
 
+func NewPressure(value_hPa float64) Pressure {
+	res := int64(value_hPa * 1000)
+	if res > int64(PressureNaN) || value_hPa < 0.0 {
+		return PressureNaN
+	}
+	return Pressure(res)
+}
+
 func (p Pressure) String() string {
 	if p == PressureNaN {
 		return "NaN"
@@ -85,6 +93,10 @@ func (p *Pressure) UnmarshalBinary(d []byte) error {
 	}
 	*p = Pressure(binary.LittleEndian.Uint32(d))
 	return nil
+}
+
+func (p Pressure) MarshalBinary(d []byte) []byte {
+	return binary.LittleEndian.AppendUint32(d, uint32(p))
 }
 
 func (p Pressure) Float64() float64 {
@@ -198,6 +210,10 @@ const (
 	PlacementLeft
 )
 
+func PlacementFromString(str string) (Placement, error) {
+	return PlacementGeneral, fmt.Errorf("not yet implemented")
+}
+
 func (p Placement) String() string {
 	if p == PlacementGeneral {
 		return "general"
@@ -251,6 +267,12 @@ func (l *Location) UnmarshalBinary(d []byte) error {
 	l.HiveID = d[0]
 	l.Placement = Placement(d[1])
 	return nil
+}
+
+func (l Location) MarshalBinary(d []byte) []byte {
+	d = append(d, l.HiveID)
+	d = append(d, byte(l.Placement))
+	return d
 }
 
 type Timestamp uint32

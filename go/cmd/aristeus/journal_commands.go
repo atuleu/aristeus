@@ -11,6 +11,24 @@ import (
 	ble_linux "github.com/go-ble/ble/linux"
 )
 
+const CONNECTION_TIMEOUT = 30 * time.Second
+
+func dialDevice(addr ble.Addr) (*arisble.BLEDeviceConn, *slog.Logger, func(), error) {
+	dev, err := ble_linux.NewDevice()
+	if err != nil {
+		return nil, nil, func() {}, fmt.Errorf("could not open BLE interface: %w", err)
+	}
+	logger := slog.With(slog.String("address", addr.String()))
+	ctx, cancel := context.WithTimeout(context.Background(), CONNECTION_TIMEOUT)
+	logger.Info("connecting")
+	res, err := arisble.NewBLEDeviceConn(dev, ctx, addr)
+	if err != nil {
+		cancel()
+		return nil, nil, func() {}, err
+	}
+	return res, logger, cancel, nil
+}
+
 type JournalOptions struct {
 	Since        string `long:"since" description:"sets a minimum time, in RFC3339 format"`
 	Until        string `long:"until" description:"sets a maximum time, in RFC3339 format"`
@@ -31,19 +49,6 @@ type EraseCommand struct {
 }
 
 var journalOptions = &JournalOptions{}
-
-func findCharacteristic(profile *ble.Profile, serviceUUID, charUUID ble.UUID) (*ble.Characteristic, error) {
-	for _, service := range profile.Services {
-		if service.UUID.Equal(serviceUUID) {
-			for _, char := range service.Characteristics {
-				if char.UUID.Equal(charUUID) {
-					return char, nil
-				}
-			}
-		}
-	}
-	return nil, fmt.Errorf("Not found")
-}
 
 func (opts *JournalOptions) finishParse() error {
 	if len(opts.Since) > 0 {
@@ -74,19 +79,10 @@ func (c *DownloadCommand) Execute(args []string) error {
 		return err
 	}
 
-	dev, err := ble_linux.NewDevice()
-	if err != nil {
-		return err
-	}
-
-	logger := slog.With(slog.String("address", c.Args.Address))
-
-	logger.Info("connecting")
-	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	conn, logger, cancel, err := dialDevice(ble.NewAddr(c.Args.Address))
 	defer cancel()
-	conn, err := arisble.NewBLEDeviceConn(dev, ctx, ble.NewAddr(c.Args.Address))
 	if err != nil {
-		return fmt.Errorf("could not connect to device: %w", err)
+		return fmt.Errorf("could not connect to `%s`: %w", c.Args.Address, err)
 	}
 	defer conn.Close()
 	// Increase timeout for longer operation
@@ -94,6 +90,7 @@ func (c *DownloadCommand) Execute(args []string) error {
 	defer cancelLong()
 	conn.SetContext(ctxLong)
 
+	logger.Info("reading")
 	results, err := conn.ReportRecords(journalOptions.since, journalOptions.until)
 	if err != nil {
 		return fmt.Errorf("could not report records: %w", err)
@@ -130,7 +127,7 @@ func (c *DownloadCommand) Execute(args []string) error {
 		}
 
 	}
-
+	logger.Info("done")
 	return nil
 }
 
@@ -140,19 +137,10 @@ func (c *EraseCommand) Execute(args []string) error {
 		return err
 	}
 
-	dev, err := ble_linux.NewDevice()
-	if err != nil {
-		return err
-	}
-
-	logger := slog.With(slog.String("address", c.Args.Address))
-
-	logger.Info("connecting")
-	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	conn, logger, cancel, err := dialDevice(ble.NewAddr(c.Args.Address))
 	defer cancel()
-	conn, err := arisble.NewBLEDeviceConn(dev, ctx, ble.NewAddr(c.Args.Address))
 	if err != nil {
-		return fmt.Errorf("could not connect to device: %w", err)
+		return fmt.Errorf("could not connect to `%s`: %w", c.Args.Address, err)
 	}
 	defer conn.Close()
 
