@@ -74,6 +74,29 @@ sl_status_t stcc4_start_read_sequence(
     void                    *user_data
 );
 
+sl_status_t stcc4_enter_sleep_mode(stcc4_handle_t *self);
+
+/**
+ *  Callback for asynchronous operation on the STCC4
+ *
+ */
+
+typedef void (*stcc4_operation_callback_t)(sl_status_t status, void *user_data);
+
+/**
+ * Perform a factory reset of the chip, including the conditionnning.
+ */
+sl_status_t stcc4_factory_reset(
+    stcc4_handle_t *self, stcc4_operation_callback_t, void *user_data
+);
+
+/**
+ * Performs a conditionning of the chip.
+ */
+sl_status_t stcc4_perform_conditioning(
+    stcc4_handle_t *self, stcc4_operation_callback_t callback, void *user_data
+);
+
 /**
  * Structure for the STCC4 driver handle given for static initialization
  * only. This structure is considered opaque and should not be accessed
@@ -82,6 +105,7 @@ sl_status_t stcc4_start_read_sequence(
 struct stcc4_handle {
 	i2c_schd_handle_t *i2c_bus;
 	uint8_t            address;
+	bool               sleeping;
 
 	uint8_t                    buffer[12];
 	volatile i2c_tx_callback_t tx_callback;
@@ -89,12 +113,13 @@ struct stcc4_handle {
 	uint16_t                   read_delay_ms;
 	uint8_t                    read_len;
 
-	volatile stcc4_readout_callback_t read_callback;
-	volatile void                    *read_user_data;
-	temperature_t                     temperature;
-	humidity_t                        humidity;
-	pressure_t                        pressure;
-	sl_sleeptimer_timer_handle_t      timer;
+	volatile stcc4_operation_callback_t op_callback;
+	volatile stcc4_readout_callback_t   read_callback;
+	volatile void                      *user_data;
+	temperature_t                       temperature;
+	humidity_t                          humidity;
+	pressure_t                          pressure;
+	sl_sleeptimer_timer_handle_t        timer;
 };
 
 #ifdef __cplusplus

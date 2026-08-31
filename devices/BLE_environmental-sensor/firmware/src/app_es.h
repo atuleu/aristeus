@@ -108,6 +108,9 @@ void _app_es_process_lps22hh(sl_status_t status);
 void _app_es_process_stcc4(sl_status_t status);
 void _app_es_complete_readout(sl_status_t status);
 
+sl_status_t _app_es_start_readout_timer();
+void _app_es_on_conditioning_done(sl_status_t status, void *user_data);
+void _app_es_on_factory_reset(sl_status_t status, void *user_data);
 #ifdef __cplusplus
 }
 #endif // __cplusplus

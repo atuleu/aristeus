@@ -38,6 +38,8 @@ typedef struct app_es_handle {
 
 	app_es_readout_callback_t callback;
 	pressure_t                pressure_offset;
+	uint32_t                  readout_period_ms;
+	volatile bool             perform_reset;
 } app_es_handle_t;
 
 static app_es_handle_t self = {
@@ -108,15 +110,16 @@ void _app_es_on_sensor_timer_timeout(
 	(void)user_data;
 
 	em_logger_print();
-	CORE_ATOMIC_SECTION({
-		self.new_data_point.date = sl_sleeptimer_get_time() + self.time_offset;
-		self.new_data_point.temperature = GATT_TEMPERATURE_NAN;
-		self.new_data_point.humidity    = GATT_HUMIDITY_NAN;
-		self.new_data_point.pressure    = GATT_PRESSURE_NAN;
-		self.new_data_point.co2         = GATT_CO2_NAN;
-		self.sht4x_done                 = false;
-		self.lps22hh_done               = false;
-	});
+	CORE_DECLARE_IRQ_STATE;
+	CORE_ENTER_ATOMIC();
+	self.new_data_point.date = sl_sleeptimer_get_time() + self.time_offset;
+	self.new_data_point.temperature = GATT_TEMPERATURE_NAN;
+	self.new_data_point.humidity    = GATT_HUMIDITY_NAN;
+	self.new_data_point.pressure    = GATT_PRESSURE_NAN;
+	self.new_data_point.co2         = GATT_CO2_NAN;
+	self.sht4x_done                 = false;
+	self.lps22hh_done               = false;
+	CORE_EXIT_ATOMIC();
 
 	batt_monitor_preempt_open();
 
@@ -158,7 +161,8 @@ sl_status_t app_es_init(const app_es_config_t *config) {
 	if (config->callback == NULL || config->i2c_bus == NULL) {
 		return SL_STATUS_NULL_POINTER;
 	}
-	self.callback = config->callback;
+	self.callback      = config->callback;
+	self.perform_reset = false;
 	sl_status_t status;
 	status = sht4x_init(&self.sht4x_sensor, config->i2c_bus, SHT4X_BASE_ADDR);
 	if (status != SL_STATUS_OK) {
@@ -203,6 +207,7 @@ sl_status_t app_es_init(const app_es_config_t *config) {
 	    &self.pressure_offset,
 	    sizeof(pressure_t)
 	);
+
 	if (status != SL_STATUS_OK) {
 		app_log_warning(
 		    "[app_es] could not retrieve saved pressure offset: %s." APP_LOG_NL,
@@ -211,9 +216,41 @@ sl_status_t app_es_init(const app_es_config_t *config) {
 		self.pressure_offset = 0;
 	}
 
-	status = sl_sleeptimer_start_periodic_timer_ms(
+	self.readout_period_ms = config->readout_period_ms;
+
+	status = stcc4_perform_conditioning(
+	    &self.stcc4_sensor,
+	    &_app_es_on_conditioning_done,
+	    NULL
+	);
+	if (status != SL_STATUS_OK) {
+		app_log_error(
+		    "[app_es] could not perform STCC4 conditioning: %s." APP_LOG_NL,
+		    sl_status_get_string(status)
+		);
+		return _app_es_start_readout_timer();
+	}
+	return SL_STATUS_OK;
+}
+
+void _app_es_on_conditioning_done(sl_status_t status, void *user_data) {
+	(void)user_data;
+
+	if (status != SL_STATUS_OK) {
+		app_log_error(
+		    "[app_es] STCC4 conditionning could not be done: %s" APP_LOG_NL,
+		    sl_status_get_string(status)
+		);
+	}
+
+	_app_es_start_readout_timer();
+}
+
+sl_status_t _app_es_start_readout_timer() {
+
+	sl_status_t status = sl_sleeptimer_start_periodic_timer_ms(
 	    &self.sensor_timer,
-	    config->readout_period_ms,
+	    self.readout_period_ms,
 	    &_app_es_on_sensor_timer_timeout,
 	    NULL,
 	    0,
@@ -231,7 +268,7 @@ sl_status_t app_es_init(const app_es_config_t *config) {
 
 	_app_es_on_sensor_timer_timeout(NULL, NULL);
 
-	return SL_STATUS_OK;
+	return status;
 }
 
 sl_status_t _app_es_start_co2_readout() {
@@ -420,6 +457,41 @@ void _app_es_complete_readout(sl_status_t status) {
 	CORE_ATOMIC_SECTION({ new_data_point = self.new_data_point; });
 	self.callback(status, &new_data_point);
 	batt_monitor_enable_open();
+
+	bool perform_reset;
+	CORE_ATOMIC_SECTION({
+		perform_reset      = self.perform_reset;
+		self.perform_reset = false;
+	});
+
+	if (perform_reset == false) {
+		return;
+	}
+	status = stcc4_factory_reset(
+	    &self.stcc4_sensor,
+	    &_app_es_on_factory_reset,
+	    NULL
+	);
+	if (status != SL_STATUS_OK) {
+		app_log_error(
+		    "[app_es] could not STCC4 perform factory reset: %s" APP_LOG_NL,
+		    sl_status_get_string(status)
+		);
+		CORE_ATOMIC_SECTION({ self.perform_reset = true; });
+	}
+}
+
+void _app_es_on_factory_reset(sl_status_t status, void *user_data) {
+	(void)user_data;
+	stcc4_enter_sleep_mode(&self.stcc4_sensor);
+	if (status != SL_STATUS_OK) {
+		app_log_error(
+		    "[app_es] could not STCC4 perform factory reset: %s" APP_LOG_NL,
+		    sl_status_get_string(status)
+		);
+		CORE_ATOMIC_SECTION({ self.perform_reset = true; });
+		return;
+	}
 }
 
 pressure_t app_es_current_pressure() {
@@ -433,8 +505,12 @@ sl_status_t app_es_tare_pressure(pressure_t pressure) {
 	if (self.current_data_point.pressure == GATT_PRESSURE_NAN) {
 		return SL_STATUS_INVALID_STATE;
 	}
-	pressure_t new_offset =
-	    pressure - self.current_data_point.pressure - self.pressure_offset;
+	pressure_t new_offset;
+
+	CORE_ATOMIC_SECTION({
+		new_offset =
+		    pressure - self.current_data_point.pressure - self.pressure_offset;
+	});
 
 	sl_status_t status = nvm3_writeData(
 	    nvm3_defaultHandle,
@@ -450,8 +526,12 @@ sl_status_t app_es_tare_pressure(pressure_t pressure) {
 		return SL_STATUS_FAIL;
 	}
 
-	CORE_ATOMIC_SECTION({ self.pressure_offset = new_offset; });
-	self.current_data_point.pressure = pressure;
+	CORE_ATOMIC_SECTION({
+		self.pressure_offset             = new_offset;
+		self.current_data_point.pressure = pressure;
+		self.perform_reset               = true;
+	});
+
 	app_log_info(
 	    "[app_es] new pressure offset %ld.%03ldhPa current pressure "
 	    "%ld.%03ldhPa." APP_LOG_NL,
@@ -460,5 +540,6 @@ sl_status_t app_es_tare_pressure(pressure_t pressure) {
 	    self.current_data_point.pressure / 1000,
 	    self.current_data_point.pressure % 1000
 	);
+
 	return SL_STATUS_OK;
 }
