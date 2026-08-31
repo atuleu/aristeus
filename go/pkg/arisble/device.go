@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/binary"
 	"fmt"
+	"log/slog"
 	"sync"
 	"time"
 
@@ -46,6 +47,10 @@ func NewBLEDeviceConn(dev ble.Device, ctx context.Context, addr ble.Addr) (conn 
 	}
 	conn.service = services[0]
 	return conn, nil
+}
+
+func (c *BLEDeviceConn) SetContext(ctx context.Context) {
+	c.client.Conn().SetContext(ctx)
 }
 
 func (c *BLEDeviceConn) Close() error {
@@ -93,6 +98,16 @@ func (c *BLEDeviceConn) ensureRACPCharacteristics() error {
 	} else {
 		c.racp = chars[1]
 		c.stream = chars[0]
+	}
+
+	_, err = c.client.DiscoverDescriptors(nil, c.racp)
+	if err != nil {
+		return fmt.Errorf("could not discover descriptor for RACP characteristic of '%s': %w", c.address, err)
+	}
+
+	_, err = c.client.DiscoverDescriptors(nil, c.stream)
+	if err != nil {
+		return fmt.Errorf("could not discover descriptor for streaming characteristic of '%s': %w", c.address, err)
 	}
 
 	err = c.client.Subscribe(c.racp, true, func(d []byte) {
@@ -159,39 +174,23 @@ func parseRACPResponse(d []byte, expected RACPOpcode) (uint16, error) {
 		return 0, fmt.Errorf("unexpected GATT server response %x, expected response type %x", d, d[0])
 	}
 	if RACPOpcode(d[2]) != expected {
-		return 0, fmt.Errorf("unexpected GATT server response %x, expected opcode %x, got: %x", d, expected, d[2])
+		return 0, fmt.Errorf("unexpected GATT server response %x, expected opcode %x (%s), got: %x (%s)", d, int(expected), expected, int(d[2]), RACPOpcode(d[2]))
 	}
 
-	switch d[3] {
-	case RACP_response_reserved:
-		return uint16(d[2]), fmt.Errorf("unexpected GATT server response %x, reserved response code", d)
-	case RACP_response_success:
-		return uint16(d[2]), nil
-	case RACP_response_opcode_not_supported:
-		return uint16(d[2]), fmt.Errorf("unexpected GATT server response %x, opcode not supported", d)
-	case RACP_response_invalid_operator:
-		return uint16(d[2]), fmt.Errorf("unexpected GATT server response %x, invalid operator", d)
-	case RACP_response_operator_not_supported:
-		return uint16(d[2]), fmt.Errorf("unexpected GATT server response %x, operator not supported", d)
-	case RACP_response_invalid_operand:
-		return uint16(d[2]), fmt.Errorf("unexpected GATT server response %x, invalid operand", d)
-	case RACP_response_no_records_found:
-		return uint16(d[2]), fmt.Errorf("unexpected GATT server response %x, no records found", d)
-	case RACP_response_abort_unsuccessful:
-		return uint16(d[2]), fmt.Errorf("unexpected GATT server response %x, abort unsuccessful", d)
-	case RACP_response_procedure_not_completed:
-		return uint16(d[2]), fmt.Errorf("unexpected GATT server response %x, procedure not completed", d)
-	case RACP_response_operand_not_supported:
-		return uint16(d[2]), fmt.Errorf("unexpected GATT server response %x, operand not supported", d)
-	case RACP_response_server_busy:
-		return uint16(d[2]), fmt.Errorf("unexpected GATT server response %x, server busy", d)
-	default:
-		return uint16(d[2]), fmt.Errorf("unexpected GATT server response %x, unknown response code %x", d, d[3])
+	if RACPResponseCode(d[3]) != RACP_response_success {
+		return uint16(d[2]), fmt.Errorf("unexpected GATT server response %x, response: %x (%s)",
+			d, uint16(d[3]), RACPResponseCode(d[3]))
 	}
-
+	return uint16(d[2]), nil
 }
 
 func populateRACPRange(payload []byte, since, until Timestamp) []byte {
+	slog.Info("populating range",
+		slog.Int("since", int(since)),
+		slog.Int("until", int(until)),
+		slog.Time("since_date", since.ToTime()),
+		slog.Time("until_date", until.ToTime()))
+
 	if since != TimestampNaN {
 		if until != TimestampNaN {
 			payload = append(payload, RACP_operator_in_range)
@@ -245,7 +244,7 @@ func (c *BLEDeviceConn) ReportRecords(since, until Timestamp) (<-chan RACPResult
 	}
 
 	payload := make([]byte, 0, 10)
-	payload = append(payload, RACP_opcode_report_number)
+	payload = append(payload, RACP_opcode_report_records)
 	payload = populateRACPRange(payload, since, until)
 	err := c.client.WriteCharacteristic(c.racp, payload, false)
 	if err != nil {
@@ -274,11 +273,13 @@ func (c *BLEDeviceConn) DeleteRecords(since, until Timestamp) (<-chan error, err
 	c.onRACP = func(data []byte) {
 		defer cleanup()
 		_, err := parseRACPResponse(data, RACP_opcode_delete_records)
-		result <- err
+		if err != nil {
+			result <- err
+		}
 	}
 
 	payload := make([]byte, 0, 10)
-	payload = append(payload, RACP_opcode_report_number)
+	payload = append(payload, RACP_opcode_delete_records)
 	payload = populateRACPRange(payload, since, until)
 	err := c.client.WriteCharacteristic(c.racp, payload, false)
 	if err != nil {
