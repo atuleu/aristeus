@@ -4,17 +4,35 @@ cmake_minimum_required(VERSION "3.25")
 # Project definition
 project(
 	BLE_environmental_sensor
-	VERSION 1.0
+	VERSION 0.1.0
 	LANGUAGES C CXX ASM
 )
+
+
+
 
 # Include the definition of the slc_BLE_environmental_sensor target,
 # which contains the content of the SLC project
 include(BLE_environmental_sensor.cmake)
 set_property(TARGET slc PROPERTY C_STANDARD 23)
 
+include(FetchContent)
+FetchContent_Declare(
+	cmake_git_version_tracking
+	GIT_REPOSITORY
+		https://github.com/andrew-hardin/cmake-git-version-tracking.git
+	GIT_TAG 904dbda1336ba4b9a1415a68d5f203f576b696bb
+)
+FetchContent_MakeAvailable(cmake_git_version_tracking)
+FetchContent_GetProperties(cmake_git_version_tracking
+	SOURCE_DIR git_vt_SOURCE_DIR
+	BINARY_DIR git_vt_BINARY_DIR)
+
+
 option(PRODUCTION_BUILD Off "Production build")
 option(TEST_BATTERY Off "Test the battery with very fast loop, and report voltage instead of pressure")
+set(FIRMWARE_VERSION ${PROJECT_VERSION})
+configure_file(../src/config.h.in ${PROJECT_BINARY_DIR}/src/config.h @ONLY)
 
 add_executable(BLE_environmental_sensor
     # Add additional sources here
@@ -52,11 +70,14 @@ add_executable(BLE_environmental_sensor
 	${PROJECT_SOURCE_DIR}/../src/batt_monitor.h
 	${PROJECT_SOURCE_DIR}/../src/batt_monitor.c
 	${PROJECT_SOURCE_DIR}/../src/system_handler.c
+	${git_vt_BINARY_DIR}/git.c
 )
 set_property(TARGET BLE_environmental_sensor PROPERTY C_STANDARD 23)
 
 target_include_directories(BLE_environmental_sensor PUBLIC
 	${PROJECT_SOURCE_DIR}/../src
+	${PROJECT_BINARY_DIR}/src
+	${git_vt_SOURCE_DIR}
     # Add additional include paths here
 )
 
@@ -90,6 +111,7 @@ target_link_options(BLE_environmental_sensor PUBLIC
 # Link with the content defined in the SLC project
 target_link_libraries(BLE_environmental_sensor PRIVATE
     slc
+	PUBLIC
 )
 
 # Include managed project content if available

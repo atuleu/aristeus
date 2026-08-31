@@ -60,6 +60,9 @@
 #include <string.h>
 #include <sys/reent.h>
 
+#include "config.h"
+#include "git.h"
+
 #define BL_LOW_RESSOURCE_THRESHOLD  256
 #define BL_HIGH_RESSOURCE_THRESHOLD (1024 + 256)
 static_assert(
@@ -144,6 +147,8 @@ void app_init(void) {
 		printf("%s", banner[i]);
 		sl_sleeptimer_delay_millisecond(5);
 	}
+
+	printf("Version: %s, SHA1:%s\n", FIRMWARE_VERSION, git_CommitSHA1());
 
 	sl_status_t status;
 
