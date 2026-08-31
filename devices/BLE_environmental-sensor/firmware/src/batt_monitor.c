@@ -26,7 +26,7 @@ static_assert(
     "OPEN_VOLTAGE_MV_SIZE must be a power of 2"
 );
 static_assert(OPEN_VOLTAGE_MV_SIZE <= 256, "OPEN_VOLTAGE_SIZE is too large");
-#define LOADED_VOLTAGE_MV_SIZE 4
+#define LOADED_VOLTAGE_MV_SIZE 32
 static_assert(
     (LOADED_VOLTAGE_MV_SIZE & (LOADED_VOLTAGE_MV_SIZE - 1)) == 0,
     "LOADED_VOLTAGE_MV_SIZE must be a power of 2"
@@ -223,17 +223,17 @@ battery_level_t batt_monitor_get_current_level() {
 
 #define CR2032_MODEL_ENTRY_SIZE 8
 	static batt_model_entry_t cr2032_model[CR2032_MODEL_ENTRY_SIZE] = {
-	    {.voltage_mv = 3000, .capacity = 100},
-	    {.voltage_mv = 2900, .capacity = 80},
-	    {.voltage_mv = 2800, .capacity = 60},
-	    {.voltage_mv = 2700, .capacity = 40},
-	    {.voltage_mv = 2600, .capacity = 30},
-	    {.voltage_mv = 2500, .capacity = 20},
-	    {.voltage_mv = 2400, .capacity = 10},
-	    {.voltage_mv = 2000, .capacity = 0},
+	    {.voltage_mv = 3200, .capacity = 100},
+	    {.voltage_mv = 2975, .capacity = 99},
+	    {.voltage_mv = 2900, .capacity = 98},
+	    {.voltage_mv = 2850, .capacity = 95},
+	    {.voltage_mv = 2800, .capacity = 80},
+	    {.voltage_mv = 2675, .capacity = 40},
+	    {.voltage_mv = 2525, .capacity = 20},
+	    {.voltage_mv = 2200, .capacity = 0},
 	};
 
-	if (avdd_mv > 3200) {
+	if (avdd_mv > 3250) {
 		app_log_info(
 		    "[batt_monitor] likely running on external power "
 		    "supply." APP_LOG_NL
