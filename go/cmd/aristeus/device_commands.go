@@ -130,7 +130,7 @@ func init() {
 	_, err = cmd.AddCommand("set_pressure",
 		"tare the current barometric pressure",
 		"set the current measured barometric pressure",
-		&SetLocationCommand{})
+		&SetPressureCommand{})
 	if err != nil {
 		panic(err.Error())
 	}
