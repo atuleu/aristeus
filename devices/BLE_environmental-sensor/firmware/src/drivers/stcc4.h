@@ -119,6 +119,8 @@ struct stcc4_handle {
 	temperature_t                       temperature;
 	humidity_t                          humidity;
 	pressure_t                          pressure;
+	co2_concentration_t                 last_readout;
+	sl_status_t                         last_status;
 	sl_sleeptimer_timer_handle_t        timer;
 };
 

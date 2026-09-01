@@ -465,6 +465,7 @@ void _app_es_complete_readout(sl_status_t status) {
 	});
 
 	if (perform_reset == false) {
+
 		return;
 	}
 	status = stcc4_factory_reset(
@@ -492,6 +493,10 @@ void _app_es_on_factory_reset(sl_status_t status, void *user_data) {
 		CORE_ATOMIC_SECTION({ self.perform_reset = true; });
 		return;
 	}
+	app_log_warning(
+	    "[app_es] factory reset for STCC4, needs 6 hours to "
+	    "calibrate." APP_LOG_NL
+	);
 }
 
 pressure_t app_es_current_pressure() {

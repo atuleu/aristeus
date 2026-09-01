@@ -603,7 +603,20 @@ void _app_on_external_signals(uint32_t events) {
 
 void _app_on_bt_system_boot() {
 	sl_status_t status;
-
+	bd_addr     address;
+	uint8_t     address_type;
+	status = sl_bt_system_get_identity_address(&address, &address_type);
+	if (status == SL_STATUS_OK) {
+		printf(
+		    "Got MAC Address: %02X:%02X:%02X:%02X:%02X:%02X.\n",
+		    address.addr[5],
+		    address.addr[4],
+		    address.addr[3],
+		    address.addr[2],
+		    address.addr[1],
+		    address.addr[0]
+		);
+	}
 	// sets TX power
 	int16_t min_power, max_power;
 	status = sl_bt_system_set_tx_power(-20, 0, &min_power, &max_power);
