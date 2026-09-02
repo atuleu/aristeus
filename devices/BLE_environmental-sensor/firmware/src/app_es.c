@@ -617,7 +617,7 @@ pressure_t app_es_current_pressure() {
 	return self.current_data_point.pressure;
 }
 
-sl_status_t app_es_tare_pressure(pressure_t pressure) {
+sl_status_t app_es_tare_pressure(pressure_t pressure, bool calibrate_stcc4) {
 	if (self.current_data_point.pressure == GATT_PRESSURE_NAN) {
 		return SL_STATUS_INVALID_STATE;
 	}
@@ -645,7 +645,7 @@ sl_status_t app_es_tare_pressure(pressure_t pressure) {
 	CORE_ATOMIC_SECTION({
 		self.pressure_offset             = new_offset;
 		self.current_data_point.pressure = pressure;
-		self.perform_reset               = true;
+		self.perform_reset               = calibrate_stcc4;
 	});
 
 	app_log_info(

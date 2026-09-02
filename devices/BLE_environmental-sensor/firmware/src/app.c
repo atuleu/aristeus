@@ -746,12 +746,17 @@ void _app_on_gatt_server_user_write_request(
 	}
 	case gattdb_current_pressure: {
 		pressure_t new_pressure;
-		err = gatt_ecode_succeed;
-		if (req->value.len != sizeof(pressure_t)) {
+		bool       calibrate = false;
+		err                  = gatt_ecode_succeed;
+		if (req->value.len != sizeof(pressure_t) &&
+		    req->value.len != (sizeof(pressure_t) + 1)) {
 			err = gatt_ecode_invalid_attribute_length;
 		} else {
 			memcpy(&new_pressure, req->value.data, sizeof(pressure_t));
-			sl_status_t sc = app_es_tare_pressure(new_pressure);
+			if (req->value.len == (sizeof(pressure_t) + 1)) {
+				calibrate = req->value.data[sizeof(pressure_t)] != 0x00;
+			}
+			sl_status_t sc = app_es_tare_pressure(new_pressure, calibrate);
 			if (sc != SL_STATUS_OK) {
 				err = gatt_ecode_write_request_rejected;
 			}

@@ -81,7 +81,7 @@ pressure_t app_es_current_pressure();
 /**
  * Tares the pressure to the provided value. Will save it in NVM
  */
-sl_status_t app_es_tare_pressure(pressure_t pressure);
+sl_status_t app_es_tare_pressure(pressure_t pressure, bool calibrate_stcc4);
 
 void _app_es_on_lps22hh_readout(
     sl_status_t status, pressure_t pressure, void *user_data
