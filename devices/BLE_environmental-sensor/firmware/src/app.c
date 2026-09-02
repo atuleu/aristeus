@@ -1281,7 +1281,7 @@ journal_read_next_operation_t _app_on_record_read(
 
 void _app_on_ressource_status(sl_bt_evt_resource_status_t *evt) {
 	if (evt->free_bytes <= BL_LOW_RESSOURCE_THRESHOLD) {
-		app_log_warning(
+		app_log_debug(
 		    "[app] BT stack low on resource (%ldB)." APP_LOG_NL,
 		    evt->free_bytes
 		);
@@ -1289,7 +1289,7 @@ void _app_on_ressource_status(sl_bt_evt_resource_status_t *evt) {
 
 		return;
 	}
-	app_log_info(
+	app_log_debug(
 	    "[app] BT stack high on resources %ldB." APP_LOG_NL,
 	    evt->free_bytes
 	);

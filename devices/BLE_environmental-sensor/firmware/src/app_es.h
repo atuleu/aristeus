@@ -112,11 +112,6 @@ sl_status_t _app_es_start_readout_timer();
 
 void _app_es_on_conditioning_done(sl_status_t status, void *user_data);
 void _app_es_on_factory_reset(sl_status_t status, void *user_data);
-void _app_es_on_stcc4_start_continuous(sl_status_t status, void *user_data);
-void _app_es_on_stcc4_stop_continuous(sl_status_t status, void *user_data);
-void _app_es_on_stcc4_init_timeout(
-    sl_sleeptimer_timer_handle_t *timer, void *user_data
-);
 
 #ifdef __cplusplus
 }

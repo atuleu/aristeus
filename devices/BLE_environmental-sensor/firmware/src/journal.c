@@ -160,7 +160,11 @@ bool _journal_start_next_write() {
 
 	batt_monitor_preempt_open();
 
-	app_log_info("[journal] writing at %ld ts=%ld." APP_LOG_NL, index, dp.date);
+	app_log_debug(
+	    "[journal] writing at %ld ts=%ld." APP_LOG_NL,
+	    index,
+	    dp.date
+	);
 	journal_record_from_data_point(j.write_buffer.record, &dp);
 
 	sl_status_t status = spiflash_write(
@@ -603,7 +607,7 @@ void _journal_on_read_first_idx(sl_status_t status, void *user_data) {
 	status = _journal_read_timestamp(&ts);
 	if (status == SL_STATUS_OK) {
 		if (ts == UINT32_MAX) {
-			app_log_info(
+			app_log_debug(
 			    "[journal] found erased memory at index %ld." APP_LOG_NL,
 			    j.under_read
 			);
@@ -622,7 +626,7 @@ void _journal_on_read_first_idx(sl_status_t status, void *user_data) {
 		}
 		j.first_index     = j.under_read;
 		j.first_timestamp = ts;
-		app_log_info(
+		app_log_debug(
 		    "[journal] found first index at %ld with ts=%ld." APP_LOG_NL,
 		    j.first_index,
 		    j.first_timestamp
@@ -765,7 +769,7 @@ void _journal_on_find_last_written_idx(
 	j.last_timestamp        = timestamp;
 	j.last_queued_timestamp = timestamp;
 	j.next_index            = index + 1;
-	app_log_info(
+	app_log_debug(
 	    "[journal] found next index at %ld for times > %ld." APP_LOG_NL,
 	    j.next_index,
 	    j.last_timestamp
@@ -806,7 +810,7 @@ void _journal_on_sleep(sl_status_t status, void *user_data) {
 		);
 	}
 	CORE_ATOMIC_SECTION({ j.operation = journal_op_none; });
-	app_log_info("[journal] sleeping." APP_LOG_NL);
+	app_log_debug("[journal] sleeping." APP_LOG_NL);
 }
 
 void journal_preempt_sleeping(bool preempt) {

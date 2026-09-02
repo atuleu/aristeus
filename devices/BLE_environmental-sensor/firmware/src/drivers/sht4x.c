@@ -20,7 +20,7 @@ sht4x_init(sht4x_handle_t *self, i2c_schd_handle_t *i2c, uint8_t addr) {
 	sht4x_blocking_result_t result;
 	self->i2c_bus = i2c;
 	if (addr != 0x44 && addr != 0x45 && addr != 0x46) {
-		app_log_info("[SHT4x] invalid address 0x%x" APP_LOG_NL, addr);
+		app_log_error("[SHT4x] invalid address 0x%x" APP_LOG_NL, addr);
 		return SL_STATUS_INVALID_PARAMETER;
 	}
 	self->address        = addr;
@@ -58,7 +58,7 @@ sht4x_init(sht4x_handle_t *self, i2c_schd_handle_t *i2c, uint8_t addr) {
 		return SL_STATUS_INITIALIZATION;
 	}
 
-	app_log_info(
+	app_log_debug(
 	    "[SHT4x] found device at %s.0x%x: %lx" APP_LOG_NL,
 	    i2c_schd_get_instance_name(i2c),
 	    addr,

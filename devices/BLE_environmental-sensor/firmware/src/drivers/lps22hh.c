@@ -232,7 +232,7 @@ sl_status_t lps22hh_init(lps22hh_handle_t *self, lps22hh_config_t *config) {
 		return SL_STATUS_INITIALIZATION;
 	}
 
-	app_log_info(
+	app_log_debug(
 	    "[LPS22HH] found device at %s.0x%x" APP_LOG_NL,
 	    i2c_schd_get_instance_name(self->i2c_bus),
 	    self->address

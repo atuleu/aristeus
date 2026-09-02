@@ -97,14 +97,6 @@ sl_status_t stcc4_perform_conditioning(
     stcc4_handle_t *self, stcc4_operation_callback_t callback, void *user_data
 );
 
-sl_status_t stcc4_start_continuous_measurement(
-    stcc4_handle_t *self, stcc4_operation_callback_t, void *user_data
-);
-
-sl_status_t stcc4_stop_continous_measurement(
-    stcc4_handle_t *self, stcc4_operation_callback_t, void *user_data
-);
-
 /**
  * Structure for the STCC4 driver handle given for static initialization
  * only. This structure is considered opaque and should not be accessed
@@ -113,7 +105,7 @@ sl_status_t stcc4_stop_continous_measurement(
 struct stcc4_handle {
 	i2c_schd_handle_t *i2c_bus;
 	uint8_t            address;
-	bool               sleeping;
+	volatile bool      sleeping;
 
 	uint8_t                    buffer[12];
 	volatile i2c_tx_callback_t tx_callback;

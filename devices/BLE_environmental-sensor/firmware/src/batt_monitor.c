@@ -219,7 +219,7 @@ battery_level_t batt_monitor_get_current_level() {
 	}
 
 	uint16_t avdd_mv = batt_monitor_loaded_voltage_mV();
-	app_log_info("[batt_monitor] measured AVDD=%dumV." APP_LOG_NL, avdd_mv);
+	app_log_debug("[batt_monitor] measured AVDD=%dumV." APP_LOG_NL, avdd_mv);
 
 #define CR2032_MODEL_ENTRY_SIZE 8
 	static batt_model_entry_t cr2032_model[CR2032_MODEL_ENTRY_SIZE] = {
@@ -234,7 +234,7 @@ battery_level_t batt_monitor_get_current_level() {
 	};
 
 	if (avdd_mv > 3250) {
-		app_log_info(
+		app_log_debug(
 		    "[batt_monitor] likely running on external power "
 		    "supply." APP_LOG_NL
 		);
@@ -262,7 +262,7 @@ battery_level_t batt_monitor_get_current_level() {
 			break;
 		}
 	}
-	app_log_info(
+	app_log_debug(
 	    "[batt monitor] estimated capacity: %d." APP_LOG_NL,
 	    self.current_level
 	);

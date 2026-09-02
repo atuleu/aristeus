@@ -278,7 +278,7 @@ sl_status_t stcc4_init(stcc4_handle_t *self, stcc4_init_args_t *args) {
 		return status;
 	}
 
-	app_log_info(
+	app_log_debug(
 	    "[STCC4] device found at %s.0x%02X." APP_LOG_NL,
 	    i2c_schd_get_instance_name(self->i2c_bus),
 	    self->address
@@ -637,6 +637,7 @@ sl_status_t stcc4_start_read_sequence(
 
 	CORE_DECLARE_IRQ_STATE;
 	CORE_ENTER_ATOMIC();
+
 	if (self->read_callback != NULL || self->tx_callback != NULL ||
 	    self->op_callback != NULL) {
 		CORE_EXIT_ATOMIC();
@@ -702,6 +703,7 @@ sl_status_t stcc4_perform_conditioning(
 	}
 	CORE_DECLARE_IRQ_STATE;
 	CORE_ENTER_ATOMIC();
+
 	if (self->read_callback != NULL || self->tx_callback != NULL ||
 	    self->op_callback != NULL) {
 		CORE_EXIT_ATOMIC();
@@ -770,6 +772,7 @@ sl_status_t stcc4_factory_reset(
 	}
 	CORE_DECLARE_IRQ_STATE;
 	CORE_ENTER_ATOMIC();
+
 	if (self->read_callback != NULL || self->tx_callback != NULL ||
 	    self->op_callback != NULL) {
 		CORE_EXIT_ATOMIC();

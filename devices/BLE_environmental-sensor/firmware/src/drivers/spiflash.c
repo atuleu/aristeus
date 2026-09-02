@@ -248,7 +248,7 @@ sl_status_t spiflash_init(SPIDRV_Handle_t spi) {
 		);
 		return status;
 	}
-	app_log_info(
+	app_log_debug(
 	    "[spiflash] SR=%02X CR[0]=%02X CR[1]=%02X SCR=%02X." APP_LOG_NL,
 	    buffer[0],
 	    buffer[1],
