@@ -382,6 +382,21 @@ void _app_on_gatt_server_user_read_request(
         );
 		break;
 	}
+	case gattdb_firmware_revision_string: {
+		char buffer[256];
+		int  written = snprintf(buffer, 256 - 8, "%s-", FIRMWARE_VERSION);
+		memcpy(&buffer[written], git_CommitSHA1(), 8);
+		buffer[written + 8] = '\0';
+		sc                  = sl_bt_gatt_server_send_user_read_response(
+            req->connection,
+            gattdb_firmware_revision_string,
+            gatt_ecode_succeed,
+            written + 8 + 1,
+            (const uint8_t *)buffer,
+            0
+        );
+		break;
+	}
 	default:
 		app_log_error("[app] unknown characteristic read request");
 		sl_bt_gatt_server_send_user_read_response(
