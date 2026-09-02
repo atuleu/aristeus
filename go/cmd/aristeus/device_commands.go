@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"log/slog"
 
 	"github.com/atuleu/aristeus/go/pkg/arisble"
 	"github.com/go-ble/ble"
@@ -76,7 +77,8 @@ func (c *SetLocationCommand) Execute(args []string) error {
 }
 
 type SetPressureCommand struct {
-	Args struct {
+	Recalibrate bool `long:"calibrate" description:"recalibrate STCC4 after update"`
+	Args        struct {
 		Pressure float64 `required:"yes"`
 	} `positional-args:"yes"`
 }
@@ -91,8 +93,8 @@ func (c *SetPressureCommand) Execute(args []string) error {
 		return fmt.Errorf("could not connect to `%s`: %w", deviceOptions.Args.Address, err)
 	}
 	defer conn.Close()
-	logger.Info("setting pressure")
-	return conn.SetPressure(arisble.NewPressure(c.Args.Pressure))
+	logger.Info("setting pressure", slog.Bool("calibrate", c.Recalibrate), slog.Float64("pressure", c.Args.Pressure))
+	return conn.SetPressure(arisble.NewPressure(c.Args.Pressure), c.Recalibrate)
 }
 
 func init() {

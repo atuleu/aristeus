@@ -357,7 +357,7 @@ func (c *BLEDeviceConn) SetLocation(l Location) error {
 	return nil
 }
 
-func (c *BLEDeviceConn) SetPressure(p Pressure) error {
+func (c *BLEDeviceConn) SetPressure(p Pressure, recalibrate bool) error {
 	var err error
 	c.pressure, err = c.ensureCharacteristic(c.pressure, PressureUUID)
 	if err != nil {
@@ -365,6 +365,9 @@ func (c *BLEDeviceConn) SetPressure(p Pressure) error {
 	}
 
 	payload := p.MarshalBinary(nil)
+	if recalibrate == true {
+		payload = append(payload, 0x01)
+	}
 
 	err = c.client.WriteCharacteristic(c.pressure, payload, false)
 	if err != nil {
