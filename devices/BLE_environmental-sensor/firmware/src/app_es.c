@@ -493,9 +493,120 @@ void _app_es_on_factory_reset(sl_status_t status, void *user_data) {
 		CORE_ATOMIC_SECTION({ self.perform_reset = true; });
 		return;
 	}
+	if (batt_monitor_get_current_level() != BATTERY_NAN) {
+		// we are running on battery, meaning we cannot make continuous
+		// measurement
+		app_log_warning(
+		    "[app_es] factory reset for STCC4, needs 6 hours to "
+		    "re-calibrate on battery." APP_LOG_NL
+		);
+		return;
+	}
+
+	status = sl_sleeptimer_stop_timer(&self.sensor_timer);
+	if (status != SL_STATUS_OK) {
+		app_log_error(
+		    "[app_es]: could not stop readout loop: %s" APP_LOG_NL,
+		    sl_status_get_string(status)
+		);
+		return;
+	}
+
+	status = sl_sleeptimer_start_timer_ms(
+	    &self.sensor_timer,
+	    3660 * 1000,
+	    &_app_es_on_stcc4_init_timeout,
+	    NULL,
+	    0,
+	    0
+	);
+	if (status != SL_STATUS_OK) {
+		app_log_error(
+		    "[app_es]: could not set up timer for STCC4 initialization: "
+		    "%s" APP_LOG_NL,
+		    sl_status_get_string(status)
+		);
+		_app_es_start_readout_timer();
+		return;
+	}
+	status = stcc4_start_continuous_measurement(
+	    &self.stcc4_sensor,
+	    &_app_es_on_stcc4_start_continuous,
+	    NULL
+	);
+	if (status != SL_STATUS_OK) {
+		app_log_error(
+		    "[app_es] could not start continuous measurement: %s" APP_LOG_NL,
+		    sl_status_get_string(status)
+		);
+		sl_sleeptimer_stop_timer(&self.sensor_timer);
+		_app_es_start_readout_timer();
+	}
 	app_log_warning(
-	    "[app_es] factory reset for STCC4, needs 6 hours to "
-	    "calibrate." APP_LOG_NL
+	    "[app_es] measurement disabled for 1h for STCC4 "
+	    "re-calibration" APP_LOG_NL
+	);
+}
+
+void _app_es_on_stcc4_start_continuous(sl_status_t status, void *user_data) {
+	(void)user_data;
+	if (status != SL_STATUS_OK) {
+		app_log_warning(
+		    "[app_es] could not start continuous measurement for STCC4: "
+		    "%s" APP_LOG_NL,
+		    sl_status_get_string(status)
+		);
+		_app_es_start_readout_timer();
+	}
+}
+
+void _app_es_on_stcc4_init_timeout(
+    sl_sleeptimer_timer_handle_t *timer, void *user_data
+) {
+	(void)timer;
+	(void)user_data;
+	sl_status_t status = stcc4_stop_continous_measurement(
+	    &self.stcc4_sensor,
+	    &_app_es_on_stcc4_stop_continuous,
+	    NULL
+	);
+	if (status == SL_STATUS_OK) {
+		return;
+	}
+	app_log_error(
+	    "[app_es] could not stop STCC4 continuous measurement: "
+	    "%s" APP_LOG_NL "[app_es] retrying in 500ms" APP_LOG_NL,
+	    sl_status_get_string(status)
+	);
+	sl_sleeptimer_start_timer_ms(
+	    &self.sensor_timer,
+	    500,
+	    &_app_es_on_sensor_timer_timeout,
+	    NULL,
+	    0,
+	    0
+	);
+}
+
+void _app_es_on_stcc4_stop_continuous(sl_status_t status, void *user_data) {
+	(void)user_data;
+	if (status == SL_STATUS_OK) {
+		_app_es_start_readout_timer();
+		return;
+	}
+
+	app_log_error(
+	    "[app_es] could not stop STCC4 continuous measurement: %s" APP_LOG_NL,
+	    sl_status_get_string(status)
+	);
+
+	sl_sleeptimer_start_timer_ms(
+	    &self.sensor_timer,
+	    500,
+	    &_app_es_on_sensor_timer_timeout,
+	    NULL,
+	    0,
+	    0
 	);
 }
 
@@ -514,7 +625,7 @@ sl_status_t app_es_tare_pressure(pressure_t pressure) {
 
 	CORE_ATOMIC_SECTION({
 		new_offset =
-		    pressure - self.current_data_point.pressure - self.pressure_offset;
+		    pressure - self.current_data_point.pressure + self.pressure_offset;
 	});
 
 	sl_status_t status = nvm3_writeData(

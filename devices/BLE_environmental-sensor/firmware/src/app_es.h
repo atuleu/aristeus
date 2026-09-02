@@ -62,7 +62,7 @@ sl_sleeptimer_timestamp_t app_es_get_current_unix_time();
  * Sleep preemption check for app_is_ok_to_sleep(). This function must be called
  * from a context where ISR are disabled, like in app_is_ok_to_sleep().
  */
-bool                      app_es_is_ok_to_sleep();
+bool app_es_is_ok_to_sleep();
 
 /**
  * Process any pending environment sensing operations. This function should be
@@ -109,8 +109,15 @@ void _app_es_process_stcc4(sl_status_t status);
 void _app_es_complete_readout(sl_status_t status);
 
 sl_status_t _app_es_start_readout_timer();
+
 void _app_es_on_conditioning_done(sl_status_t status, void *user_data);
 void _app_es_on_factory_reset(sl_status_t status, void *user_data);
+void _app_es_on_stcc4_start_continuous(sl_status_t status, void *user_data);
+void _app_es_on_stcc4_stop_continuous(sl_status_t status, void *user_data);
+void _app_es_on_stcc4_init_timeout(
+    sl_sleeptimer_timer_handle_t *timer, void *user_data
+);
+
 #ifdef __cplusplus
 }
 #endif // __cplusplus

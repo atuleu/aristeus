@@ -97,6 +97,14 @@ sl_status_t stcc4_perform_conditioning(
     stcc4_handle_t *self, stcc4_operation_callback_t callback, void *user_data
 );
 
+sl_status_t stcc4_start_continuous_measurement(
+    stcc4_handle_t *self, stcc4_operation_callback_t, void *user_data
+);
+
+sl_status_t stcc4_stop_continous_measurement(
+    stcc4_handle_t *self, stcc4_operation_callback_t, void *user_data
+);
+
 /**
  * Structure for the STCC4 driver handle given for static initialization
  * only. This structure is considered opaque and should not be accessed
