@@ -40,6 +40,7 @@ typedef struct app_es_handle {
 	pressure_t                pressure_offset;
 	uint32_t                  readout_period_ms;
 	bool                      compute_default_pressure_offset;
+	bool                      soft_reset_guard;
 	volatile bool             perform_reset;
 	volatile bool             stcc4_initializing;
 	volatile uint32_t         stcc4_initial_measurement;
@@ -225,22 +226,93 @@ sl_status_t app_es_init(const app_es_config_t *config) {
 	}
 
 	self.readout_period_ms = config->readout_period_ms;
+	self.soft_reset_guard  = false;
 
-	_app_es_start_readout_timer();
+	status = stcc4_perform_self_test(
+	    &self.stcc4_sensor,
+	    &_app_es_on_stcc4_self_test_done,
+	    NULL
+	);
+
+	if (status != SL_STATUS_OK) {
+		app_log_warning(
+		    "[app_es] could not perform STCC4 self-test: %s" APP_LOG_NL,
+		    sl_status_get_string(status)
+		);
+		_app_es_start_readout_timer();
+	}
+
 	return SL_STATUS_OK;
 }
 
-void _app_es_on_conditioning_done(sl_status_t status, void *user_data) {
+void _app_es_on_stcc4_self_test_done(
+    sl_status_t status, uint16_t result, void *user_data
+) {
 	(void)user_data;
 
 	if (status != SL_STATUS_OK) {
 		app_log_error(
-		    "[app_es] STCC4 conditionning could not be done: %s" APP_LOG_NL,
+		    "[app_es] STCC4 self-test could not be done: %s" APP_LOG_NL,
 		    sl_status_get_string(status)
 		);
+		_app_es_start_readout_timer();
+		return;
+	}
+	app_log_info("[app_es] STCC4 self-test result : %04X." APP_LOG_NL, result);
+
+	if ((result & 0x60) != 0x00) {
+		app_log_error("[app_es] STCC4 Memory error detected!" APP_LOG_NL);
+		if (self.soft_reset_guard == false) {
+			self.soft_reset_guard = true;
+			status                = stcc4_soft_reset(
+                &self.stcc4_sensor,
+                &_app_es_on_stcc4_soft_reset,
+                NULL
+            );
+		} else {
+			status = SL_STATUS_ALREADY_INITIALIZED;
+		}
+
+		if (status != SL_STATUS_OK) {
+			app_log_error(
+			    "[app_es] could not schedule STCC4 soft reset: %s" APP_LOG_NL,
+			    sl_status_get_string(status)
+			);
+			app_log_warning("[app_es] starting readout anyway." APP_LOG_NL);
+			_app_es_start_readout_timer();
+		}
+		return;
 	}
 
 	_app_es_start_readout_timer();
+}
+
+void _app_es_on_stcc4_soft_reset(
+    sl_status_t status, uint16_t result, void *user_data
+) {
+	(void)result;
+	(void)user_data;
+
+	if (status != SL_STATUS_OK) {
+		app_log_error(
+		    "[app_es] could not perform STCC4 soft reset: %s" APP_LOG_NL,
+		    sl_status_get_string(status)
+		);
+		_app_es_start_readout_timer();
+		return;
+	}
+	status = stcc4_perform_self_test(
+	    &self.stcc4_sensor,
+	    &_app_es_on_stcc4_self_test_done,
+	    NULL
+	);
+	if (status != SL_STATUS_OK) {
+		app_log_error(
+		    "[app_es] could not schedule STCC4 self-test: %s." APP_LOG_NL,
+		    sl_status_get_string(status)
+		);
+		_app_es_start_readout_timer();
+	}
 }
 
 sl_status_t _app_es_start_readout_timer() {
@@ -431,64 +503,6 @@ void _app_es_process_stcc4(sl_status_t status) {
 		);
 	}
 	_app_es_complete_readout(SL_STATUS_OK);
-
-	bool perform_reset, reset_loop;
-	CORE_ATOMIC_SECTION({
-		perform_reset      = self.perform_reset;
-		self.perform_reset = false;
-		if (self.stcc4_initializing == true) {
-			self.stcc4_initial_measurement += 1;
-			reset_loop = self.stcc4_initial_measurement >= 360;
-		} else {
-			reset_loop = false;
-		}
-		if (reset_loop) {
-			self.stcc4_initializing        = false;
-			self.stcc4_initial_measurement = 0;
-		}
-	});
-
-	if (self.stcc4_initializing == true) {
-		app_log_info(
-		    "[app_es] got measurement: %d." APP_LOG_NL,
-		    self.current_data_point.co2
-		);
-	}
-
-	if (reset_loop == true) {
-		app_log_info("[app_es] STCC4 initial ASC calibration done." APP_LOG_NL);
-		status = sl_sleeptimer_restart_periodic_timer_ms(
-		    &self.sensor_timer,
-		    self.readout_period_ms,
-		    &_app_es_on_sensor_timer_timeout,
-		    NULL,
-		    0,
-		    0
-		);
-		if (status != SL_STATUS_OK) {
-			app_log_error(
-			    "[app_es]: could not change the readout period back to "
-			    "default: %s" APP_LOG_NL,
-			    sl_status_get_string(status)
-			);
-		}
-	}
-
-	if (perform_reset == false) {
-		return;
-	}
-	status = stcc4_factory_reset(
-	    &self.stcc4_sensor,
-	    &_app_es_on_factory_reset,
-	    NULL
-	);
-	if (status != SL_STATUS_OK) {
-		app_log_error(
-		    "[app_es] could not STCC4 perform factory reset: %s" APP_LOG_NL,
-		    sl_status_get_string(status)
-		);
-		CORE_ATOMIC_SECTION({ self.perform_reset = true; });
-	}
 }
 
 sl_sleeptimer_timestamp_t app_es_get_current_unix_time() {
@@ -519,56 +533,6 @@ void _app_es_complete_readout(sl_status_t status) {
 	CORE_ATOMIC_SECTION({ new_data_point = self.new_data_point; });
 	self.callback(status, &new_data_point);
 	batt_monitor_enable_open();
-}
-
-void _app_es_on_factory_reset(
-    sl_status_t status, uint16_t result, void *user_data
-) {
-	(void)user_data;
-	(void)result;
-	stcc4_enter_sleep_mode(&self.stcc4_sensor);
-	if (status != SL_STATUS_OK) {
-		app_log_error(
-		    "[app_es] could not STCC4 perform factory reset: %s" APP_LOG_NL,
-		    sl_status_get_string(status)
-		);
-		CORE_ATOMIC_SECTION({ self.perform_reset = true; });
-		return;
-	}
-
-	if (batt_monitor_get_current_level() != BATTERY_NAN) {
-		// we are running on battery, meaning we cannot make continuous
-		// measurement
-		app_log_warning(
-		    "[app_es] factory reset for STCC4, needs 6 hours to "
-		    "re-calibrate on battery." APP_LOG_NL
-		);
-		return;
-	}
-
-	status = sl_sleeptimer_restart_periodic_timer_ms(
-	    &self.sensor_timer,
-	    10000,
-	    &_app_es_on_sensor_timer_timeout,
-	    NULL,
-	    0,
-	    0
-	);
-	if (status != SL_STATUS_OK) {
-		app_log_warning(
-		    "[app_es] could not shorten to 10s the readout loop: %s" APP_LOG_NL,
-		    sl_status_get_string(status)
-		);
-		return;
-	}
-	app_log_info(
-	    "[app_es] started fast readout loop to calibrate sensor in "
-	    "1H" APP_LOG_NL
-	);
-	CORE_ATOMIC_SECTION({
-		self.stcc4_initializing        = true;
-		self.stcc4_initial_measurement = 0;
-	})
 }
 
 pressure_t app_es_current_pressure() {

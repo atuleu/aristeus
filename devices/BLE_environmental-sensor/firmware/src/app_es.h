@@ -110,8 +110,10 @@ void _app_es_complete_readout(sl_status_t status);
 
 sl_status_t _app_es_start_readout_timer();
 
-void _app_es_on_conditioning_done(sl_status_t status, void *user_data);
-void _app_es_on_factory_reset(
+void _app_es_on_stcc4_self_test_done(
+    sl_status_t status, uint16_t result, void *user_data
+);
+void _app_es_on_stcc4_soft_reset(
     sl_status_t status, uint16_t result, void *user_data
 );
 

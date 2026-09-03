@@ -110,6 +110,13 @@ sl_status_t stcc4_perform_self_test(
 );
 
 /**
+ * Perform a factory reset of the chip, including the conditionnning.
+ */
+sl_status_t stcc4_soft_reset(
+    stcc4_handle_t *self, stcc4_operation_callback_t, void *user_data
+);
+
+/**
  * Structure for the STCC4 driver handle given for static initialization
  * only. This structure is considered opaque and should not be accessed
  * directly.
@@ -194,9 +201,8 @@ void _stcc4_on_measure_single_shot(i2c_tx_status_t status, void *user_data);
 void _stcc4_on_read_measurement(i2c_tx_status_t status, void *user_data);
 
 // perform_conditionning
-void _stcc4_on_perform_conditioning(i2c_tx_status_t status, void *user_data);
 void _stcc4_start_conditioning(i2c_tx_status_t status, void *user_data);
-
+void _stcc4_on_no_result_operation(i2c_tx_status_t status, void *user_data);
 // factory reset
 void _stcc4_start_factory_reset(i2c_tx_status_t status, void *user_data);
 void _stcc4_on_factory_reset(i2c_tx_status_t status, void *user_data);
@@ -208,6 +214,8 @@ void _stcc4_on_word_result_operation(i2c_tx_status_t status, void *user_data);
 // FRC calibration
 void _stcc4_start_self_test(i2c_tx_status_t status, void *user_data);
 
+// soft
+void _stcc4_start_soft_reset(i2c_tx_status_t status, void *user_data);
 
 #ifdef __cplusplus
 }
