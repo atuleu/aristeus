@@ -452,25 +452,59 @@ void _stcc4_on_read_measurement(i2c_tx_status_t status, void *user_data) {
 		);
 		return;
 	}
-
-	if (_stcc4_check_crc_word(self->buffer) == false) {
-		_stcc4_schedule_read_completion(
-		    self,
-		    SL_STATUS_INVALID_COUNT,
-		    GATT_CO2_NAN
-		);
-		return;
+#ifndef PRODUCTION_BUILD
+	for (size_t i = 0; i < 12; i += 3) {
+#else
+	for (size_t i = 0; i < 12; i += 9) {
+#endif // PRODUCTION_BUILD
+		if (_stcc4_check_crc_word(&self->buffer[i]) == false) {
+			_stcc4_schedule_read_completion(
+			    self,
+			    SL_STATUS_INVALID_COUNT,
+			    GATT_CO2_NAN
+			);
+			return;
+		}
 	}
 
 	uint16_t co2_ppm =
 	    ((uint16_t)self->buffer[0] << 8) | ((uint16_t)self->buffer[1]);
 
-	// check for saturation
-	if (co2_ppm == GATT_CO2_NAN) {
-		co2_ppm = GATT_CO2_MAX;
-	}
+	uint16_t sensor_status =
+	    ((uint16_t)self->buffer[9] << 8) | ((uint16_t)self->buffer[10]);
 
-	_stcc4_schedule_read_completion(self, SL_STATUS_OK, co2_ppm);
+#ifndef PRODUCTION_BUILD
+
+	uint16_t temperature_B =
+	    ((uint16_t)self->buffer[3] << 8) | ((uint16_t)self->buffer[4]);
+
+	uint16_t humidity_B =
+	    ((uint16_t)self->buffer[6] << 8) | ((uint16_t)self->buffer[7]);
+
+	uint16_t temperature_C =
+	    ((float)temperature_B) / 65535.0f * 17500.0f - 4500.0f;
+
+	uint16_t humidity_percent =
+	    ((float)humidity_B) / 65535.0f * 1250.0f - 60.0f;
+
+	app_log_debug(
+	    "[stcc4] got status: %04X temp=%d.%02d°C (%d) humidity=%d.%d "
+	    "(%d)." APP_LOG_NL,
+	    sensor_status,
+	    temperature_C / 100,
+	    temperature_C % 100,
+	    temperature_B,
+	    humidity_percent / 10,
+	    humidity_percent % 10,
+	    humidity_B
+	);
+#endif // PRODUCTION_BUILD
+
+	if (sensor_status != 0x04) {
+		_stcc4_schedule_read_completion(self, SL_STATUS_FAIL, GATT_CO2_NAN);
+	} else {
+		_stcc4_schedule_read_completion(self, SL_STATUS_OK, co2_ppm);
+	}
 }
 
 void _stcc4_on_measure_single_shot(i2c_tx_status_t status, void *user_data) {
@@ -538,6 +572,14 @@ void _stcc4_on_set_rht_compensation(i2c_tx_status_t status, void *user_data) {
 		pressure = self->pressure / 20;
 	}
 
+#ifndef PRODUCTION_BUILD
+	app_log_debug(
+	    "[STCC4] setting barometric pressure=%d (%ld.%03ld hPa)." APP_LOG_NL,
+	    pressure,
+	    self->pressure / 1000,
+	    self->pressure % 1000
+	);
+#endif // PRODUCTION_BUILD
 	self->buffer[2] = pressure >> 8;
 	self->buffer[3] = pressure & 0xff;
 	self->buffer[4] = 0xff;
@@ -570,10 +612,16 @@ void _stcc4_start_readout_sequence(i2c_tx_status_t status, void *user_data) {
 	}
 
 	uint16_t temperature =
-	    ((float)self->temperature + 4500.0f) / 17500.0f * 65535.0f;
+	    ((float)(self->temperature + 4500)) * 65535.0f / 17500.0f;
 
 	uint16_t humidity = ((float)self->humidity + 60.0f) / 1250.0f * 65535.0f;
-
+#ifndef PRODUCTION_BUILD
+	app_log_debug(
+	    "[STCC4] sending compensation temp=%d humidity=%d." APP_LOG_NL,
+	    temperature,
+	    humidity
+	);
+#endif // PRODUCTION_BUILD
 	self->buffer[2] = temperature >> 8;
 	self->buffer[3] = temperature & 0xff;
 	self->buffer[4] = 0xff;
