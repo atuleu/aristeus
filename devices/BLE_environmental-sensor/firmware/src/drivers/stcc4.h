@@ -93,6 +93,23 @@ sl_status_t stcc4_perform_conditioning(
 );
 
 /**
+ * Performs an FRC calibratrion
+ */
+sl_status_t stcc4_perform_FRC_calibration(
+    stcc4_handle_t            *self,
+    co2_concentration_t        co2,
+    stcc4_operation_callback_t callback,
+    void                      *user_data
+);
+
+/**
+ * Performs an FRC calibratrion
+ */
+sl_status_t stcc4_perform_self_test(
+    stcc4_handle_t *self, stcc4_operation_callback_t callback, void *user_data
+);
+
+/**
  * Structure for the STCC4 driver handle given for static initialization
  * only. This structure is considered opaque and should not be accessed
  * directly.
@@ -113,6 +130,7 @@ struct stcc4_handle {
 	temperature_t                       temperature;
 	humidity_t                          humidity;
 	pressure_t                          pressure;
+	co2_concentration_t                 frc_pressure;
 	co2_concentration_t                 pending_result;
 	sl_status_t                         pending_status;
 	sl_sleeptimer_timer_handle_t        timer;
@@ -147,6 +165,7 @@ void _stcc4_tx_timer_timeout(
 void _stcc4_complete_tx(i2c_tx_status_t status, void *user_data);
 
 bool _stcc4_check_crc_word(const uint8_t *buffer);
+void _stcc4_write_word(uint8_t *buffer, uint16_t word);
 
 // operation completion
 void _stcc4_complete_pending_operation(stcc4_handle_t *self);
@@ -181,6 +200,14 @@ void _stcc4_start_conditioning(i2c_tx_status_t status, void *user_data);
 // factory reset
 void _stcc4_start_factory_reset(i2c_tx_status_t status, void *user_data);
 void _stcc4_on_factory_reset(i2c_tx_status_t status, void *user_data);
+
+// FRC calibration
+void _stcc4_start_FRC(i2c_tx_status_t status, void *user_data);
+void _stcc4_on_word_result_operation(i2c_tx_status_t status, void *user_data);
+
+// FRC calibration
+void _stcc4_start_self_test(i2c_tx_status_t status, void *user_data);
+
 
 #ifdef __cplusplus
 }
