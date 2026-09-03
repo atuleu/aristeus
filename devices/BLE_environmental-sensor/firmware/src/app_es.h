@@ -3,6 +3,7 @@
 #include "drivers/i2c_schd.h"
 #include "sl_sleeptimer.h"
 #include "types.h"
+#include <stdint.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -81,7 +82,8 @@ pressure_t app_es_current_pressure();
 /**
  * Tares the pressure to the provided value. Will save it in NVM
  */
-sl_status_t app_es_tare_pressure(pressure_t pressure, bool calibrate_stcc4);
+sl_status_t
+app_es_tare_pressure(pressure_t pressure, co2_concentration_t FRC_co2);
 
 void _app_es_on_lps22hh_readout(
     sl_status_t status, pressure_t pressure, void *user_data
@@ -100,6 +102,8 @@ void _app_es_on_sensor_timer_timeout(
     sl_sleeptimer_timer_handle_t *timer, void *user_data
 );
 
+void _app_es_process_FRC_calibration_procedure();
+
 sl_status_t _app_es_start_co2_readout();
 void        _app_es_schedule_batt_measurement();
 
@@ -113,10 +117,15 @@ sl_status_t _app_es_start_readout_timer();
 void _app_es_on_stcc4_self_test_done(
     sl_status_t status, uint16_t result, void *user_data
 );
+void _app_es_on_stcc4_factory_reset(
+    sl_status_t status, uint16_t result, void *user_data
+);
 void _app_es_on_stcc4_soft_reset(
     sl_status_t status, uint16_t result, void *user_data
 );
-
+void _app_es_on_stcc4_FRC_calibration(
+    sl_status_t status, uint16_t result, void *user_data
+);
 #ifdef __cplusplus
 }
 #endif // __cplusplus

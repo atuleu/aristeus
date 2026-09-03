@@ -21,6 +21,9 @@
 
 #define NVM3_PRESSURE_OFFSET_KEY (NVM3_KEY_MIN + 0x00011)
 
+#define FRC_PROCEDURE_NB_READOUT        30
+#define FRC_PROCEDURE_READOUT_PERIOD_MS 10000
+
 typedef struct app_es_handle {
 	sl_sleeptimer_timer_handle_t sensor_timer;
 	sht4x_handle_t               sht4x_sensor;
@@ -40,10 +43,11 @@ typedef struct app_es_handle {
 	pressure_t                pressure_offset;
 	uint32_t                  readout_period_ms;
 	bool                      compute_default_pressure_offset;
-	bool                      soft_reset_guard;
-	volatile bool             perform_reset;
-	volatile bool             stcc4_initializing;
-	volatile uint32_t         stcc4_initial_measurement;
+	volatile bool             soft_reset_guard;
+
+	co2_concentration_t FRC_target;
+	uint8_t             FRC_count;
+
 } app_es_handle_t;
 
 static app_es_handle_t self = {
@@ -166,10 +170,9 @@ sl_status_t app_es_init(const app_es_config_t *config) {
 		return SL_STATUS_NULL_POINTER;
 	}
 	self.callback                        = config->callback;
-	self.perform_reset                   = false;
-	self.stcc4_initial_measurement       = 0;
-	self.stcc4_initializing              = false;
 	self.compute_default_pressure_offset = false;
+	self.FRC_count                       = FRC_PROCEDURE_NB_READOUT;
+	self.FRC_target                      = GATT_CO2_NAN;
 
 	sl_status_t status;
 	status = sht4x_init(&self.sht4x_sensor, config->i2c_bus, SHT4X_BASE_ADDR);
@@ -228,6 +231,13 @@ sl_status_t app_es_init(const app_es_config_t *config) {
 	self.readout_period_ms = config->readout_period_ms;
 	self.soft_reset_guard  = false;
 
+	/* app_log_error("[app_es] performing factory reset" APP_LOG_NL); */
+	/* status = stcc4_factory_reset( */
+	/*     &self.stcc4_sensor, */
+	/*     &_app_es_on_stcc4_factory_reset, */
+	/*     NULL */
+	/* ); */
+
 	status = stcc4_perform_self_test(
 	    &self.stcc4_sensor,
 	    &_app_es_on_stcc4_self_test_done,
@@ -243,6 +253,21 @@ sl_status_t app_es_init(const app_es_config_t *config) {
 	}
 
 	return SL_STATUS_OK;
+}
+
+void _app_es_on_stcc4_factory_reset(
+    sl_status_t status, uint16_t result, void *user_data
+) {
+	(void)user_data;
+	(void)result;
+	if (status != SL_STATUS_OK) {
+		app_log_error(
+		    "[app_es] factory reset failed: %s" APP_LOG_NL,
+		    sl_status_get_string(status)
+		);
+	}
+
+	_app_es_start_readout_timer();
 }
 
 void _app_es_on_stcc4_self_test_done(
@@ -370,6 +395,13 @@ sl_status_t _app_es_start_co2_readout() {
 	}
 
 	app_log_debug("[app_es] starting STCC4 measurement." APP_LOG_NL);
+	if (self.FRC_count == (FRC_PROCEDURE_NB_READOUT - 1)) {
+		app_log_warning(
+		    "[app_es] preempting sleeping for last FRC measurement." APP_LOG_NL
+		);
+		stcc4_preempt_sleeping(&self.stcc4_sensor, true);
+	}
+
 	sl_status_t status = stcc4_start_read_sequence(
 	    &self.stcc4_sensor,
 	    self.current_data_point.temperature,
@@ -386,6 +418,7 @@ sl_status_t _app_es_start_co2_readout() {
 		    sl_status_get_string(status)
 		);
 	}
+
 	_app_es_schedule_batt_measurement();
 	return status;
 }
@@ -495,6 +528,7 @@ void _app_es_process_stcc4(sl_status_t status) {
 		    "[app_es] STCC4 measurement error: %s." APP_LOG_NL,
 		    sl_status_get_string(status)
 		);
+
 	} else {
 		self.current_data_point.co2 = self.new_data_point.co2;
 		app_log_debug(
@@ -503,6 +537,87 @@ void _app_es_process_stcc4(sl_status_t status) {
 		);
 	}
 	_app_es_complete_readout(SL_STATUS_OK);
+	_app_es_process_FRC_calibration_procedure();
+}
+
+void _app_es_process_FRC_calibration_procedure() {
+	if (self.FRC_count >= FRC_PROCEDURE_NB_READOUT) {
+		return;
+	}
+
+	if (self.FRC_count == 0) {
+		sl_sleeptimer_restart_periodic_timer_ms(
+		    &self.sensor_timer,
+		    FRC_PROCEDURE_READOUT_PERIOD_MS,
+		    &_app_es_on_sensor_timer_timeout,
+		    NULL,
+		    0,
+		    0
+		);
+	}
+	app_log_info(
+	    "[app_es] FRC measurement %d/%d." APP_LOG_NL,
+	    self.FRC_count + 1,
+	    FRC_PROCEDURE_NB_READOUT
+	);
+
+	if (++self.FRC_count < FRC_PROCEDURE_NB_READOUT) {
+		return;
+	}
+	app_log_info("[app_es] performing FRC forced calibration." APP_LOG_NL);
+
+	sl_status_t status = stcc4_perform_FRC_calibration(
+	    &self.stcc4_sensor,
+	    self.FRC_target,
+	    &_app_es_on_stcc4_FRC_calibration,
+	    NULL
+	);
+
+	app_log_warning(
+	    "[app_es] enabling sleeping after last FRC measurement." APP_LOG_NL
+	);
+	stcc4_preempt_sleeping(&self.stcc4_sensor, false);
+
+	if (status != SL_STATUS_OK) {
+		app_log_error(
+		    "[app_es] could not perform recalibration: %s." APP_LOG_NL,
+		    sl_status_get_string(status)
+		);
+	}
+
+	app_log_info(
+	    "[app_es] setting loop readout back to %ld.%03lds." APP_LOG_NL,
+	    self.readout_period_ms / 1000,
+	    self.readout_period_ms % 1000
+	);
+
+	sl_sleeptimer_restart_periodic_timer_ms(
+	    &self.sensor_timer,
+	    self.readout_period_ms,
+	    &_app_es_on_sensor_timer_timeout,
+	    NULL,
+	    0,
+	    0
+	);
+}
+
+void _app_es_on_stcc4_FRC_calibration(
+    sl_status_t status, uint16_t result, void *user_data
+) {
+	(void)user_data;
+
+	if (status != SL_STATUS_OK) {
+		app_log_error(
+		    "[app_es] could not perform recalibration: %s." APP_LOG_NL,
+		    sl_status_get_string(status)
+		);
+		return;
+	}
+
+	app_log_info(
+	    "[app_es] FRC recalibration offset:%ld." APP_LOG_NL,
+	    ((int32_t)(result)-32768)
+	);
 }
 
 sl_sleeptimer_timestamp_t app_es_get_current_unix_time() {
@@ -542,7 +657,8 @@ pressure_t app_es_current_pressure() {
 	return self.current_data_point.pressure;
 }
 
-sl_status_t app_es_tare_pressure(pressure_t pressure, bool calibrate_stcc4) {
+sl_status_t
+app_es_tare_pressure(pressure_t pressure, co2_concentration_t FRC_co2) {
 	if (self.current_data_point.pressure == GATT_PRESSURE_NAN) {
 		return SL_STATUS_INVALID_STATE;
 	}
@@ -570,7 +686,6 @@ sl_status_t app_es_tare_pressure(pressure_t pressure, bool calibrate_stcc4) {
 	CORE_ATOMIC_SECTION({
 		self.pressure_offset             = new_offset;
 		self.current_data_point.pressure = pressure;
-		self.perform_reset               = calibrate_stcc4;
 	});
 
 	app_log_info(
@@ -582,9 +697,20 @@ sl_status_t app_es_tare_pressure(pressure_t pressure, bool calibrate_stcc4) {
 	    self.current_data_point.pressure % 1000
 	);
 
-	if ( calibrate_stcc4 == true ) {
-		app_log_warning("[app_es] will start STCC4 factory reset on next measurement"APP_LOG_NL);
+	if (FRC_co2 == GATT_CO2_NAN) {
+		app_log_info(
+		    "[app_es] no target CO2 concentration, not "
+		    "recalibrating." APP_LOG_NL
+		);
+		return SL_STATUS_OK;
 	}
+
+	app_log_warning(
+	    "[app_es] will start FRC forced calibration on next "
+	    "measurement." APP_LOG_NL
+	);
+	self.FRC_count  = 0;
+	self.FRC_target = FRC_co2;
 
 	return SL_STATUS_OK;
 }

@@ -116,6 +116,8 @@ sl_status_t stcc4_soft_reset(
     stcc4_handle_t *self, stcc4_operation_callback_t, void *user_data
 );
 
+void stcc4_preempt_sleeping(stcc4_handle_t *self, bool preempt);
+
 /**
  * Structure for the STCC4 driver handle given for static initialization
  * only. This structure is considered opaque and should not be accessed
@@ -134,6 +136,7 @@ struct stcc4_handle {
 
 	volatile stcc4_operation_callback_t op_callback;
 	volatile void                      *user_data;
+	volatile bool                       preempt_sleeping;
 	temperature_t                       temperature;
 	humidity_t                          humidity;
 	pressure_t                          pressure;

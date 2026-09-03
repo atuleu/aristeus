@@ -241,12 +241,13 @@ sl_status_t stcc4_init(stcc4_handle_t *self, stcc4_init_args_t *args) {
 		return SL_STATUS_NULL_POINTER;
 	}
 
-	self->i2c_bus        = args->i2c_bus;
-	self->tx_callback    = NULL;
-	self->op_callback    = NULL;
-	self->sleeping       = false;
-	self->pending_result = GATT_CO2_NAN;
-	self->pending_status = SL_STATUS_NO_STATUS;
+	self->i2c_bus          = args->i2c_bus;
+	self->tx_callback      = NULL;
+	self->op_callback      = NULL;
+	self->sleeping         = false;
+	self->preempt_sleeping = false;
+	self->pending_result   = GATT_CO2_NAN;
+	self->pending_status   = SL_STATUS_NO_STATUS;
 	if (args->address_pin_set == true) {
 		self->address = 0x65;
 	} else {
@@ -405,6 +406,11 @@ void _stcc4_schedule_operation_completion(
 ) {
 	CORE_DECLARE_IRQ_STATE;
 	CORE_ENTER_ATOMIC();
+	if (self->preempt_sleeping == true) {
+		CORE_EXIT_ATOMIC();
+		_stcc4_complete_operation(self, status, result);
+		return;
+	}
 
 	self->pending_status     = status;
 	self->pending_result     = result;
@@ -418,6 +424,42 @@ void _stcc4_schedule_operation_completion(
 		});
 		_stcc4_complete_operation(self, status, result);
 	}
+}
+
+sl_status_t _stcc4_schedule_cmd(
+    stcc4_handle_t *self, stcc4_operation_callback_t callback, void *user_data
+) {
+	CORE_DECLARE_IRQ_STATE;
+	CORE_ENTER_ATOMIC();
+	if (self->op_callback != NULL || self->tx_callback != NULL) {
+		CORE_EXIT_ATOMIC();
+		return SL_STATUS_BUSY;
+	}
+	self->op_callback = callback;
+	self->user_data   = user_data;
+	CORE_EXIT_ATOMIC();
+	return SL_STATUS_OK;
+}
+
+sl_status_t
+_stcc4_start_cmd(stcc4_handle_t *self, i2c_tx_callback_t on_wakeup) {
+	CORE_DECLARE_IRQ_STATE;
+	CORE_ENTER_ATOMIC();
+	if (self->sleeping == false) {
+		CORE_EXIT_ATOMIC();
+		on_wakeup(I2C_TX_OK, self);
+		return SL_STATUS_OK;
+	}
+	CORE_EXIT_ATOMIC();
+
+	sl_status_t status = _stcc4_send_exit_sleep_mode(self, on_wakeup);
+	if (status != SL_STATUS_OK) {
+		CORE_ENTER_ATOMIC();
+		self->op_callback = NULL;
+		self->user_data   = NULL;
+		CORE_EXIT_ATOMIC();
+	}
+	return status;
 }
 
 sl_status_t stcc4_start_read_sequence(
@@ -436,32 +478,16 @@ sl_status_t stcc4_start_read_sequence(
 	    pressure == GATT_PRESSURE_NAN) {
 		return SL_STATUS_INVALID_PARAMETER;
 	}
-
-	CORE_DECLARE_IRQ_STATE;
-	CORE_ENTER_ATOMIC();
-
-	if (self->op_callback != NULL || self->tx_callback != NULL) {
-		CORE_EXIT_ATOMIC();
-		return SL_STATUS_BUSY;
+	sl_status_t status = _stcc4_schedule_cmd(self, callback, user_data);
+	if (status != SL_STATUS_OK) {
+		return status;
 	}
-	self->op_callback = callback;
-	self->user_data   = user_data;
-	CORE_EXIT_ATOMIC();
+
 	self->temperature = temperature;
 	self->humidity    = humidity;
 	self->pressure    = pressure;
 
-	sl_status_t status =
-	    _stcc4_send_exit_sleep_mode(self, _stcc4_start_readout_sequence);
-
-	if (status != SL_STATUS_OK) {
-		CORE_ENTER_ATOMIC();
-		self->op_callback = NULL;
-		self->user_data   = NULL;
-		CORE_EXIT_ATOMIC();
-	}
-
-	return status;
+	return _stcc4_start_cmd(self, _stcc4_start_readout_sequence);
 }
 
 void _stcc4_start_readout_sequence(i2c_tx_status_t status, void *user_data) {
@@ -691,27 +717,11 @@ sl_status_t stcc4_perform_conditioning(
 	if (self == NULL) {
 		return SL_STATUS_NULL_POINTER;
 	}
-	CORE_DECLARE_IRQ_STATE;
-	CORE_ENTER_ATOMIC();
-
-	if (self->tx_callback != NULL || self->op_callback != NULL) {
-		CORE_EXIT_ATOMIC();
-		return SL_STATUS_BUSY;
+	sl_status_t status = _stcc4_schedule_cmd(self, callback, user_data);
+	if ( status != SL_STATUS_OK) {
+		return status;
 	}
-	self->op_callback = callback;
-	self->user_data   = user_data;
-	CORE_EXIT_ATOMIC();
-
-	sl_status_t status =
-	    _stcc4_send_exit_sleep_mode(self, _stcc4_start_conditioning);
-
-	if (status != SL_STATUS_OK) {
-		CORE_ENTER_ATOMIC();
-		self->op_callback = NULL;
-		self->user_data   = NULL;
-		CORE_EXIT_ATOMIC();
-	}
-	return status;
+	return _stcc4_start_cmd(self, _stcc4_start_conditioning);
 }
 
 void _stcc4_start_conditioning(i2c_tx_status_t status, void *user_data) {
@@ -760,27 +770,13 @@ sl_status_t stcc4_factory_reset(
 	if (self == NULL) {
 		return SL_STATUS_NULL_POINTER;
 	}
-	CORE_DECLARE_IRQ_STATE;
-	CORE_ENTER_ATOMIC();
 
-	if (self->tx_callback != NULL || self->op_callback != NULL) {
-		CORE_EXIT_ATOMIC();
-		return SL_STATUS_BUSY;
+	sl_status_t status = _stcc4_schedule_cmd(self, callback, user_data);
+	if ( status != SL_STATUS_OK) {
+		return status;
 	}
-	self->op_callback = callback;
-	self->user_data   = user_data;
-	CORE_EXIT_ATOMIC();
 
-	sl_status_t status =
-	    _stcc4_send_exit_sleep_mode(self, _stcc4_start_factory_reset);
-
-	if (status != SL_STATUS_OK) {
-		CORE_ENTER_ATOMIC();
-		self->op_callback = NULL;
-		self->user_data   = NULL;
-		CORE_EXIT_ATOMIC();
-	}
-	return status;
+	return _stcc4_start_cmd(self, &_stcc4_start_factory_reset);
 }
 
 void _stcc4_start_factory_reset(i2c_tx_status_t status, void *user_data) {
@@ -850,25 +846,14 @@ sl_status_t stcc4_perform_FRC_calibration(
 		return SL_STATUS_INVALID_RANGE;
 	}
 
-	CORE_DECLARE_IRQ_STATE;
-	CORE_ENTER_ATOMIC();
-	if (self->op_callback != NULL || self->tx_callback != NULL) {
-		CORE_EXIT_ATOMIC();
-		return SL_STATUS_BUSY;
+	sl_status_t status = _stcc4_schedule_cmd(self, callback, user_data);
+	if ( status != SL_STATUS_OK) {
+		return status;
 	}
-	self->op_callback = callback;
-	self->user_data   = user_data;
-	CORE_EXIT_ATOMIC();
+
 	self->frc_pressure = co2;
 
-	sl_status_t status = _stcc4_send_exit_sleep_mode(self, &_stcc4_start_FRC);
-	if (status != SL_STATUS_OK) {
-		CORE_ENTER_ATOMIC();
-		self->op_callback = NULL;
-		self->user_data   = NULL;
-		CORE_EXIT_ATOMIC();
-	}
-	return status;
+	return _stcc4_start_cmd(self,&_stcc4_start_FRC);
 }
 
 void _stcc4_start_FRC(i2c_tx_status_t status, void *user_data) {
@@ -933,25 +918,12 @@ sl_status_t stcc4_perform_self_test(
 	if (self == NULL) {
 		return SL_STATUS_NULL_POINTER;
 	}
+	sl_status_t status = _stcc4_schedule_cmd(self, callback, user_data);
+	if ( status != SL_STATUS_OK) {
+		return status;
+	}
 
-	CORE_DECLARE_IRQ_STATE;
-	CORE_ENTER_ATOMIC();
-	if (self->op_callback != NULL || self->tx_callback != NULL) {
-		CORE_EXIT_ATOMIC();
-		return SL_STATUS_BUSY;
-	}
-	self->op_callback = callback;
-	self->user_data   = user_data;
-	CORE_EXIT_ATOMIC();
-	sl_status_t status =
-	    _stcc4_send_exit_sleep_mode(self, &_stcc4_start_self_test);
-	if (status != SL_STATUS_OK) {
-		CORE_ENTER_ATOMIC();
-		self->op_callback = NULL;
-		self->user_data   = NULL;
-		CORE_EXIT_ATOMIC();
-	}
-	return status;
+	return _stcc4_start_cmd(self, &_stcc4_start_self_test);
 }
 
 void _stcc4_start_self_test(i2c_tx_status_t status, void *user_data) {
@@ -993,24 +965,12 @@ void _stcc4_start_self_test(i2c_tx_status_t status, void *user_data) {
 		return SL_STATUS_NULL_POINTER;
 	}
 
-	CORE_DECLARE_IRQ_STATE;
-	CORE_ENTER_ATOMIC();
-	if (self->op_callback != NULL || self->tx_callback != NULL) {
-		CORE_EXIT_ATOMIC();
-		return SL_STATUS_BUSY;
+	sl_status_t status = _stcc4_schedule_cmd(self, callback, user_data);
+	if ( status != SL_STATUS_OK) {
+		return status;
 	}
-	self->op_callback = callback;
-	self->user_data   = user_data;
-	CORE_EXIT_ATOMIC();
-	sl_status_t status =
-	    _stcc4_send_exit_sleep_mode(self, &_stcc4_start_soft_reset);
-	if (status != SL_STATUS_OK) {
-		CORE_ENTER_ATOMIC();
-		self->op_callback = NULL;
-		self->user_data   = NULL;
-		CORE_EXIT_ATOMIC();
-	}
-	return status;
+
+	return _stcc4_start_cmd(self, &_stcc4_start_soft_reset);
 }
 
 void _stcc4_start_soft_reset(i2c_tx_status_t status, void *user_data) {
@@ -1042,3 +1002,19 @@ void _stcc4_start_soft_reset(i2c_tx_status_t status, void *user_data) {
 		);
 	}
 }
+
+ void stcc4_preempt_sleeping(stcc4_handle_t *self, bool preempt){
+	 CORE_DECLARE_IRQ_STATE;
+	 CORE_ENTER_ATOMIC();
+	 if ( self->preempt_sleeping == preempt ) {
+		 CORE_EXIT_ATOMIC();
+		 return;
+	 }
+	 self->preempt_sleeping = preempt;
+	 if ( self->preempt_sleeping == false && self->sleeping == false ) {
+		 // the later will release atomicity
+		 _stcc4_enter_sleep_mode(self, irqState);
+		 return;
+	 }
+	 CORE_EXIT_ATOMIC();
+ }

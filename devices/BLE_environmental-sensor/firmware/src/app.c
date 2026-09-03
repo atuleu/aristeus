@@ -760,18 +760,20 @@ void _app_on_gatt_server_user_write_request(
 		break;
 	}
 	case gattdb_current_pressure: {
-		pressure_t new_pressure;
-		bool       calibrate = false;
-		err                  = gatt_ecode_succeed;
+		pressure_t          new_pressure;
+		co2_concentration_t FRC_calibration = GATT_CO2_NAN;
+		err                                 = gatt_ecode_succeed;
 		if (req->value.len != sizeof(pressure_t) &&
-		    req->value.len != (sizeof(pressure_t) + 1)) {
+		    req->value.len != (sizeof(pressure_t) + 2)) {
 			err = gatt_ecode_invalid_attribute_length;
 		} else {
 			memcpy(&new_pressure, req->value.data, sizeof(pressure_t));
-			if (req->value.len == (sizeof(pressure_t) + 1)) {
-				calibrate = req->value.data[sizeof(pressure_t)] != 0x00;
+			if (req->value.len == (sizeof(pressure_t) + 2)) {
+				FRC_calibration = ((uint16_t)req->value.data[5] << 8) |
+				                  ((uint16_t)req->value.data[4]);
 			}
-			sl_status_t sc = app_es_tare_pressure(new_pressure, calibrate);
+			sl_status_t sc =
+			    app_es_tare_pressure(new_pressure, FRC_calibration);
 			if (sc != SL_STATUS_OK) {
 				err = gatt_ecode_write_request_rejected;
 			}
