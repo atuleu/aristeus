@@ -36,6 +36,8 @@ typedef struct stcc4_init_args {
  */
 sl_status_t stcc4_init(stcc4_handle_t *self, stcc4_init_args_t *args);
 
+#define STCC4_NO_RESULT 0xFFFF
+
 /**
  * Callback for reading the CO2 concentration. This callback is called when the
  * read sequence is complete, either successfully or with an error.
@@ -46,8 +48,8 @@ sl_status_t stcc4_init(stcc4_handle_t *self, stcc4_init_args_t *args);
  * @param user_data The user data passed to the read sequence.
  *
  */
-typedef void (*stcc4_readout_callback_t)(
-    sl_status_t status, co2_concentration_t concentration, void *user_data
+typedef void (*stcc4_operation_callback_t)(
+    sl_status_t status, uint16_t result, void *user_data
 );
 
 /**
@@ -66,22 +68,15 @@ typedef void (*stcc4_readout_callback_t)(
  *         error code otherwise.
  */
 sl_status_t stcc4_start_read_sequence(
-    stcc4_handle_t          *self,
-    temperature_t            temperature,
-    humidity_t               humidity,
-    pressure_t               pressure,
-    stcc4_readout_callback_t callback,
-    void                    *user_data
+    stcc4_handle_t            *self,
+    temperature_t              temperature,
+    humidity_t                 humidity,
+    pressure_t                 pressure,
+    stcc4_operation_callback_t callback,
+    void                      *user_data
 );
 
 sl_status_t stcc4_enter_sleep_mode(stcc4_handle_t *self);
-
-/**
- *  Callback for asynchronous operation on the STCC4
- *
- */
-
-typedef void (*stcc4_operation_callback_t)(sl_status_t status, void *user_data);
 
 /**
  * Perform a factory reset of the chip, including the conditionnning.
@@ -114,15 +109,78 @@ struct stcc4_handle {
 	uint8_t                    read_len;
 
 	volatile stcc4_operation_callback_t op_callback;
-	volatile stcc4_readout_callback_t   read_callback;
 	volatile void                      *user_data;
 	temperature_t                       temperature;
 	humidity_t                          humidity;
 	pressure_t                          pressure;
-	co2_concentration_t                 last_readout;
-	sl_status_t                         last_status;
+	co2_concentration_t                 pending_result;
+	sl_status_t                         pending_status;
 	sl_sleeptimer_timer_handle_t        timer;
 };
+
+// private TX callbacks and functions
+typedef uint16_t _stcc4_command_t;
+sl_status_t      _stcc4_send_command_blocking(
+         stcc4_handle_t  *self,
+         _stcc4_command_t cmd,
+         uint16_t         read_delay_ms,
+         uint8_t         *read_buffer,
+         uint8_t          read_len
+     );
+sl_status_t _stcc4_send_command(
+    stcc4_handle_t   *self,
+    _stcc4_command_t  cmd,
+    uint8_t           command_len,
+    uint16_t          read_delay_ms,
+    uint8_t           read_len,
+    i2c_tx_callback_t callback,
+    void             *user_data
+);
+sl_status_t _stcc4_read_serial_number_blocking(
+    stcc4_handle_t *self, uint32_t *serial_number
+);
+
+void _stcc4_on_command_write(i2c_tx_status_t status, void *user_data);
+void _stcc4_tx_timer_timeout(
+    sl_sleeptimer_timer_handle_t *timer, void *user_data
+);
+void _stcc4_complete_tx(i2c_tx_status_t status, void *user_data);
+
+bool _stcc4_check_crc_word(const uint8_t *buffer);
+
+// operation completion
+void _stcc4_complete_pending_operation(stcc4_handle_t *self);
+void _stcc4_complete_operation(
+    stcc4_handle_t *self, sl_status_t status, uint16_t co2
+);
+void _stcc4_schedule_operation_completion(
+    stcc4_handle_t *self, sl_status_t status, uint16_t co2
+);
+
+// private sleep mode
+sl_status_t
+_stcc4_send_exit_sleep_mode(stcc4_handle_t *self, i2c_tx_callback_t on_wakeup);
+
+sl_status_t
+     _stcc4_enter_sleep_mode(stcc4_handle_t *self, CORE_irqState_t irqState);
+void _stcc4_on_enter_sleepmode(i2c_tx_status_t status, void *user_data);
+
+// readout sequence
+void _stcc4_start_readout_sequence(i2c_tx_status_t status, void *user_data);
+void _stcc4_on_set_rht_compensation(i2c_tx_status_t status, void *user_data);
+void _stcc4_on_set_pressure_compensation(
+    i2c_tx_status_t status, void *user_data
+);
+void _stcc4_on_measure_single_shot(i2c_tx_status_t status, void *user_data);
+void _stcc4_on_read_measurement(i2c_tx_status_t status, void *user_data);
+
+// perform_conditionning
+void _stcc4_on_perform_conditioning(i2c_tx_status_t status, void *user_data);
+void _stcc4_start_conditioning(i2c_tx_status_t status, void *user_data);
+
+// factory reset
+void _stcc4_start_factory_reset(i2c_tx_status_t status, void *user_data);
+void _stcc4_on_factory_reset(i2c_tx_status_t status, void *user_data);
 
 #ifdef __cplusplus
 }

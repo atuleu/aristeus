@@ -521,8 +521,11 @@ void _app_es_complete_readout(sl_status_t status) {
 	batt_monitor_enable_open();
 }
 
-void _app_es_on_factory_reset(sl_status_t status, void *user_data) {
+void _app_es_on_factory_reset(
+    sl_status_t status, uint16_t result, void *user_data
+) {
 	(void)user_data;
+	(void)result;
 	stcc4_enter_sleep_mode(&self.stcc4_sensor);
 	if (status != SL_STATUS_OK) {
 		app_log_error(
