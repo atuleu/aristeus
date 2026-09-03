@@ -39,6 +39,7 @@ typedef struct app_es_handle {
 	app_es_readout_callback_t callback;
 	pressure_t                pressure_offset;
 	uint32_t                  readout_period_ms;
+	bool                      compute_default_pressure_offset;
 	volatile bool             perform_reset;
 	volatile bool             stcc4_initializing;
 	volatile uint32_t         stcc4_initial_measurement;
@@ -163,10 +164,11 @@ sl_status_t app_es_init(const app_es_config_t *config) {
 	if (config->callback == NULL || config->i2c_bus == NULL) {
 		return SL_STATUS_NULL_POINTER;
 	}
-	self.callback                  = config->callback;
-	self.perform_reset             = false;
-	self.stcc4_initial_measurement = 0;
-	self.stcc4_initializing        = false;
+	self.callback                        = config->callback;
+	self.perform_reset                   = false;
+	self.stcc4_initial_measurement       = 0;
+	self.stcc4_initializing              = false;
+	self.compute_default_pressure_offset = false;
 
 	sl_status_t status;
 	status = sht4x_init(&self.sht4x_sensor, config->i2c_bus, SHT4X_BASE_ADDR);
@@ -218,23 +220,13 @@ sl_status_t app_es_init(const app_es_config_t *config) {
 		    "[app_es] could not retrieve saved pressure offset: %s." APP_LOG_NL,
 		    sl_status_get_string(status)
 		);
-		self.pressure_offset = 0;
+		self.compute_default_pressure_offset = true;
+		self.pressure_offset                 = 0;
 	}
 
 	self.readout_period_ms = config->readout_period_ms;
 
-	status = stcc4_perform_conditioning(
-	    &self.stcc4_sensor,
-	    &_app_es_on_conditioning_done,
-	    NULL
-	);
-	if (status != SL_STATUS_OK) {
-		app_log_error(
-		    "[app_es] could not perform STCC4 conditioning: %s." APP_LOG_NL,
-		    sl_status_get_string(status)
-		);
-		return _app_es_start_readout_timer();
-	}
+	_app_es_start_readout_timer();
 	return SL_STATUS_OK;
 }
 
@@ -408,8 +400,15 @@ void _app_es_process_lps22hh(sl_status_t status) {
 		);
 		return;
 	}
-	self.current_data_point.pressure = self.new_data_point.pressure;
-
+	if (self.compute_default_pressure_offset == true &&
+	    self.new_data_point.pressure != GATT_PRESSURE_NAN) {
+		self.current_data_point.pressure     = 1013000;
+		self.compute_default_pressure_offset = false;
+		self.pressure_offset =
+		    self.current_data_point.pressure - self.new_data_point.pressure;
+	} else {
+		self.current_data_point.pressure = self.new_data_point.pressure;
+	}
 	app_log_debug(
 	    "[app_es] pressure: %ld.%03ldhPa." APP_LOG_NL,
 	    self.new_data_point.pressure / 1000,
