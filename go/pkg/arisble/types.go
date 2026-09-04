@@ -2,9 +2,11 @@ package arisble
 
 import (
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"math"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -201,51 +203,228 @@ func (u MemoryUsage) Float64() float64 {
 
 type Placement uint8
 
-const PlacementGeneral = 0
+const PlacementUnset = 0
 const (
-	PlacementOutside = 1 << iota
-	PlacementInside
-	PlacementTop
-	PlacementFront
-	PlacementLeft
+	PlacementGeneral = 1 << 0
+	PlacementOutside = 2 << 0
+	PlacementInside  = 3 << 0
+	PlacementVTop    = 1 << 2
+	PlacementVCenter = 2 << 2
+	PlacementVBottom = 3 << 2
+	PlacementLLeft   = 1 << 4
+	PlacementLCenter = 2 << 4
+	PlacementLRight  = 3 << 4
+	PlacementDBack   = 1 << 6
+	PlacementDCenter = 2 << 6
+	PlacementDFront  = 3 << 6
 )
 
 func PlacementFromString(str string) (Placement, error) {
 	return PlacementGeneral, fmt.Errorf("not yet implemented")
 }
 
+func (p Placement) Validate() bool {
+	if p == PlacementGeneral {
+		return true
+	}
+	if (p&0x03) == 0x01 && (p&0xF8) != 0x00 {
+		return false
+	}
+	if (p&0x0c) == 0x00 || (p&0x30) == 0x00 || (p&0xc0) == 0x00 {
+		return false
+	}
+	if p == PlacementOutside|PlacementDCenter|PlacementLCenter|PlacementVCenter {
+		return false
+	}
+	return true
+}
+
+func ParsePlacement(desc string) (p Placement, err error) {
+	defer func() {
+		if err != nil {
+			p = PlacementUnset
+			err = fmt.Errorf("invalid placement '%s': %w", desc, err)
+		}
+	}()
+	desc = strings.TrimSpace(desc)
+	if len(desc) == 0 {
+		return PlacementUnset, errors.New("empty")
+	}
+
+	if desc == "general" {
+		return PlacementGeneral, nil
+	}
+
+	inside := PlacementGeneral
+	lateral := PlacementLCenter
+	vertical := PlacementVCenter
+
+	parts := strings.Split(desc, " ")
+	if len(parts) < 2 {
+		return PlacementUnset, errors.New("non 'general' need at least two parts")
+	}
+	if len(parts) > 4 {
+		return PlacementUnset, errors.New("must have at most 4 parts.")
+	}
+
+	switch parts[0] {
+	case "inside":
+		inside = PlacementInside
+		break
+	case "outside":
+		inside = PlacementOutside
+		break
+	case "general":
+		return PlacementUnset, errors.New("'general' must be used alone")
+	default:
+		return PlacementUnset, fmt.Errorf("invalid part '%s'", parts[0])
+	}
+
+	switch parts[1] {
+	case "center":
+		if len(parts) == 2 && inside == PlacementOutside {
+			return PlacementUnset, errors.New("'outside center' is not possible")
+		}
+		vertical = PlacementVCenter
+		break
+	case "bottom":
+		vertical = PlacementVBottom
+		break
+	case "top":
+		vertical = PlacementVTop
+		break
+	case "left":
+		lateral = PlacementLLeft
+		break
+	case "right":
+		lateral = PlacementLRight
+		break
+	case "front":
+		if len(parts) > 2 {
+			return PlacementUnset, errors.New("extra parts after 'front'")
+		}
+		return Placement(inside | vertical | lateral | PlacementDFront), nil
+	case "back":
+		if len(parts) > 2 {
+			return PlacementUnset, errors.New("extra parts after 'back'")
+		}
+		return Placement(inside | vertical | lateral | PlacementDBack), nil
+	default:
+		return PlacementUnset, fmt.Errorf("invalid part '%s'", parts[1])
+	}
+
+	if len(parts) == 2 {
+		return Placement(inside | vertical | lateral | PlacementDCenter), nil
+	}
+
+	switch parts[2] {
+	case "center":
+		lateral = PlacementLCenter
+		break
+	case "bottom":
+		return PlacementUnset, errors.New("'bottom' can only be used in second position")
+	case "top":
+		return PlacementUnset, errors.New("'top' can only be used in second position")
+	case "left":
+		lateral = PlacementLLeft
+		break
+	case "right":
+		lateral = PlacementLRight
+		break
+	case "front":
+		if len(parts) > 3 {
+			return PlacementUnset, errors.New("extra parts after 'front'")
+		}
+		return Placement(inside | vertical | lateral | PlacementDFront), nil
+	case "back":
+		if len(parts) > 3 {
+			return PlacementUnset, errors.New("extra parts after 'back'")
+		}
+		return Placement(inside | vertical | lateral | PlacementDBack), nil
+	default:
+		return PlacementUnset, fmt.Errorf("invalid part '%s'", parts[2])
+	}
+
+	if len(parts) == 3 {
+		return Placement(inside | vertical | lateral | PlacementDCenter), nil
+	}
+
+	switch parts[3] {
+	case "center":
+		return Placement(inside | vertical | lateral | PlacementDCenter), nil
+	case "bottom":
+		return PlacementUnset, errors.New("'bottom' can only be used in second position")
+	case "top":
+		return PlacementUnset, errors.New("'top' can only be used in second position")
+	case "left":
+		return PlacementUnset, errors.New("'bottom' can only be used in third position")
+	case "right":
+		return PlacementUnset, errors.New("'bottom' can only be used in third position")
+	case "front":
+		return Placement(inside | vertical | lateral | PlacementDFront), nil
+	case "back":
+		return Placement(inside | vertical | lateral | PlacementDBack), nil
+	default:
+		return PlacementUnset, fmt.Errorf("invalid part '%s'", parts[3])
+	}
+
+}
+
 func (p Placement) String() string {
+	if p == PlacementUnset {
+		return "UNSET"
+	}
+
 	if p == PlacementGeneral {
 		return "general"
 	}
-	if (p&0x03) == 0x03 || (p&0x03) == 0x00 {
+
+	if p.Validate() == false {
 		return "INVALID"
 	}
+
+	if p == PlacementInside|PlacementDCenter|PlacementLCenter|PlacementVCenter {
+		return "inside center"
+	}
+
 	var res string
-	if (p & PlacementTop) != 0x00 {
-		res = "top"
+	if (p & 0x03) == PlacementOutside {
+		res += "outside"
 	} else {
-		res = "bottom"
+		res += "inside"
 	}
 
-	if (p & PlacementFront) != 0x00 {
-		res += " front"
-	} else {
-		res += " back"
+	switch p & 0x0c {
+	case PlacementVCenter:
+		break
+	case PlacementVTop:
+		res += " top"
+		break
+	case PlacementVBottom:
+		res += " bottom"
+		break
 	}
 
-	if (p & PlacementInside) != 0x00 {
-		res += " inside"
-	}
-
-	if (p & PlacementOutside) != 0x00 {
-		res += " outside"
-	}
-
-	if (p & PlacementLeft) != 0x00 {
+	switch p & 0x30 {
+	case PlacementLCenter:
+		break
+	case PlacementLLeft:
 		res += " left"
-	} else {
+		break
+	case PlacementLRight:
 		res += " right"
+		break
+	}
+
+	switch p & 0xc0 {
+	case PlacementDCenter:
+		break
+	case PlacementDBack:
+		res += " back"
+		break
+	case PlacementDFront:
+		res += " front"
+		break
 	}
 
 	return res

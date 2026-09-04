@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"log/slog"
+	"strings"
 
 	"github.com/atuleu/aristeus/go/pkg/arisble"
 	"github.com/go-ble/ble"
@@ -51,14 +52,14 @@ func (c *GetLocationCommand) Execute(args []string) error {
 
 type SetLocationCommand struct {
 	Args struct {
-		HiveID    uint8  `required:"yes"`
-		Placement string `required:"yes"`
+		HiveID    uint8    `required:"yes"`
+		Placement []string `required:"yes"`
 	} `positional-args:"yes"`
 }
 
 func (c *SetLocationCommand) Execute(args []string) error {
 
-	placement, err := arisble.PlacementFromString(c.Args.Placement)
+	placement, err := arisble.ParsePlacement(strings.Join(c.Args.Placement, " "))
 	if err != nil {
 		return err
 	}

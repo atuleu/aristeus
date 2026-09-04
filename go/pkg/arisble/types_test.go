@@ -288,16 +288,65 @@ func TestPlacementFormatting(t *testing.T) {
 		value    Placement
 		expected string
 	}{
+		{PlacementUnset, "UNSET"},
 		{PlacementGeneral, "general"},
-		{PlacementInside | PlacementOutside, "INVALID"},
-		{PlacementInside, "bottom back inside right"},
-		{PlacementOutside | PlacementFront | PlacementTop | PlacementLeft, "top front outside left"},
+		{PlacementGeneral | PlacementDBack, "INVALID"},
+		{PlacementInside, "INVALID"},
+		{PlacementOutside | PlacementVCenter | PlacementLCenter | PlacementDCenter, "INVALID"},
+		{PlacementInside | PlacementVCenter | PlacementLCenter | PlacementDCenter, "inside center"},
+		{PlacementInside | PlacementVTop | PlacementLCenter | PlacementDCenter, "inside top"},
+		{PlacementOutside | PlacementVCenter | PlacementLLeft | PlacementDCenter, "outside left"},
+		{PlacementOutside | PlacementVCenter | PlacementLLeft | PlacementDBack, "outside left back"},
+		{PlacementOutside | PlacementVBottom | PlacementLCenter | PlacementDFront, "outside bottom front"},
+		{PlacementInside | PlacementVBottom | PlacementLRight | PlacementDFront, "inside bottom right front"},
 	}
 
 	for _, d := range testdata {
 		t.Run(d.expected, func(t *testing.T) {
 			assert := assert.New(t)
 			assert.Equal(d.expected, d.value.String())
+		})
+	}
+}
+
+func TestPlacementParsing(t *testing.T) {
+	testdata := []struct {
+		value         string
+		expected      Placement
+		expectedError string
+	}{
+		{"UNSET", PlacementUnset, "non 'general' need at least two parts"},
+		{"foo bar", PlacementUnset, "invalid part 'foo'"},
+		{"general bar", PlacementUnset, "'general' must be used alone"},
+		{"inside bar", PlacementUnset, "invalid part 'bar'"},
+		{"inside center bar", PlacementUnset, "invalid part 'bar'"},
+		{"inside center center bar", PlacementUnset, "invalid part 'bar'"},
+		{"inside center center center bar", PlacementUnset, "must have at most 4 parts"},
+		{"outside center", PlacementUnset, "'outside center' is not possible"},
+		{"outside top bar", PlacementUnset, "invalid part 'bar'"},
+		{"outside top left bar", PlacementUnset, "invalid part 'bar'"},
+		{"inside center center center", Placement(PlacementInside | PlacementVCenter | PlacementLCenter | PlacementDCenter), ""},
+		{"inside center center", Placement(PlacementInside | PlacementVCenter | PlacementLCenter | PlacementDCenter), ""},
+		{"inside center", Placement(PlacementInside | PlacementVCenter | PlacementLCenter | PlacementDCenter), ""},
+		{"general", PlacementGeneral, ""},
+		{"outside top", Placement(PlacementOutside | PlacementVTop | PlacementLCenter | PlacementDCenter), ""},
+		{"outside left", Placement(PlacementOutside | PlacementVCenter | PlacementLLeft | PlacementDCenter), ""},
+		{"outside back", Placement(PlacementOutside | PlacementVCenter | PlacementLCenter | PlacementDBack), ""},
+		{"inside right front", Placement(PlacementInside | PlacementVCenter | PlacementLRight | PlacementDFront), ""},
+		{"inside bottom", Placement(PlacementInside | PlacementVBottom | PlacementLCenter | PlacementDCenter), ""},
+	}
+
+	for _, d := range testdata {
+		t.Run(d.value, func(t *testing.T) {
+			assert := assert.New(t)
+			v, err := ParsePlacement(d.value)
+
+			assert.Equal(d.expected, v)
+			if len(d.expectedError) == 0 {
+				assert.NoError(err)
+			} else {
+				assert.ErrorContains(err, d.expectedError)
+			}
 		})
 	}
 }
@@ -325,7 +374,7 @@ func TestLocationParsing(t *testing.T) {
 		expected Location
 		error    error
 	}{
-		{"general inside", []byte{0x0, 0x01}, Location{HiveID: 0, Placement: PlacementOutside}, nil},
+		{"general", []byte{0x0, 0x01}, Location{HiveID: 0, Placement: PlacementGeneral}, nil},
 		{"wrong", []byte{0x42}, Location{}, fmt.Errorf("unsuficient bytes len:1 (2 required)")},
 	}
 
@@ -408,7 +457,7 @@ func TestAdvertismentParsing(t *testing.T) {
 			"good",
 			[]byte{0x01, 0x01, 0x0a, 0x00, 0x00, 0xb9, 0x55, 0x69, 0xe8, 0x03, 0xf4, 0x01, 0x80, 0x61, 0x0f, 0x00, 0x90, 0x01},
 			AdvertisementData{
-				Location: Location{1, PlacementOutside},
+				Location: Location{1, PlacementGeneral},
 				Battery:  BatteryLevel(10),
 				Memory:   MemoryUsage(0),
 				CurrentPoint: DataPoint{
