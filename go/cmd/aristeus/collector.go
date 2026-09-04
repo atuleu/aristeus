@@ -17,6 +17,8 @@ type Collector struct {
 	mx      sync.RWMutex
 	devices map[string]EnvironmentalDevice
 
+	hiveIDFilter map[uint8]bool
+
 	logger *slog.Logger
 }
 
@@ -49,6 +51,10 @@ func (c *Collector) bleAdvHandler() ble.AdvHandler {
 }
 
 func (c *Collector) bleAdvFilter() ble.AdvFilter {
+	hiveIDFilter := make(map[uint8]bool)
+	for ID, ok := range c.hiveIDFilter {
+		hiveIDFilter[ID] = ok
+	}
 	return func(adv ble.Advertisement) bool {
 		mdata := adv.ManufacturerData()
 		if len(mdata) < 2 {
@@ -56,6 +62,9 @@ func (c *Collector) bleAdvFilter() ble.AdvFilter {
 		}
 		manufacturerID := binary.LittleEndian.Uint16(mdata[0:2])
 		if len(mdata) == 20 && manufacturerID == 0xFFFF {
+			if len(hiveIDFilter) > 0 {
+				return hiveIDFilter[mdata[3]]
+			}
 			return true
 		}
 		return false
@@ -111,10 +120,16 @@ func (c *Collector) Collect(ctx context.Context) error {
 
 }
 
-func NewCollector() (*Collector, error) {
-	return &Collector{
-		devices: make(map[string]EnvironmentalDevice),
-		logger:  slog.With(slog.String("module", "collector")),
-	}, nil
+func NewCollector(hiveIDs []uint8) (*Collector, error) {
+	res := &Collector{
+		devices:      make(map[string]EnvironmentalDevice),
+		hiveIDFilter: make(map[uint8]bool),
+		logger:       slog.With(slog.String("module", "collector")),
+	}
+	for _, hiveID := range hiveIDs {
+		res.hiveIDFilter[hiveID] = true
+	}
+
+	return res, nil
 
 }

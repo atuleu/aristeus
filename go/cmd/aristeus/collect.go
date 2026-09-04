@@ -8,10 +8,11 @@ import (
 )
 
 type CollectCommand struct {
+	HiveIDs []uint8 `short:"i" long:"hive-id" description:"hive id to filter, none accepts all"`
 }
 
 func (c *CollectCommand) Execute(args []string) error {
-	collector, err := NewCollector()
+	collector, err := NewCollector(c.HiveIDs)
 	if err != nil {
 		return err
 	}
