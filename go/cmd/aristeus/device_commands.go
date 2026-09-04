@@ -77,8 +77,8 @@ func (c *SetLocationCommand) Execute(args []string) error {
 }
 
 type SetPressureCommand struct {
-	Recalibrate bool `long:"calibrate" description:"recalibrate STCC4 after update"`
-	Args        struct {
+	CO2Recalibrate uint `long:"calibrate" description:"recalibrate STCC4 after update using this PPM value"`
+	Args           struct {
 		Pressure float64 `required:"yes"`
 	} `positional-args:"yes"`
 }
@@ -87,14 +87,21 @@ func (c *SetPressureCommand) Execute(args []string) error {
 	if c.Args.Pressure < 800.0 || c.Args.Pressure > 1100.0 {
 		return fmt.Errorf("desired pressure (%.3fhPa) seems out of range for barometric pressure", c.Args.Pressure)
 	}
+	if c.CO2Recalibrate != 0 && (c.CO2Recalibrate < 300 || c.CO2Recalibrate > 32000) {
+		return fmt.Errorf("invalid PPM value (%d) for CO2 calibration must be in [300,32000]", c.CO2Recalibrate)
+	}
 	conn, logger, cancel, err := dialDevice(ble.NewAddr(deviceOptions.Args.Address))
 	defer cancel()
 	if err != nil {
 		return fmt.Errorf("could not connect to `%s`: %w", deviceOptions.Args.Address, err)
 	}
 	defer conn.Close()
-	logger.Info("setting pressure", slog.Bool("calibrate", c.Recalibrate), slog.Float64("pressure", c.Args.Pressure))
-	return conn.SetPressure(arisble.NewPressure(c.Args.Pressure), c.Recalibrate)
+	CO2Target := arisble.CO2ConcentrationNaN
+	if c.CO2Recalibrate != 0 {
+		CO2Target = arisble.CO2Concentration(c.CO2Recalibrate)
+	}
+	logger.Info("setting pressure", slog.Int("CO2_recalibration", int(c.CO2Recalibrate)), slog.Float64("pressure", c.Args.Pressure))
+	return conn.SetPressure(arisble.NewPressure(c.Args.Pressure), CO2Target)
 }
 
 func init() {

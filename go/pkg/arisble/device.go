@@ -357,7 +357,7 @@ func (c *BLEDeviceConn) SetLocation(l Location) error {
 	return nil
 }
 
-func (c *BLEDeviceConn) SetPressure(p Pressure, recalibrate bool) error {
+func (c *BLEDeviceConn) SetPressure(p Pressure, co2Target CO2Concentration) error {
 	var err error
 	c.pressure, err = c.ensureCharacteristic(c.pressure, PressureUUID)
 	if err != nil {
@@ -365,11 +365,12 @@ func (c *BLEDeviceConn) SetPressure(p Pressure, recalibrate bool) error {
 	}
 
 	payload := p.MarshalBinary(nil)
-	if recalibrate == true {
-		payload = append(payload, 0x01)
+	if co2Target != CO2ConcentrationNaN {
+		payload = binary.LittleEndian.AppendUint16(payload, uint16(co2Target))
 	}
 
 	err = c.client.WriteCharacteristic(c.pressure, payload, false)
+
 	if err != nil {
 		return fmt.Errorf("could not write pressure for '%s': %w", c.address, err)
 	}
