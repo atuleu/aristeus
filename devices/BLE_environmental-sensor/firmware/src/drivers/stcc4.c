@@ -23,7 +23,7 @@ SL_ENUM_GENERIC(_stcc4_command_t, uint16_t){
     stcc4_cmd_enter_sleep_mode             = 0x3650,
     stcc4_cmd_exit_sleep_mode              = 0x0000,
     stcc4_cmd_perform_conditioning         = 0x29BC,
-    stcc4_cmd_perform_soft_reset           = 0x0006,
+    stcc4_cmd_perform_soft_reset           = 0x0600,
     stcc4_cmd_perform_factory_reset        = 0x3632,
     stcc4_cmd_perform_self_test            = 0x278C,
     stcc4_cmd_enable_testing_mode          = 0x3FBC,
