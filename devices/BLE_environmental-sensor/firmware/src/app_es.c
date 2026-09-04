@@ -231,17 +231,11 @@ sl_status_t app_es_init(const app_es_config_t *config) {
 	self.readout_period_ms = config->readout_period_ms;
 	self.soft_reset_guard  = false;
 
-	/* app_log_error("[app_es] performing factory reset" APP_LOG_NL); */
-	/* status = stcc4_factory_reset( */
-	/*     &self.stcc4_sensor, */
-	/*     &_app_es_on_stcc4_factory_reset, */
-	/*     NULL */
-	/* ); */
-
 	status = stcc4_perform_self_test(
 	    &self.stcc4_sensor,
 	    &_app_es_on_stcc4_self_test_done,
-	    NULL
+	    NULL,
+	    false
 	);
 
 	if (status != SL_STATUS_OK) {
@@ -255,25 +249,12 @@ sl_status_t app_es_init(const app_es_config_t *config) {
 	return SL_STATUS_OK;
 }
 
-void _app_es_on_stcc4_factory_reset(
-    sl_status_t status, uint16_t result, void *user_data
-) {
-	(void)user_data;
-	(void)result;
-	if (status != SL_STATUS_OK) {
-		app_log_error(
-		    "[app_es] factory reset failed: %s" APP_LOG_NL,
-		    sl_status_get_string(status)
-		);
-	}
-
-	_app_es_start_readout_timer();
-}
-
 void _app_es_on_stcc4_self_test_done(
     sl_status_t status, uint16_t result, void *user_data
 ) {
 	(void)user_data;
+
+	// ensure sleeping enabled from here.
 
 	if (status != SL_STATUS_OK) {
 		app_log_error(
@@ -283,16 +264,18 @@ void _app_es_on_stcc4_self_test_done(
 		_app_es_start_readout_timer();
 		return;
 	}
+
 	app_log_info("[app_es] STCC4 self-test result : %04X." APP_LOG_NL, result);
 
-	if ((result & 0x60) != 0x00) {
+	if ((result & 0x0060) != 0x0000) {
 		app_log_error("[app_es] STCC4 Memory error detected!" APP_LOG_NL);
 		if (self.soft_reset_guard == false) {
 			self.soft_reset_guard = true;
 			status                = stcc4_soft_reset(
                 &self.stcc4_sensor,
                 &_app_es_on_stcc4_soft_reset,
-                NULL
+                NULL,
+                false
             );
 		} else {
 			status = SL_STATUS_ALREADY_INITIALIZED;
@@ -304,6 +287,30 @@ void _app_es_on_stcc4_self_test_done(
 			    sl_status_get_string(status)
 			);
 			app_log_warning("[app_es] starting readout anyway." APP_LOG_NL);
+			_app_es_start_readout_timer();
+		}
+		return;
+	}
+
+	if ((result & 0x000E) != 0x0000) {
+		app_log_error(
+		    "[app_es] Weird STCC4 self-test result 0x%04X, performing factory "
+		    "reset." APP_LOG_NL,
+		    result
+		);
+
+		sl_status_t status = stcc4_factory_reset(
+		    &self.stcc4_sensor,
+		    &_app_es_on_stcc4_factory_reset,
+		    NULL,
+		    false
+		);
+
+		if (status != SL_STATUS_OK) {
+			app_log_error(
+			    "[app_es] could not factory reset STCC4: %s" APP_LOG_NL,
+			    sl_status_get_string(status)
+			);
 			_app_es_start_readout_timer();
 		}
 		return;
@@ -329,7 +336,8 @@ void _app_es_on_stcc4_soft_reset(
 	status = stcc4_perform_self_test(
 	    &self.stcc4_sensor,
 	    &_app_es_on_stcc4_self_test_done,
-	    NULL
+	    NULL,
+	    false
 	);
 	if (status != SL_STATUS_OK) {
 		app_log_error(
@@ -337,6 +345,36 @@ void _app_es_on_stcc4_soft_reset(
 		    sl_status_get_string(status)
 		);
 		_app_es_start_readout_timer();
+	}
+}
+
+void _app_es_on_stcc4_factory_reset(
+    sl_status_t status, uint16_t result, void *user_data
+) {
+	(void)user_data;
+	(void)result;
+	if (status != SL_STATUS_OK) {
+		app_log_error(
+		    "[app_es] factory reset failed: %s" APP_LOG_NL,
+		    sl_status_get_string(status)
+		);
+	}
+
+	status = stcc4_perform_self_test(
+	    &self.stcc4_sensor,
+	    &_app_es_on_stcc4_self_test_done,
+	    NULL,
+	    false
+	);
+
+	if (status != SL_STATUS_OK) {
+		app_log_error(
+		    "[app_es] could not schedule self-test after factory reset: "
+		    "%s" APP_LOG_NL,
+		    sl_status_get_string(status)
+		);
+		_app_es_start_readout_timer();
+		return;
 	}
 }
 
@@ -395,11 +433,12 @@ sl_status_t _app_es_start_co2_readout() {
 	}
 
 	app_log_debug("[app_es] starting STCC4 measurement." APP_LOG_NL);
+	bool sleep_after_op = true;
 	if (self.FRC_count == (FRC_PROCEDURE_NB_READOUT - 1)) {
 		app_log_warning(
 		    "[app_es] preempting sleeping for last FRC measurement." APP_LOG_NL
 		);
-		stcc4_preempt_sleeping(&self.stcc4_sensor, true);
+		sleep_after_op = false;
 	}
 
 	sl_status_t status = stcc4_start_read_sequence(
@@ -408,7 +447,8 @@ sl_status_t _app_es_start_co2_readout() {
 	    self.current_data_point.humidity,
 	    self.current_data_point.pressure,
 	    &_app_es_on_stcc4_readout,
-	    NULL
+	    NULL,
+	    sleep_after_op
 	);
 
 	if (status != SL_STATUS_OK) {
@@ -570,13 +610,9 @@ void _app_es_process_FRC_calibration_procedure() {
 	    &self.stcc4_sensor,
 	    self.FRC_target,
 	    &_app_es_on_stcc4_FRC_calibration,
-	    NULL
+	    NULL,
+	    true
 	);
-
-	app_log_warning(
-	    "[app_es] enabling sleeping after last FRC measurement." APP_LOG_NL
-	);
-	stcc4_preempt_sleeping(&self.stcc4_sensor, false);
 
 	if (status != SL_STATUS_OK) {
 		app_log_error(

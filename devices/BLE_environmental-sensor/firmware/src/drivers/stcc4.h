@@ -73,7 +73,8 @@ sl_status_t stcc4_start_read_sequence(
     humidity_t                 humidity,
     pressure_t                 pressure,
     stcc4_operation_callback_t callback,
-    void                      *user_data
+    void                      *user_data,
+    bool                       sleep_after_op
 );
 
 sl_status_t stcc4_enter_sleep_mode(stcc4_handle_t *self);
@@ -82,14 +83,20 @@ sl_status_t stcc4_enter_sleep_mode(stcc4_handle_t *self);
  * Perform a factory reset of the chip, including the conditionnning.
  */
 sl_status_t stcc4_factory_reset(
-    stcc4_handle_t *self, stcc4_operation_callback_t, void *user_data
+    stcc4_handle_t *self,
+    stcc4_operation_callback_t,
+    void *user_data,
+    bool  sleep_after_op
 );
 
 /**
  * Performs a conditionning of the chip.
  */
 sl_status_t stcc4_perform_conditioning(
-    stcc4_handle_t *self, stcc4_operation_callback_t callback, void *user_data
+    stcc4_handle_t            *self,
+    stcc4_operation_callback_t callback,
+    void                      *user_data,
+    bool                       sleep_after_op
 );
 
 /**
@@ -99,24 +106,29 @@ sl_status_t stcc4_perform_FRC_calibration(
     stcc4_handle_t            *self,
     co2_concentration_t        co2,
     stcc4_operation_callback_t callback,
-    void                      *user_data
+    void                      *user_data,
+    bool                       sleep_after_op
 );
 
 /**
  * Performs an FRC calibratrion
  */
 sl_status_t stcc4_perform_self_test(
-    stcc4_handle_t *self, stcc4_operation_callback_t callback, void *user_data
+    stcc4_handle_t            *self,
+    stcc4_operation_callback_t callback,
+    void                      *user_data,
+    bool                       sleep_after_op
 );
 
 /**
  * Perform a factory reset of the chip, including the conditionnning.
  */
 sl_status_t stcc4_soft_reset(
-    stcc4_handle_t *self, stcc4_operation_callback_t, void *user_data
+    stcc4_handle_t *self,
+    stcc4_operation_callback_t,
+    void *user_data,
+    bool  sleep_after_op
 );
-
-void stcc4_preempt_sleeping(stcc4_handle_t *self, bool preempt);
 
 /**
  * Structure for the STCC4 driver handle given for static initialization
@@ -136,7 +148,7 @@ struct stcc4_handle {
 
 	volatile stcc4_operation_callback_t op_callback;
 	volatile void                      *user_data;
-	volatile bool                       preempt_sleeping;
+	volatile bool                       sleep_after_op;
 	temperature_t                       temperature;
 	humidity_t                          humidity;
 	pressure_t                          pressure;

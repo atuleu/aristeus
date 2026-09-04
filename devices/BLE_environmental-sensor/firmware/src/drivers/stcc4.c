@@ -241,13 +241,13 @@ sl_status_t stcc4_init(stcc4_handle_t *self, stcc4_init_args_t *args) {
 		return SL_STATUS_NULL_POINTER;
 	}
 
-	self->i2c_bus          = args->i2c_bus;
-	self->tx_callback      = NULL;
-	self->op_callback      = NULL;
-	self->sleeping         = false;
-	self->preempt_sleeping = false;
-	self->pending_result   = GATT_CO2_NAN;
-	self->pending_status   = SL_STATUS_NO_STATUS;
+	self->i2c_bus        = args->i2c_bus;
+	self->tx_callback    = NULL;
+	self->op_callback    = NULL;
+	self->sleeping       = false;
+	self->sleep_after_op = true;
+	self->pending_result = GATT_CO2_NAN;
+	self->pending_status = SL_STATUS_NO_STATUS;
 	if (args->address_pin_set == true) {
 		self->address = 0x65;
 	} else {
@@ -406,7 +406,7 @@ void _stcc4_schedule_operation_completion(
 ) {
 	CORE_DECLARE_IRQ_STATE;
 	CORE_ENTER_ATOMIC();
-	if (self->preempt_sleeping == true) {
+	if (self->sleep_after_op == false) {
 		CORE_EXIT_ATOMIC();
 		_stcc4_complete_operation(self, status, result);
 		return;
@@ -427,7 +427,10 @@ void _stcc4_schedule_operation_completion(
 }
 
 sl_status_t _stcc4_schedule_cmd(
-    stcc4_handle_t *self, stcc4_operation_callback_t callback, void *user_data
+    stcc4_handle_t            *self,
+    stcc4_operation_callback_t callback,
+    void                      *user_data,
+    bool                       sleep_after_op
 ) {
 	CORE_DECLARE_IRQ_STATE;
 	CORE_ENTER_ATOMIC();
@@ -435,8 +438,9 @@ sl_status_t _stcc4_schedule_cmd(
 		CORE_EXIT_ATOMIC();
 		return SL_STATUS_BUSY;
 	}
-	self->op_callback = callback;
-	self->user_data   = user_data;
+	self->op_callback    = callback;
+	self->user_data      = user_data;
+	self->sleep_after_op = sleep_after_op;
 	CORE_EXIT_ATOMIC();
 	return SL_STATUS_OK;
 }
@@ -468,7 +472,8 @@ sl_status_t stcc4_start_read_sequence(
     humidity_t                 humidity,
     pressure_t                 pressure,
     stcc4_operation_callback_t callback,
-    void                      *user_data
+    void                      *user_data,
+    bool                       sleep_after_op
 ) {
 	if (self == NULL) {
 		return SL_STATUS_NULL_POINTER;
@@ -478,7 +483,8 @@ sl_status_t stcc4_start_read_sequence(
 	    pressure == GATT_PRESSURE_NAN) {
 		return SL_STATUS_INVALID_PARAMETER;
 	}
-	sl_status_t status = _stcc4_schedule_cmd(self, callback, user_data);
+	sl_status_t status =
+	    _stcc4_schedule_cmd(self, callback, user_data, sleep_after_op);
 	if (status != SL_STATUS_OK) {
 		return status;
 	}
@@ -671,7 +677,6 @@ void _stcc4_on_read_measurement(i2c_tx_status_t status, void *user_data) {
 	uint16_t co2_ppm =
 	    ((uint16_t)self->buffer[0] << 8) | ((uint16_t)self->buffer[1]);
 
-
 #ifndef PRODUCTION_BUILD
 	uint16_t sensor_status =
 	    ((uint16_t)self->buffer[9] << 8) | ((uint16_t)self->buffer[10]);
@@ -701,8 +706,8 @@ void _stcc4_on_read_measurement(i2c_tx_status_t status, void *user_data) {
 	);
 #endif // PRODUCTION_BUILD
 
-	if ( co2_ppm > GATT_CO2_MAX ){
-		co2_ppm  = GATT_CO2_MAX;
+	if (co2_ppm > GATT_CO2_MAX) {
+		co2_ppm = GATT_CO2_MAX;
 	}
 	// ignore status.
 
@@ -712,13 +717,17 @@ void _stcc4_on_read_measurement(i2c_tx_status_t status, void *user_data) {
 // Perform conditioning
 
 sl_status_t stcc4_perform_conditioning(
-    stcc4_handle_t *self, stcc4_operation_callback_t callback, void *user_data
+    stcc4_handle_t            *self,
+    stcc4_operation_callback_t callback,
+    void                      *user_data,
+    bool                       sleep_after_op
 ) {
 	if (self == NULL) {
 		return SL_STATUS_NULL_POINTER;
 	}
-	sl_status_t status = _stcc4_schedule_cmd(self, callback, user_data);
-	if ( status != SL_STATUS_OK) {
+	sl_status_t status =
+	    _stcc4_schedule_cmd(self, callback, user_data, sleep_after_op);
+	if (status != SL_STATUS_OK) {
 		return status;
 	}
 	return _stcc4_start_cmd(self, _stcc4_start_conditioning);
@@ -765,14 +774,18 @@ void _stcc4_on_no_result_operation(i2c_tx_status_t status, void *user_data) {
 // Factory reset
 
 sl_status_t stcc4_factory_reset(
-    stcc4_handle_t *self, stcc4_operation_callback_t callback, void *user_data
+    stcc4_handle_t            *self,
+    stcc4_operation_callback_t callback,
+    void                      *user_data,
+    bool                       sleep_after_op
 ) {
 	if (self == NULL) {
 		return SL_STATUS_NULL_POINTER;
 	}
 
-	sl_status_t status = _stcc4_schedule_cmd(self, callback, user_data);
-	if ( status != SL_STATUS_OK) {
+	sl_status_t status =
+	    _stcc4_schedule_cmd(self, callback, user_data, sleep_after_op);
+	if (status != SL_STATUS_OK) {
 		return status;
 	}
 
@@ -837,7 +850,8 @@ sl_status_t stcc4_perform_FRC_calibration(
     stcc4_handle_t            *self,
     co2_concentration_t        co2,
     stcc4_operation_callback_t callback,
-    void                      *user_data
+    void                      *user_data,
+    bool                       sleep_after_op
 ) {
 	if (self == NULL) {
 		return SL_STATUS_NULL_POINTER;
@@ -846,14 +860,15 @@ sl_status_t stcc4_perform_FRC_calibration(
 		return SL_STATUS_INVALID_RANGE;
 	}
 
-	sl_status_t status = _stcc4_schedule_cmd(self, callback, user_data);
-	if ( status != SL_STATUS_OK) {
+	sl_status_t status =
+	    _stcc4_schedule_cmd(self, callback, user_data, sleep_after_op);
+	if (status != SL_STATUS_OK) {
 		return status;
 	}
 
 	self->frc_pressure = co2;
 
-	return _stcc4_start_cmd(self,&_stcc4_start_FRC);
+	return _stcc4_start_cmd(self, &_stcc4_start_FRC);
 }
 
 void _stcc4_start_FRC(i2c_tx_status_t status, void *user_data) {
@@ -912,14 +927,18 @@ void _stcc4_on_word_result_operation(i2c_tx_status_t status, void *user_data) {
 }
 
 sl_status_t stcc4_perform_self_test(
-    stcc4_handle_t *self, stcc4_operation_callback_t callback, void *user_data
+    stcc4_handle_t            *self,
+    stcc4_operation_callback_t callback,
+    void                      *user_data,
+    bool                       sleep_after_op
 ) {
 
 	if (self == NULL) {
 		return SL_STATUS_NULL_POINTER;
 	}
-	sl_status_t status = _stcc4_schedule_cmd(self, callback, user_data);
-	if ( status != SL_STATUS_OK) {
+	sl_status_t status =
+	    _stcc4_schedule_cmd(self, callback, user_data, sleep_after_op);
+	if (status != SL_STATUS_OK) {
 		return status;
 	}
 
@@ -956,17 +975,16 @@ void _stcc4_start_self_test(i2c_tx_status_t status, void *user_data) {
 	}
 }
 
-
- sl_status_t stcc4_soft_reset(
-    stcc4_handle_t *self, stcc4_operation_callback_t callback, void *user_data
+sl_status_t stcc4_soft_reset(
+							 stcc4_handle_t *self, stcc4_operation_callback_t callback, void *user_data,bool sleep_after_op
 ) {
 
 	if (self == NULL) {
 		return SL_STATUS_NULL_POINTER;
 	}
 
-	sl_status_t status = _stcc4_schedule_cmd(self, callback, user_data);
-	if ( status != SL_STATUS_OK) {
+	sl_status_t status = _stcc4_schedule_cmd(self, callback, user_data,sleep_after_op);
+	if (status != SL_STATUS_OK) {
 		return status;
 	}
 
@@ -1002,19 +1020,3 @@ void _stcc4_start_soft_reset(i2c_tx_status_t status, void *user_data) {
 		);
 	}
 }
-
- void stcc4_preempt_sleeping(stcc4_handle_t *self, bool preempt){
-	 CORE_DECLARE_IRQ_STATE;
-	 CORE_ENTER_ATOMIC();
-	 if ( self->preempt_sleeping == preempt ) {
-		 CORE_EXIT_ATOMIC();
-		 return;
-	 }
-	 self->preempt_sleeping = preempt;
-	 if ( self->preempt_sleeping == false && self->sleeping == false ) {
-		 // the later will release atomicity
-		 _stcc4_enter_sleep_mode(self, irqState);
-		 return;
-	 }
-	 CORE_EXIT_ATOMIC();
- }
