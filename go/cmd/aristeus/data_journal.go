@@ -5,6 +5,30 @@ import (
 	"time"
 )
 
+type EnvironmentalReading struct {
+	LocationID       string
+	SensorID         string
+	Timestamp        time.Time
+	ReceivedAt       time.Time
+	Temperature_C    *float64
+	Humidity_percent *float64
+	Pressure_hPa     *float64
+	CO2_ppm          *uint
+}
+
+type SensorLocation struct {
+	LocationID  string `json:"location_id"`
+	HiveID      string `json:"hive_id"`
+	Description string `json:"description"`
+}
+
+type SensorAssignement struct {
+	SensorID    string
+	LocationID  string
+	InstalledAt time.Time
+	RemovedAt   *time.Time
+}
+
 type DataJournalWriter interface {
 	Close() error
 

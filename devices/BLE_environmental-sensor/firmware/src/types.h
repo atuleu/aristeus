@@ -45,22 +45,22 @@ typedef struct __attribute__((packed)) location {
 static_assert(sizeof(location_t) == 2, "Invalid location size");
 
 typedef struct __attribute__((packed)) data_point {
-	sl_sleeptimer_timestamp_t date;
-	temperature_t             temperature;
-	humidity_t                humidity;
-	pressure_t                pressure;
-	co2_concentration_t       co2;
+	sl_sleeptimer_timestamp_t date;        // 4
+	temperature_t             temperature; // 6
+	humidity_t                humidity;    // 8
+	pressure_t                pressure;    // 12
+	co2_concentration_t       co2;         // 14
 } data_point_t;
 
 static_assert(sizeof(data_point_t) == 14, "Data point size mismatch");
 
 typedef struct __attribute__((packed)) advertisement_data {
-	uint8_t         ad_type;
-	uint16_t        manufacturer_id;
-	location_t      location;
-	battery_level_t battery;
-	uint8_t         memory_level;
-	data_point_t    measurement;
+	uint8_t         ad_type;         // 0
+	uint16_t        manufacturer_id; // 2
+	location_t      location;        // 4
+	battery_level_t battery;         // 5
+	uint8_t         memory_level;    // 6
+	data_point_t    measurement;     // 20
 
 } advertisement_data_t;
 
