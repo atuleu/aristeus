@@ -212,7 +212,7 @@ ON CONFLICT(location_id) DO UPDATE SET
 func (s *SQLiteStore) GetSensorLocations(ctx context.Context) ([]SensorLocation, error) {
 	return nil, fmt.Errorf("not yet implemented")
 }
-func (s *SQLiteStore) GetLocationAssignement(ctx context.Context, locationID string) ([]SensorAssignement, error) {
+func (s *SQLiteStore) GetLocationAssignements(ctx context.Context, locationID string) ([]SensorAssignement, error) {
 	query := `
 SELECT
 	sensor_id,
@@ -254,7 +254,7 @@ func newValue[T any](v T) *T {
 	return res
 }
 
-func (s *SQLiteStore) GetSensorAssignement(ctx context.Context, sensorID string) ([]SensorAssignement, error) {
+func (s *SQLiteStore) GetSensorAssignements(ctx context.Context, sensorID string) ([]SensorAssignement, error) {
 
 	query := `
 SELECT
@@ -288,6 +288,34 @@ WHERE
 		res = append(res, a)
 	}
 	return res, nil
+}
+
+func (s *SQLiteStore) GetActiveAssignments(ctx context.Context) ([]SensorAssignement, error) {
+	query := `
+SELECT
+	sensor_id,
+	location_id,
+	installed_at
+FROM assignments
+WHERE
+	removed_at IS NULL;
+`
+	rows, err := s.db.QueryContext(ctx, query)
+	if err != nil {
+		return nil, fmt.Errorf("could not retrieve active assignments: %w", err)
+	}
+	var res []SensorAssignement = nil
+	for rows.Next() {
+		var a SensorAssignement
+		var installedAt int64
+		if err := rows.Scan(&a.SensorID, &a.LocationID, &installedAt); err != nil {
+			return res, fmt.Errorf("could not parse assignment row: %w", err)
+		}
+		a.InstalledAt = time.Unix(installedAt, 0)
+		res = append(res, a)
+	}
+	return res, nil
+
 }
 
 func (s *SQLiteStore) ensureSchema(ctx context.Context) error {

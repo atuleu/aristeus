@@ -6,20 +6,33 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"os"
+	"path"
+	"path/filepath"
 	"sync"
+	"time"
 
+	"github.com/adrg/xdg"
 	"github.com/atuleu/aristeus/go/pkg/arisble"
 	"github.com/go-ble/ble"
 	ble_linux "github.com/go-ble/ble/linux"
 )
 
+type bleTask func(dev ble.Device)
+
 type Collector struct {
 	mx      sync.RWMutex
-	devices map[string]EnvironmentalDevice
+	devices map[string]*EnvironmentalDevice
 
 	hiveIDFilter map[uint8]bool
 
 	logger *slog.Logger
+
+	wg      sync.WaitGroup
+	journal DataJournal
+
+	bleTasks chan bleTask
+	envAdvs  chan EnvAdvertisment
 }
 
 func (c *Collector) bleAdvHandler() ble.AdvHandler {
@@ -29,24 +42,24 @@ func (c *Collector) bleAdvHandler() ble.AdvHandler {
 		if filter(adv) == false {
 			return
 		}
-		var data arisble.AdvertisementData
-		if err := data.UnmarshalBinary(adv.ManufacturerData()[2:]); err != nil {
+		envAdv := EnvAdvertisment{
+			address:    adv.Addr(),
+			receivedAt: time.Now(),
+		}
+		if err := envAdv.data.UnmarshalBinary(adv.ManufacturerData()[2:]); err != nil {
 			c.logger.Error("could not parse advertisment data", slog.String("error", err.Error()))
 			return
 		}
 
-		c.logger.Info("got advertisment",
-			slog.String("address", adv.Addr().String()),
-			slog.Time("timestamp", data.CurrentPoint.Timestamp.ToTime()),
-			slog.String("location", data.Location.String()),
-			slog.String("battery", data.Battery.String()),
-			slog.String("memory", data.Memory.String()),
-			slog.String("temperature", data.CurrentPoint.Temperature.String()),
-			slog.String("humidity", data.CurrentPoint.Humidity.String()),
-			slog.String("pressure", data.CurrentPoint.Pressure.String()),
-			slog.String("co2", data.CurrentPoint.CO2.String()),
-		)
-
+		select {
+		case c.envAdvs <- envAdv:
+			return
+		default:
+			c.logger.Error("dropping advertisment due to overflow",
+				slog.String("address", adv.Addr().String()),
+				slog.Time("timestamp", envAdv.data.CurrentPoint.Timestamp.ToTime()),
+				slog.Time("received_at", envAdv.receivedAt))
+		}
 	}
 }
 
@@ -71,7 +84,7 @@ func (c *Collector) bleAdvFilter() ble.AdvFilter {
 	}
 }
 
-func (c *Collector) bleLoop(ctx context.Context, dev ble.Device, tasks <-chan func()) error {
+func (c *Collector) bleLoop(ctx context.Context, dev ble.Device) error {
 	c.logger.Info("BLE control loop started")
 	startScanning := func() (context.CancelFunc, <-chan error) {
 		errors := make(chan error)
@@ -96,18 +109,148 @@ func (c *Collector) bleLoop(ctx context.Context, dev ble.Device, tasks <-chan fu
 				return err
 			}
 			startScanning()
-		case task := <-tasks:
+		case task := <-c.bleTasks:
 			cancelScan()
 			err := <-scanErrors
 			if err != nil && errors.Is(err, context.Canceled) == false {
 				return err
 			}
-			task()
+			task(dev)
 			cancelScan, scanErrors = startScanning()
 		}
-
 	}
 
+}
+
+func (c *Collector) onEnvironmentalAdvertisment(ctx context.Context, adv EnvAdvertisment) {
+	c.mx.Lock()
+	defer c.mx.Unlock()
+
+	d, ok := c.devices[adv.address.String()]
+	if ok == false {
+		c.onNewDevice(ctx, adv)
+	} else {
+		c.updateDevice(ctx, d, adv)
+	}
+}
+
+const ASSIGNMENT_MINIMUM_PERIOD = 5 * time.Minute
+const MAXIMAL_TIME_OFFSET = 3 * time.Minute
+
+func (c *Collector) onNewDevice(ctx context.Context, adv EnvAdvertisment) {
+	d, err := NewEnvironmentalDevice(adv)
+	if err != nil {
+		c.logger.Error("could not create new device", slog.String("error", err.Error()))
+		return
+	}
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+	assignments, err := c.journal.GetLocationAssignements(ctx, d.Location.LocationID)
+	if err != nil {
+		c.logger.Error("could not retrieve assignments",
+			slog.String("location_id", d.Location.LocationID),
+			slog.String("error", err.Error()),
+		)
+		return
+	}
+
+	if len(assignments) > 0 {
+		activeAssignments := assignments[len(assignments)-1]
+		if activeAssignments.RemovedAt != nil &&
+			activeAssignments.SensorID != adv.address.String() &&
+			adv.data.CurrentPoint.Timestamp.ToTime().Sub(activeAssignments.InstalledAt) < ASSIGNMENT_MINIMUM_PERIOD {
+			c.logger.Error("dropping new device discovery as location was assigned not too long ago",
+				slog.String("address", adv.address.String()),
+				slog.String("location_id", activeAssignments.LocationID),
+				slog.String("current_device", activeAssignments.SensorID),
+				slog.Time("since", activeAssignments.InstalledAt),
+			)
+			return
+		}
+	}
+
+	c.devices[adv.address.String()] = d
+	c.updateDevice(ctx, d, adv)
+}
+
+func (c *Collector) updateDevice(ctx context.Context, dev *EnvironmentalDevice, adv EnvAdvertisment) {
+	locationID := BuildLocationID(adv.data.Location)
+
+	if locationID != dev.Location.LocationID &&
+		adv.data.CurrentPoint.Timestamp.ToTime().Sub(dev.assigned_since) < ASSIGNMENT_MINIMUM_PERIOD {
+		c.logger.Error("dropping update since device changed location too rapidly",
+			slog.String("address", dev.Address),
+			slog.String("current_location_id", dev.Location.LocationID),
+			slog.String("new_location_id", locationID),
+			slog.Time("assigned_since", dev.assigned_since),
+		)
+		return
+	}
+
+	if (dev.LastSeen != time.Time{}) {
+		dev.AdvertismentPeriod = adv.receivedAt.Sub(dev.LastSeen).Round(time.Millisecond)
+	}
+	dev.LastSeen = adv.receivedAt
+
+	if dev.Current.Timestamp == adv.data.CurrentPoint.Timestamp.ToTime() {
+		return
+	}
+
+	dev.TimeOffset = adv.receivedAt.Sub(adv.data.CurrentPoint.Timestamp.ToTime())
+
+	if dev.TimeOffset.Abs() > MAXIMAL_TIME_OFFSET {
+		var target_address ble.Addr = adv.address
+		logger := c.logger.With(slog.String("target_address", target_address.String()))
+
+		c.bleTasks <- func(bleDev ble.Device) {
+			ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
+			defer cancel()
+
+			client, err := arisble.NewBLEDeviceConn(bleDev, ctx, target_address)
+			if err != nil {
+				logger.Error("could not connect to device for time synchronization",
+					slog.String("error", err.Error()),
+				)
+				return
+			}
+			err = client.SynchronizeBLEDevice()
+			if err != nil {
+				logger.Error("could not synchronize device",
+					slog.String("error", err.Error()),
+				)
+				return
+			}
+			logger.Info("synchronized device")
+		}
+	}
+
+	// TODO: report low battery usage ?
+	reading := dev.updateData(adv)
+
+	// TODO: broadcast changes ?
+
+	go func() {
+		txContext, txCancel := context.WithTimeout(ctx, 5*time.Second)
+		defer txCancel()
+		err := c.journal.SaveEnvironmentalReadings(txContext, []EnvironmentalReading{reading})
+		if err != nil {
+			c.logger.Error("failed to save new reading",
+				slog.String("address", adv.address.String()),
+				slog.Time("timestamp", adv.data.CurrentPoint.Timestamp.ToTime()),
+				slog.String("error", err.Error()),
+			)
+		}
+	}()
+}
+
+func (c *Collector) GetEnvironmentalDevices() []EnvironmentalDevice {
+	c.mx.RLock()
+	defer c.mx.RUnlock()
+	res := make([]EnvironmentalDevice, 0, len(c.devices))
+	for _, d := range c.devices {
+		res = append(res, d.clone())
+	}
+	return res
 }
 
 func (c *Collector) Collect(ctx context.Context) error {
@@ -115,19 +258,67 @@ func (c *Collector) Collect(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("could not open BLE device: %w", err)
 	}
+	c.envAdvs = make(chan EnvAdvertisment, 10)
+	c.bleTasks = make(chan bleTask, 10)
+	defer func() {
+		close(c.envAdvs)
+		close(c.bleTasks)
+		c.wg.Wait()
+	}()
 
-	return c.bleLoop(ctx, dev, nil)
+	c.wg.Go(func() {
+		for adv := range c.envAdvs {
+			c.onEnvironmentalAdvertisment(ctx, adv)
+		}
+	})
+
+	return c.bleLoop(ctx, dev)
 
 }
 
 func NewCollector(hiveIDs []uint8) (*Collector, error) {
 	res := &Collector{
-		devices:      make(map[string]EnvironmentalDevice),
+		devices:      make(map[string]*EnvironmentalDevice),
 		hiveIDFilter: make(map[uint8]bool),
 		logger:       slog.With(slog.String("module", "collector")),
 	}
+
 	for _, hiveID := range hiveIDs {
 		res.hiveIDFilter[hiveID] = true
+	}
+
+	dbPath, err := xdg.DataFile(path.Join("io.github.atuleu.aristeus", "dababase"))
+	if err != nil {
+		return nil, fmt.Errorf("could not generate datapath: %w", err)
+	}
+	err = os.MkdirAll(filepath.Dir(dbPath), 0755)
+	if err != nil {
+		return nil, fmt.Errorf("could not create journal directories: %w", err)
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	res.journal, err = NewSQLiteStore(ctx, dbPath)
+	if err != nil {
+		return nil, fmt.Errorf("could not open journal `%s`: %w", dbPath, err)
+	}
+
+	assignments, err := res.journal.GetActiveAssignments(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("could not retrieve active assignment: %w", err)
+	}
+	for _, a := range assignments {
+		d, err := NewAssignedEnvironmentalDevice(a)
+		if err != nil {
+			slog.Error("could not retrieve stored assignments",
+				slog.String("error", err.Error()),
+				slog.String("location_id", a.LocationID),
+				slog.String("sensor_id", a.SensorID),
+				slog.Time("installed_at", a.InstalledAt),
+			)
+			continue
+		}
+		res.devices[d.Address] = d
 	}
 
 	return res, nil

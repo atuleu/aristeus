@@ -46,8 +46,9 @@ type TopologyManager interface {
 
 	SaveLocation(ctx context.Context, loc SensorLocation) error
 	GetSensorLocations(ctx context.Context) ([]SensorLocation, error)
-	GetLocationAssignement(ctx context.Context, locationID string) ([]SensorAssignement, error)
-	GetSensorAssignement(ctx context.Context, sensorID string) ([]SensorAssignement, error)
+	GetLocationAssignements(ctx context.Context, locationID string) ([]SensorAssignement, error)
+	GetSensorAssignements(ctx context.Context, sensorID string) ([]SensorAssignement, error)
+	GetActiveAssignments(ctx context.Context) ([]SensorAssignement, error)
 }
 
 type DataJournal interface {

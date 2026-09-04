@@ -219,10 +219,6 @@ const (
 	PlacementDFront  = 3 << 6
 )
 
-func PlacementFromString(str string) (Placement, error) {
-	return PlacementGeneral, fmt.Errorf("not yet implemented")
-}
-
 func (p Placement) Validate() bool {
 	if p == PlacementGeneral {
 		return true

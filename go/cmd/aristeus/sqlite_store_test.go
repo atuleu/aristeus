@@ -104,7 +104,7 @@ func (s *SQLiteStoreTestSuite) TestAssignmentConsistency() {
 		EnvironmentalReading{LocationID: "loc_c", SensorID: "sensor_a", Timestamp: c, Temperature_C: newValue(22.2)},
 	}))
 
-	assignments, err := s.journal.GetSensorAssignement(s.ctx, "sensor_a")
+	assignments, err := s.journal.GetSensorAssignements(s.ctx, "sensor_a")
 	s.Require().NoError(err)
 	if s.Assert().Len(assignments, 2) == true {
 		s.Assert().Equal("sensor_a", assignments[0].SensorID)
@@ -121,7 +121,7 @@ func (s *SQLiteStoreTestSuite) TestAssignmentConsistency() {
 
 	}
 
-	assignments, err = s.journal.GetSensorAssignement(s.ctx, "sensor_b")
+	assignments, err = s.journal.GetSensorAssignements(s.ctx, "sensor_b")
 	s.Require().NoError(err)
 	if s.Assert().Len(assignments, 1) == true {
 		s.Assert().Equal("sensor_b", assignments[0].SensorID)
@@ -130,7 +130,7 @@ func (s *SQLiteStoreTestSuite) TestAssignmentConsistency() {
 		s.Assert().Nil(assignments[0].RemovedAt)
 	}
 
-	assignments, err = s.journal.GetSensorAssignement(s.ctx, "sensor_d")
+	assignments, err = s.journal.GetSensorAssignements(s.ctx, "sensor_d")
 	s.Require().NoError(err)
 	if s.Assert().Len(assignments, 1) == true {
 		s.Assert().Equal("sensor_d", assignments[0].SensorID)
@@ -139,7 +139,7 @@ func (s *SQLiteStoreTestSuite) TestAssignmentConsistency() {
 		s.Assert().Nil(assignments[0].RemovedAt)
 	}
 
-	assignments, err = s.journal.GetSensorAssignement(s.ctx, "sensor_e")
+	assignments, err = s.journal.GetSensorAssignements(s.ctx, "sensor_e")
 	s.Require().NoError(err)
 	if s.Assert().Len(assignments, 1) == true {
 		s.Assert().Equal("sensor_e", assignments[0].SensorID)
@@ -150,7 +150,7 @@ func (s *SQLiteStoreTestSuite) TestAssignmentConsistency() {
 		}
 	}
 
-	assignments, err = s.journal.GetLocationAssignement(s.ctx, "loc_a")
+	assignments, err = s.journal.GetLocationAssignements(s.ctx, "loc_a")
 	s.Require().NoError(err)
 	if s.Assert().Len(assignments, 2) == true {
 		s.Assert().Equal("sensor_a", assignments[0].SensorID)
@@ -167,7 +167,7 @@ func (s *SQLiteStoreTestSuite) TestAssignmentConsistency() {
 
 	}
 
-	assignments, err = s.journal.GetLocationAssignement(s.ctx, "loc_b")
+	assignments, err = s.journal.GetLocationAssignements(s.ctx, "loc_b")
 	s.Require().NoError(err)
 	if s.Assert().Len(assignments, 1) == true {
 		s.Assert().Equal("sensor_d", assignments[0].SensorID)
@@ -176,7 +176,7 @@ func (s *SQLiteStoreTestSuite) TestAssignmentConsistency() {
 		s.Assert().Nil(assignments[0].RemovedAt)
 	}
 
-	assignments, err = s.journal.GetLocationAssignement(s.ctx, "loc_c")
+	assignments, err = s.journal.GetLocationAssignements(s.ctx, "loc_c")
 	s.Require().NoError(err)
 	if s.Assert().Len(assignments, 2) == true {
 		s.Assert().Equal("sensor_e", assignments[0].SensorID)
@@ -190,6 +190,27 @@ func (s *SQLiteStoreTestSuite) TestAssignmentConsistency() {
 		s.Assert().Equal("loc_c", assignments[1].LocationID)
 		s.Assert().Equal(c, assignments[1].InstalledAt, "c")
 		s.Assert().Nil(assignments[1].RemovedAt)
+	}
+
+	assignments, err = s.journal.GetActiveAssignments(s.ctx)
+	s.Require().NoError(err)
+	if s.Assert().Len(assignments, 3) {
+		// Result are (sensor_id,installed_at) ordered
+		s.Assert().Equal("sensor_a", assignments[0].SensorID)
+		s.Assert().Equal("loc_c", assignments[0].LocationID)
+		s.Assert().Equal(c, assignments[0].InstalledAt, "c")
+		s.Assert().Nil(assignments[0].RemovedAt)
+
+		s.Assert().Equal("sensor_b", assignments[1].SensorID)
+		s.Assert().Equal("loc_a", assignments[1].LocationID)
+		s.Assert().Equal(b, assignments[1].InstalledAt, "b")
+		s.Assert().Nil(assignments[1].RemovedAt)
+
+		s.Assert().Equal("sensor_d", assignments[2].SensorID)
+		s.Assert().Equal("loc_b", assignments[2].LocationID)
+		s.Assert().Equal(a, assignments[2].InstalledAt, "a")
+		s.Assert().Nil(assignments[2].RemovedAt)
+
 	}
 
 }
