@@ -15,7 +15,6 @@ import (
 	"github.com/adrg/xdg"
 	"github.com/atuleu/aristeus/go/pkg/arisble"
 	"github.com/go-ble/ble"
-	ble_linux "github.com/go-ble/ble/linux"
 )
 
 type bleTask func(ctx context.Context, dev ble.Device)
@@ -297,11 +296,7 @@ func (c *Collector) ConnectEnvironmentalDevice(addr ble.Addr, timeout time.Durat
 
 // Runs the collection loops, i.e. gather BLE data, save it to journal, maintain
 // a list of device we can control
-func (c *Collector) Collect(ctx context.Context) error {
-	dev, err := ble_linux.NewDevice()
-	if err != nil {
-		return fmt.Errorf("could not open BLE device: %w", err)
-	}
+func (c *Collector) Collect(ctx context.Context, dev ble.Device) error {
 	c.envAdvs = make(chan EnvAdvertisment, 10)
 	c.bleTasks = make(chan bleTask, 10)
 	defer func() {
@@ -320,18 +315,7 @@ func (c *Collector) Collect(ctx context.Context) error {
 
 }
 
-// Creates a new collector.
-func NewCollector(hiveIDs []uint8) (*Collector, error) {
-	res := &Collector{
-		devices:      make(map[string]*EnvironmentalDevice),
-		hiveIDFilter: make(map[uint8]bool),
-		logger:       slog.With(slog.String("module", "collector")),
-	}
-
-	for _, hiveID := range hiveIDs {
-		res.hiveIDFilter[hiveID] = true
-	}
-
+func (c *Collector) connectJournal() (DataJournal, error) {
 	dbPath, err := xdg.DataFile(path.Join("io.github.atuleu.aristeus", "dababase"))
 	if err != nil {
 		return nil, fmt.Errorf("could not generate datapath: %w", err)
@@ -343,15 +327,40 @@ func NewCollector(hiveIDs []uint8) (*Collector, error) {
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
-	res.journal, err = NewSQLiteStore(ctx, dbPath)
+	journal, err := NewSQLiteStore(ctx, dbPath)
 	if err != nil {
 		return nil, fmt.Errorf("could not open journal `%s`: %w", dbPath, err)
 	}
+	return journal, nil
+}
 
+// Creates a new collector.
+func NewCollector(hiveIDs []uint8, journal DataJournal) (*Collector, error) {
+	res := &Collector{
+		devices:      make(map[string]*EnvironmentalDevice),
+		hiveIDFilter: make(map[uint8]bool),
+		logger:       slog.With(slog.String("module", "collector")),
+	}
+
+	for _, hiveID := range hiveIDs {
+		res.hiveIDFilter[hiveID] = true
+	}
+
+	var err error
+	if journal == nil {
+		journal, err = res.connectJournal()
+		if err != nil {
+			return nil, err
+		}
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
 	assignments, err := res.journal.GetActiveAssignments(ctx)
+
 	if err != nil {
 		return nil, fmt.Errorf("could not retrieve active assignment: %w", err)
 	}
+
 	for _, a := range assignments {
 		d, err := NewAssignedEnvironmentalDevice(a)
 		if err != nil {

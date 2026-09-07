@@ -3,8 +3,11 @@ package main
 import (
 	"context"
 	"errors"
+	"fmt"
 	"os"
 	"os/signal"
+
+	ble_linux "github.com/go-ble/ble/linux"
 )
 
 type CollectCommand struct {
@@ -12,7 +15,7 @@ type CollectCommand struct {
 }
 
 func (c *CollectCommand) Execute(args []string) error {
-	collector, err := NewCollector(c.HiveIDs)
+	collector, err := NewCollector(c.HiveIDs, nil)
 	if err != nil {
 		return err
 	}
@@ -20,7 +23,12 @@ func (c *CollectCommand) Execute(args []string) error {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer stop()
 
-	err = collector.Collect(ctx)
+	dev, err := ble_linux.NewDevice()
+	if err != nil {
+		return fmt.Errorf("could no open BLE device: %w", err)
+	}
+
+	err = collector.Collect(ctx, dev)
 
 	if err != nil && errors.Is(err, context.Canceled) == false {
 		return err
