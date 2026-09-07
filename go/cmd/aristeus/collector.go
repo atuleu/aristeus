@@ -18,11 +18,12 @@ import (
 	ble_linux "github.com/go-ble/ble/linux"
 )
 
-type bleTask func(dev ble.Device)
+type bleTask func(ctx context.Context, dev ble.Device)
 
 type Collector struct {
-	mx      sync.RWMutex
-	devices map[string]*EnvironmentalDevice
+	mx           sync.RWMutex
+	devices      map[string]*EnvironmentalDevice
+	envPublisher Publisher[EnvironmentalDevice]
 
 	hiveIDFilter map[uint8]bool
 
@@ -115,7 +116,7 @@ func (c *Collector) bleLoop(ctx context.Context, dev ble.Device) error {
 			if err != nil && errors.Is(err, context.Canceled) == false {
 				return err
 			}
-			task(dev)
+			task(ctx, dev)
 			cancelScan, scanErrors = startScanning()
 		}
 	}
@@ -202,11 +203,11 @@ func (c *Collector) updateDevice(ctx context.Context, dev *EnvironmentalDevice, 
 		var target_address ble.Addr = adv.address
 		logger := c.logger.With(slog.String("target_address", target_address.String()))
 
-		c.bleTasks <- func(bleDev ble.Device) {
-			ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
+		c.bleTasks <- func(ctxTask context.Context, bleDev ble.Device) {
+			ctxConn, cancel := context.WithTimeout(ctxTask, 30*time.Second)
 			defer cancel()
 
-			client, err := arisble.NewBLEDeviceConn(bleDev, ctx, target_address)
+			client, err := arisble.NewBLEDeviceConn(bleDev, ctxConn, target_address)
 			if err != nil {
 				logger.Error("could not connect to device for time synchronization",
 					slog.String("error", err.Error()),
@@ -224,10 +225,9 @@ func (c *Collector) updateDevice(ctx context.Context, dev *EnvironmentalDevice, 
 		}
 	}
 
-	// TODO: report low battery usage ?
 	reading := dev.updateData(adv)
 
-	// TODO: broadcast changes ?
+	c.envPublisher.Update(dev.clone())
 
 	go func() {
 		txContext, txCancel := context.WithTimeout(ctx, 5*time.Second)
@@ -243,6 +243,23 @@ func (c *Collector) updateDevice(ctx context.Context, dev *EnvironmentalDevice, 
 	}()
 }
 
+func (c *Collector) Subscribe() <-chan EnvironmentalDevice {
+	c.mx.RLock()
+	defer c.mx.RUnlock()
+
+	devices := make([]EnvironmentalDevice, 0, len(c.devices))
+	for _, d := range c.devices {
+		devices = append(devices, d.clone())
+	}
+
+	return c.envPublisher.Subscribe(devices)
+}
+
+func (c *Collector) Unsubscribe(ch <-chan EnvironmentalDevice) error {
+	return c.envPublisher.Unsubscribe(ch)
+}
+
+// Returns the current list of EnvironmentalDevice currenctly beeing collected.
 func (c *Collector) GetEnvironmentalDevices() []EnvironmentalDevice {
 	c.mx.RLock()
 	defer c.mx.RUnlock()
@@ -253,6 +270,33 @@ func (c *Collector) GetEnvironmentalDevices() []EnvironmentalDevice {
 	return res
 }
 
+// Connects to device to operate on it. Please not that timeout will be at most 5 minutes.
+func (c *Collector) ConnectEnvironmentalDevice(addr ble.Addr, timeout time.Duration, fn func(client *arisble.BLEDeviceConn, err error)) error {
+	c.mx.RLock()
+	defer c.mx.RUnlock()
+
+	_, ok := c.devices[addr.String()]
+	if ok == false {
+		return fmt.Errorf("device %s is not monitored", addr.String())
+	}
+
+	timeout = min(timeout, 5*time.Minute)
+	c.bleTasks <- func(ctx context.Context, dev ble.Device) {
+		ctx, cancel := context.WithTimeout(ctx, timeout)
+		defer cancel()
+		conn, err := arisble.NewBLEDeviceConn(dev, ctx, addr)
+		if err != nil {
+			fn(nil, err)
+		}
+		defer conn.Close()
+		fn(conn, nil)
+	}
+
+	return nil
+}
+
+// Runs the collection loops, i.e. gather BLE data, save it to journal, maintain
+// a list of device we can control
 func (c *Collector) Collect(ctx context.Context) error {
 	dev, err := ble_linux.NewDevice()
 	if err != nil {
@@ -276,6 +320,7 @@ func (c *Collector) Collect(ctx context.Context) error {
 
 }
 
+// Creates a new collector.
 func NewCollector(hiveIDs []uint8) (*Collector, error) {
 	res := &Collector{
 		devices:      make(map[string]*EnvironmentalDevice),
