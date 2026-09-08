@@ -8,6 +8,7 @@ import (
 	"os/signal"
 
 	ble_linux "github.com/go-ble/ble/linux"
+	"github.com/atuleu/aristeus/go/pkg/collector"
 )
 
 type CollectCommand struct {
@@ -15,7 +16,7 @@ type CollectCommand struct {
 }
 
 func (c *CollectCommand) Execute(args []string) error {
-	collector, err := NewCollector(c.HiveIDs, nil)
+	collector, err := collector.NewCollector(c.HiveIDs, nil)
 	if err != nil {
 		return err
 	}

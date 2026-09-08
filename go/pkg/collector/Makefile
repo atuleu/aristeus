@@ -1,6 +1,6 @@
-all: arisble check
+all: collector check
 
-arisble: *.go
+collector: *.go
 	go build
 
 check: *.go

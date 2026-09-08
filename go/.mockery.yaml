@@ -1,5 +1,5 @@
 packages:
-  github.com/atuleu/aristeus/go/cmd/aristeus:
+  github.com/atuleu/aristeus/go/pkg/collector:
     interfaces:
       DataJournal:
       bleDevice:
