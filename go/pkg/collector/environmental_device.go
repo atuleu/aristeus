@@ -12,7 +12,7 @@ import (
 	"github.com/go-ble/ble"
 )
 
-type EnvAdvertisment struct {
+type EnvironmentalAdvertisment struct {
 	address    ble.Addr
 	data       arisble.AdvertisementData
 	receivedAt time.Time
@@ -99,7 +99,7 @@ func NewAssignedEnvironmentalDevice(assignement SensorAssignement) (*Environment
 	}, nil
 }
 
-func NewEnvironmentalDevice(adv EnvAdvertisment) (*EnvironmentalDevice, error) {
+func NewEnvironmentalDevice(adv EnvironmentalAdvertisment) (*EnvironmentalDevice, error) {
 	if adv.data.Location.Placement.Validate() == false {
 		return nil, fmt.Errorf("invalid placement: %02X",
 			int(adv.data.Location.Placement))
@@ -126,7 +126,7 @@ func NewEnvironmentalDevice(adv EnvAdvertisment) (*EnvironmentalDevice, error) {
 	return res, nil
 }
 
-func (d *EnvironmentalDevice) updateData(adv EnvAdvertisment) EnvironmentalReading {
+func (d *EnvironmentalDevice) updateData(adv EnvironmentalAdvertisment) EnvironmentalReading {
 	reading := EnvironmentalReading{
 		LocationID: d.Location.LocationID,
 		SensorID:   d.Address,

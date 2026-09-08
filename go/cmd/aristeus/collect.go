@@ -7,8 +7,8 @@ import (
 	"os"
 	"os/signal"
 
-	ble_linux "github.com/go-ble/ble/linux"
 	"github.com/atuleu/aristeus/go/pkg/collector"
+	ble_linux "github.com/go-ble/ble/linux"
 )
 
 type CollectCommand struct {
@@ -16,10 +16,6 @@ type CollectCommand struct {
 }
 
 func (c *CollectCommand) Execute(args []string) error {
-	collector, err := collector.NewCollector(c.HiveIDs, nil)
-	if err != nil {
-		return err
-	}
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer stop()
@@ -29,7 +25,12 @@ func (c *CollectCommand) Execute(args []string) error {
 		return fmt.Errorf("could no open BLE device: %w", err)
 	}
 
-	err = collector.Collect(ctx, dev)
+	collector, err := collector.NewCollector(c.HiveIDs, nil, dev)
+	if err != nil {
+		return err
+	}
+
+	err = collector.Collect(ctx)
 
 	if err != nil && errors.Is(err, context.Canceled) == false {
 		return err

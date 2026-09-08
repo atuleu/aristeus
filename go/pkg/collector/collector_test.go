@@ -61,7 +61,7 @@ func (adv stubBLEAdvertisment) Connectable() bool {
 	return true
 }
 
-func fromEnvironmentalAdvertisment(adv EnvAdvertisment) ble.Advertisement {
+func fromEnvironmentalAdvertisment(adv EnvironmentalAdvertisment) ble.Advertisement {
 	mdata := []byte{0xff, 0xff}
 	mdata = adv.data.MarshalBinary(mdata)
 	return stubBLEAdvertisment{
@@ -90,7 +90,7 @@ func (s *CollectorSuite) expectScanLoop() {
 
 }
 
-func (s *CollectorSuite) sendEnvironmentalAdvertisment(adv EnvAdvertisment) {
+func (s *CollectorSuite) sendEnvironmentalAdvertisment(adv EnvironmentalAdvertisment) {
 	s.bleAdvertisment <- fromEnvironmentalAdvertisment(adv)
 
 }
@@ -103,7 +103,7 @@ func (s *CollectorSuite) SetupTest() {
 
 	var err error
 
-	s.collector, err = NewCollector(nil, s.journal)
+	s.collector, err = NewCollector(nil, s.journal, s.device)
 	s.Require().NoError(err)
 
 	s.ctx, s.cancel = context.WithTimeout(context.Background(), 500*time.Millisecond)
@@ -113,7 +113,7 @@ func (s *CollectorSuite) SetupTest() {
 	go func() {
 		defer close(s.collectError)
 
-		s.collectError <- s.collector.Collect(s.ctx, s.device)
+		s.collectError <- s.collector.Collect(s.ctx)
 
 	}()
 
@@ -134,7 +134,7 @@ func (s *CollectorSuite) TestEmpty() {}
 
 func (s *CollectorSuite) TestDuplicates() {
 	t := time.Now().Round(time.Second)
-	adv := EnvAdvertisment{
+	adv := EnvironmentalAdvertisment{
 		address: ble.NewAddr("02:02:02:02:02:02"),
 		data: arisble.AdvertisementData{
 			Location: arisble.Location{HiveID: 1, Placement: arisble.PlacementGeneral},
