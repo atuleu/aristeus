@@ -305,7 +305,6 @@ func NewCollector(hiveIDs []uint8, journal DataJournal, dev BLEDevice) (*Collect
 		devices:      make(map[string]*EnvironmentalDevice),
 		hiveIDFilter: make(map[uint8]bool),
 		logger:       slog.With(slog.String("module", "collector")),
-		scanner:      NewScanner(dev),
 	}
 
 	for _, hiveID := range hiveIDs {
@@ -319,7 +318,16 @@ func NewCollector(hiveIDs []uint8, journal DataJournal, dev BLEDevice) (*Collect
 			return nil, err
 		}
 	}
+
+	if dev == nil {
+		dev, err = arisble.NewBLEDevice()
+		if err != nil {
+			return nil, fmt.Errorf("could not open BLE device: %w", err)
+		}
+	}
+
 	res.journal = journal
+	res.scanner = NewScanner(dev)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()

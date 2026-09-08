@@ -8,13 +8,12 @@ import (
 
 	"github.com/atuleu/aristeus/go/pkg/arisble"
 	"github.com/go-ble/ble"
-	ble_linux "github.com/go-ble/ble/linux"
 )
 
 const CONNECTION_TIMEOUT = 30 * time.Second
 
 func dialDevice(addr ble.Addr) (*arisble.BLEDeviceConn, *slog.Logger, func(), error) {
-	dev, err := ble_linux.NewDevice()
+	dev, err := arisble.NewBLEDevice()
 	if err != nil {
 		return nil, nil, func() {}, fmt.Errorf("could not open BLE interface: %w", err)
 	}
