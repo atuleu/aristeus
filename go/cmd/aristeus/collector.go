@@ -17,7 +17,12 @@ import (
 	"github.com/go-ble/ble"
 )
 
-type bleTask func(ctx context.Context, dev ble.Device)
+type bleDevice interface {
+	arisble.BLEDialer
+	Scan(ctx context.Context, allowDuplicates bool, handler ble.AdvHandler) error
+}
+
+type bleTask func(ctx context.Context, dev bleDevice)
 
 type Collector struct {
 	mx           sync.RWMutex
@@ -84,8 +89,20 @@ func (c *Collector) bleAdvFilter() ble.AdvFilter {
 	}
 }
 
-func (c *Collector) bleLoop(ctx context.Context, dev ble.Device) error {
+func (c *Collector) bleLoop(ctx context.Context, dev bleDevice) error {
 	c.logger.Info("BLE control loop started")
+	c.envAdvs = make(chan EnvAdvertisment, 10)
+	c.bleTasks = make(chan bleTask, 10)
+
+	defer close(c.envAdvs)
+	defer close(c.bleTasks)
+
+	c.wg.Go(func() {
+		for adv := range c.envAdvs {
+			c.onEnvironmentalAdvertisment(ctx, adv)
+		}
+	})
+
 	startScanning := func() (context.CancelFunc, <-chan error) {
 		errors := make(chan error)
 		scanContext, cancelContext := context.WithCancel(ctx)
@@ -102,17 +119,33 @@ func (c *Collector) bleLoop(ctx context.Context, dev ble.Device) error {
 		select {
 		case <-ctx.Done():
 			c.logger.Info("collection done")
-			return nil
-		case err := <-scanErrors:
-			if err != nil && errors.Is(err, context.Canceled) == false {
-				c.logger.Error("scan error", slog.String("error", err.Error()))
-				return err
-			}
-			startScanning()
-		case task := <-c.bleTasks:
 			cancelScan()
-			err := <-scanErrors
-			if err != nil && errors.Is(err, context.Canceled) == false {
+			err, ok := <-scanErrors
+			if ok == true && err != nil && errors.Is(err, context.Canceled) == true {
+				err = nil
+			}
+
+			return err
+		case err, ok := <-scanErrors:
+			if ok == false {
+				scanErrors = nil
+				continue
+			}
+
+			if err == nil || errors.Is(err, context.Canceled) {
+				// weird race condition, but it exists.
+				// ultimately ctx.Done() should be reached.
+				continue
+			}
+
+			c.logger.Error("scan error", slog.String("error", err.Error()))
+			return err
+
+		case task := <-c.bleTasks:
+			c.logger.Info("received task")
+			cancelScan()
+			err, ok := <-scanErrors
+			if ok == true && err != nil && errors.Is(err, context.Canceled) == false {
 				return err
 			}
 			task(ctx, dev)
@@ -132,6 +165,7 @@ func (c *Collector) onEnvironmentalAdvertisment(ctx context.Context, adv EnvAdve
 	} else {
 		c.updateDevice(ctx, d, adv)
 	}
+
 }
 
 const ASSIGNMENT_MINIMUM_PERIOD = 5 * time.Minute
@@ -143,6 +177,7 @@ func (c *Collector) onNewDevice(ctx context.Context, adv EnvAdvertisment) {
 		c.logger.Error("could not create new device", slog.String("error", err.Error()))
 		return
 	}
+
 	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 	assignments, err := c.journal.GetLocationAssignements(ctx, d.Location.LocationID)
@@ -169,11 +204,19 @@ func (c *Collector) onNewDevice(ctx context.Context, adv EnvAdvertisment) {
 		}
 	}
 
+	c.logger.Info("new device found",
+		slog.String("address", d.Address))
+
 	c.devices[adv.address.String()] = d
-	c.updateDevice(ctx, d, adv)
+
+	c.pushEnvironmentalUpdate(ctx, d, adv)
 }
 
 func (c *Collector) updateDevice(ctx context.Context, dev *EnvironmentalDevice, adv EnvAdvertisment) {
+
+	if adv.data.CurrentPoint.Timestamp.ToTime().After(dev.Current.Timestamp) == false {
+		return
+	}
 	locationID := BuildLocationID(adv.data.Location)
 
 	if locationID != dev.Location.LocationID &&
@@ -202,7 +245,7 @@ func (c *Collector) updateDevice(ctx context.Context, dev *EnvironmentalDevice, 
 		var target_address ble.Addr = adv.address
 		logger := c.logger.With(slog.String("target_address", target_address.String()))
 
-		c.bleTasks <- func(ctxTask context.Context, bleDev ble.Device) {
+		c.bleTasks <- func(ctxTask context.Context, bleDev bleDevice) {
 			ctxConn, cancel := context.WithTimeout(ctxTask, 30*time.Second)
 			defer cancel()
 
@@ -224,6 +267,10 @@ func (c *Collector) updateDevice(ctx context.Context, dev *EnvironmentalDevice, 
 		}
 	}
 
+	c.pushEnvironmentalUpdate(ctx, dev, adv)
+}
+
+func (c *Collector) pushEnvironmentalUpdate(ctx context.Context, dev *EnvironmentalDevice, adv EnvAdvertisment) {
 	reading := dev.updateData(adv)
 
 	c.envPublisher.Update(dev.clone())
@@ -242,7 +289,10 @@ func (c *Collector) updateDevice(ctx context.Context, dev *EnvironmentalDevice, 
 	}()
 }
 
-func (c *Collector) Subscribe() <-chan EnvironmentalDevice {
+func (c *Collector) Subscribe() (ch <-chan EnvironmentalDevice) {
+	defer func() {
+		c.logger.Info("subscribed", slog.Any("channel", ch))
+	}()
 	c.mx.RLock()
 	defer c.mx.RUnlock()
 
@@ -250,11 +300,12 @@ func (c *Collector) Subscribe() <-chan EnvironmentalDevice {
 	for _, d := range c.devices {
 		devices = append(devices, d.clone())
 	}
-
-	return c.envPublisher.Subscribe(devices)
+	ch = c.envPublisher.Subscribe(devices)
+	return
 }
 
 func (c *Collector) Unsubscribe(ch <-chan EnvironmentalDevice) error {
+	defer c.logger.Info("unsubscribed", slog.Any("channel", ch))
 	return c.envPublisher.Unsubscribe(ch)
 }
 
@@ -280,7 +331,7 @@ func (c *Collector) ConnectEnvironmentalDevice(addr ble.Addr, timeout time.Durat
 	}
 
 	timeout = min(timeout, 5*time.Minute)
-	c.bleTasks <- func(ctx context.Context, dev ble.Device) {
+	c.bleTasks <- func(ctx context.Context, dev bleDevice) {
 		ctx, cancel := context.WithTimeout(ctx, timeout)
 		defer cancel()
 		conn, err := arisble.NewBLEDeviceConn(dev, ctx, addr)
@@ -296,23 +347,12 @@ func (c *Collector) ConnectEnvironmentalDevice(addr ble.Addr, timeout time.Durat
 
 // Runs the collection loops, i.e. gather BLE data, save it to journal, maintain
 // a list of device we can control
-func (c *Collector) Collect(ctx context.Context, dev ble.Device) error {
-	c.envAdvs = make(chan EnvAdvertisment, 10)
-	c.bleTasks = make(chan bleTask, 10)
+func (c *Collector) Collect(ctx context.Context, dev bleDevice) error {
 	defer func() {
-		close(c.envAdvs)
-		close(c.bleTasks)
 		c.wg.Wait()
 	}()
 
-	c.wg.Go(func() {
-		for adv := range c.envAdvs {
-			c.onEnvironmentalAdvertisment(ctx, adv)
-		}
-	})
-
 	return c.bleLoop(ctx, dev)
-
 }
 
 func (c *Collector) connectJournal() (DataJournal, error) {
@@ -353,8 +393,11 @@ func NewCollector(hiveIDs []uint8, journal DataJournal) (*Collector, error) {
 			return nil, err
 		}
 	}
+	res.journal = journal
+
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
+
 	assignments, err := res.journal.GetActiveAssignments(ctx)
 
 	if err != nil {

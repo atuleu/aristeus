@@ -101,7 +101,7 @@ func NewAssignedEnvironmentalDevice(assignement SensorAssignement) (*Environment
 
 func NewEnvironmentalDevice(adv EnvAdvertisment) (*EnvironmentalDevice, error) {
 	if adv.data.Location.Placement.Validate() == false {
-		return nil, fmt.Errorf("invalid location: %02X",
+		return nil, fmt.Errorf("invalid placement: %02X",
 			int(adv.data.Location.Placement))
 	}
 
@@ -115,6 +115,7 @@ func NewEnvironmentalDevice(adv EnvAdvertisment) (*EnvironmentalDevice, error) {
 		Battery:     adv.data.Battery.Float64(),
 		MemoryUsage: adv.data.Memory.Float64(),
 		Current: EnvironmentalState{
+			Timestamp:        adv.data.CurrentPoint.Timestamp.ToTime(),
 			Temperature_C:    adv.data.CurrentPoint.Temperature.Float64(),
 			Humidity_percent: adv.data.CurrentPoint.Humidity.Float64(),
 			Pressure_hPa:     adv.data.CurrentPoint.Pressure.Float64(),

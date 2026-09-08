@@ -1,0 +1,13 @@
+packages:
+  github.com/atuleu/aristeus/go/cmd/aristeus:
+    interfaces:
+      DataJournal:
+      bleDevice:
+      BLEDevice:
+  github.com/go-ble/ble:
+    config:
+      dir: "internal/blemock"
+      filename: "mocks.go"
+      pkgname: "blemock"
+    interfaces:
+      Advertisement:

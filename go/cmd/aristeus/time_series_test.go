@@ -8,13 +8,16 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
+	"github.com/stretchr/testify/suite"
 )
 
-func TestEnvironmentalTimeSeriesJSONFormating(t *testing.T) {
-	assert := assert.New(t)
-	require := require.New(t)
+type TimeSeriesSuite struct {
+	suite.Suite
+}
+
+func (s *TimeSeriesSuite) TestJSONFormatting() {
+	assert := s.Assert()
+	require := s.Require()
 
 	a := time.Unix(0, 0)
 	b := a.Add(1 * time.Minute)
@@ -67,4 +70,8 @@ func TestEnvironmentalTimeSeriesJSONFormating(t *testing.T) {
 	diff := cmp.Diff(data, parsed, cmpopts.EquateNaNs())
 	assert.Equal("", diff)
 
+}
+
+func TestTimeSeriesSuite(t *testing.T) {
+	suite.Run(t, new(TimeSeriesSuite))
 }

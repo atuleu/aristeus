@@ -513,6 +513,15 @@ func (d *DataPoint) UnmarshalBinary(data []byte) error {
 	return nil
 }
 
+func (d DataPoint) MarshalBinary(data []byte) []byte {
+	data = d.Timestamp.AppendBinary(data)
+	data = binary.LittleEndian.AppendUint16(data, uint16(d.Temperature))
+	data = binary.LittleEndian.AppendUint16(data, uint16(d.Humidity))
+	data = binary.LittleEndian.AppendUint32(data, uint32(d.Pressure))
+	data = binary.LittleEndian.AppendUint16(data, uint16(d.CO2))
+	return data
+}
+
 type AdvertisementData struct {
 	Location     Location
 	Battery      BatteryLevel
@@ -537,4 +546,10 @@ func (adv *AdvertisementData) UnmarshalBinary(data []byte) error {
 		return err
 	}
 	return nil
+}
+
+func (adv *AdvertisementData) MarshalBinary(data []byte) []byte {
+	data = adv.Location.MarshalBinary(data)
+	data = append(data, byte(adv.Battery), byte(adv.Memory))
+	return adv.CurrentPoint.MarshalBinary(data)
 }

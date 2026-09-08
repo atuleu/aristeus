@@ -23,7 +23,11 @@ type BLEDeviceConn struct {
 	racp, stream, epoch, location, pressure *ble.Characteristic
 }
 
-func NewBLEDeviceConn(dev ble.Device, ctx context.Context, addr ble.Addr) (conn *BLEDeviceConn, err error) {
+type BLEDialer interface {
+	Dial(context.Context, ble.Addr) (ble.Client, error)
+}
+
+func NewBLEDeviceConn(dev BLEDialer, ctx context.Context, addr ble.Addr) (conn *BLEDeviceConn, err error) {
 	defer func() {
 		if err != nil && conn != nil {
 			conn.client.Conn().Close()
