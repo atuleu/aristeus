@@ -146,11 +146,11 @@ func (s *BLEScannerSuite) TestAdvertisment() {
 
 	adv, ok := <-advs
 	if s.Assert().True(ok) == true {
-		s.Assert().Equal("02:02:02:02:02:02", adv.Addr().String())
+		s.Assert().Equal("02:02:02:02:02:02", adv.Adv.Addr().String())
 	}
 	adv, ok = <-advs
 	if s.Assert().True(ok) == true {
-		s.Assert().Equal("02:02:02:02:02:02", adv.Addr().String())
+		s.Assert().Equal("02:02:02:02:02:02", adv.Adv.Addr().String())
 	}
 
 	cancel()

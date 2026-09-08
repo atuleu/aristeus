@@ -18,8 +18,13 @@ type BLEDevice interface {
 
 type BLETask func(ctx context.Context, dev BLEDevice)
 
+type TimedAdvertisement struct {
+	ReceivedAt time.Time
+	Adv        ble.Advertisement
+}
+
 type BLEScanner interface {
-	ScanLoop(ctx context.Context, filter ble.AdvFilter) (<-chan ble.Advertisement, <-chan error, error)
+	ScanLoop(ctx context.Context, filter ble.AdvFilter) (<-chan TimedAdvertisement, <-chan error, error)
 	Schedule(task BLETask) error
 }
 
@@ -35,7 +40,7 @@ func NewScanner(dev BLEDevice) BLEScanner {
 	}
 }
 
-func (s *bleScanner) ScanLoop(ctx context.Context, filter ble.AdvFilter) (<-chan ble.Advertisement, <-chan error, error) {
+func (s *bleScanner) ScanLoop(ctx context.Context, filter ble.AdvFilter) (<-chan TimedAdvertisement, <-chan error, error) {
 	s.mx.Lock()
 	defer s.mx.Unlock()
 
@@ -43,14 +48,14 @@ func (s *bleScanner) ScanLoop(ctx context.Context, filter ble.AdvFilter) (<-chan
 		return nil, nil, errors.New("already started")
 	}
 	s.tasks = make(chan BLETask, 64)
-	advertisments := make(chan ble.Advertisement, 64)
+	advertisments := make(chan TimedAdvertisement, 64)
 	errors := make(chan error, 1)
 	go s.scanLoop(ctx, filter, advertisments, errors)
 
 	return advertisments, errors, nil
 }
 
-func (s *bleScanner) scanLoop(ctx context.Context, filter ble.AdvFilter, advertisments chan ble.Advertisement, errs chan error) {
+func (s *bleScanner) scanLoop(ctx context.Context, filter ble.AdvFilter, advertisments chan TimedAdvertisement, errs chan error) {
 	logger := slog.With("module", "BLEScanLoop")
 
 	defer func() {
@@ -70,11 +75,12 @@ func (s *bleScanner) scanLoop(ctx context.Context, filter ble.AdvFilter, adverti
 	}()
 
 	onAdv := func(adv ble.Advertisement) {
+		now := time.Now()
 		if filter(adv) == false {
 			return
 		}
 		select {
-		case advertisments <- adv:
+		case advertisments <- TimedAdvertisement{ReceivedAt: now, Adv: adv}:
 			//good
 		default:
 			logger.Error("dropping advertisment due to overflow",
