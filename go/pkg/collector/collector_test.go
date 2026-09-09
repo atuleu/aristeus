@@ -103,7 +103,7 @@ func (s *CollectorSuite) SetupTest() {
 
 	var err error
 
-	s.collector, err = NewCollector(nil, s.journal, s.device)
+	s.collector, err = NewCollector(NewCollectorConfig(withJournal(s.journal), withDevice(s.device)))
 	s.Require().NoError(err)
 
 	s.ctx, s.cancel = context.WithTimeout(context.Background(), 500*time.Millisecond)

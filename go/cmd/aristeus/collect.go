@@ -18,7 +18,11 @@ func (c *CollectCommand) Execute(args []string) error {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer stop()
 
-	collector, err := collector.NewCollector(c.HiveIDs, nil, nil)
+	collector, err := collector.NewCollector(
+		collector.NewCollectorConfig(
+			collector.WithHiveIDFilter(c.HiveIDs...),
+		),
+	)
 	if err != nil {
 		return err
 	}

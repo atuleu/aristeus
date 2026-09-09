@@ -5,29 +5,19 @@ import (
 	"encoding/binary"
 	"fmt"
 	"log/slog"
-	"os"
-	"path"
-	"path/filepath"
+	"math/rand"
 	"sync"
 	"time"
 
-	"github.com/adrg/xdg"
 	"github.com/atuleu/aristeus/go/pkg/arisble"
 	"github.com/go-ble/ble"
 )
 
-type CollectorConfig struct {
-	journal DataJournal // for dependency injection
-	device  BLEDevice   // for dependency injection
-
-	MinimumAssignementDuration time.Duration
-	MaximalTimeOffset          time.Duration
-	JanitorTime                HourOfDay
-}
-
 type Collector struct {
+	config CollectorConfig
+
 	mx           sync.RWMutex
-	devices      map[string]*EnvironmentalDevice
+	devices      map[ble.Addr]*EnvironmentalDevice
 	envPublisher Publisher[EnvironmentalDevice]
 
 	hiveIDFilter map[uint8]bool
@@ -36,6 +26,8 @@ type Collector struct {
 
 	journal DataJournal
 	scanner BLEScanner
+	cron    CronScheduler
+	clock   Clock
 }
 
 func (c *Collector) bleAdvFilter() ble.AdvFilter {
@@ -63,7 +55,7 @@ func (c *Collector) onAdvertisment(ctx context.Context, adv EnvironmentalAdverti
 	c.mx.Lock()
 	defer c.mx.Unlock()
 
-	d, ok := c.devices[adv.address.String()]
+	d, ok := c.devices[adv.address]
 	if ok == false {
 		c.onNewDevice(ctx, adv)
 	} else {
@@ -111,7 +103,7 @@ func (c *Collector) onNewDevice(ctx context.Context, adv EnvironmentalAdvertisme
 	c.logger.Info("new device found",
 		slog.String("address", d.Address))
 
-	c.devices[adv.address.String()] = d
+	c.devices[adv.address] = d
 
 	c.pushEnvironmentalUpdate(ctx, d, adv)
 }
@@ -235,7 +227,7 @@ func (c *Collector) ConnectEnvironmentalDevice(addr ble.Addr, timeout time.Durat
 	c.mx.RLock()
 	defer c.mx.RUnlock()
 
-	_, ok := c.devices[addr.String()]
+	_, ok := c.devices[addr]
 	if ok == false {
 		return fmt.Errorf("device %s is not monitored", addr.String())
 	}
@@ -286,57 +278,69 @@ func (c *Collector) Collect(ctx context.Context) error {
 		}
 	})
 
+	wg.Go(func() { c.cron.ScheduleLoop(ctx, HourOfDay{Hour: 1, Minute: 42}, c.janitorTasks) })
+
 	return <-errs
 }
 
-func (c *Collector) connectJournal() (DataJournal, error) {
-	dbPath, err := xdg.DataFile(path.Join("io.github.atuleu.aristeus", "dababase"))
-	if err != nil {
-		return nil, fmt.Errorf("could not generate datapath: %w", err)
-	}
-	err = os.MkdirAll(filepath.Dir(dbPath), 0755)
-	if err != nil {
-		return nil, fmt.Errorf("could not create journal directories: %w", err)
-	}
+func (c *Collector) janitorTasks(now time.Time) {
+	c.mx.Lock()
+	defer c.mx.Unlock()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-	journal, err := NewSQLiteStore(ctx, dbPath)
-	if err != nil {
-		return nil, fmt.Errorf("could not open journal `%s`: %w", dbPath, err)
+	activeThreshold := now.Add(-c.config.ActiveThresholdDuration)
+	for addr, envDev := range c.devices {
+		if envDev.LastSeen.Before(activeThreshold) {
+			c.logger.Info("not performing janitor task",
+				slog.String("address", envDev.Address),
+				slog.Time("last_seen", envDev.LastSeen),
+			)
+			continue
+		}
+
+		memoryUsage := envDev.MemoryUsage
+		go func() {
+			delay := time.Duration(rand.Int63n(c.config.ConnectionJitter.Nanoseconds()))
+			time.Sleep(delay)
+			if memoryUsage >= 95 {
+				c.scanner.Schedule(c.readbackAndEraseEnvironmentalDeviceMemory(addr))
+			}
+			c.scanner.Schedule(c.synchronizeDevice(addr))
+		}()
 	}
-	return journal, nil
+}
+
+func (c *Collector) readbackAndEraseEnvironmentalDeviceMemory(addr ble.Addr) BLETask {
+	return func(ctx context.Context, dev BLEDevice) {}
+}
+
+func (c *Collector) synchronizeEnvironmentalDevice(addr ble.Addr) BLETask {
+	return func(ctx context.Context, dev BLEDevice) {}
 }
 
 // Creates a new collector.
-func NewCollector(hiveIDs []uint8, journal DataJournal, dev BLEDevice) (*Collector, error) {
+func NewCollector(config CollectorConfig) (*Collector, error) {
+
 	res := &Collector{
-		devices:      make(map[string]*EnvironmentalDevice),
+		config:       config,
+		devices:      make(map[ble.Addr]*EnvironmentalDevice),
 		hiveIDFilter: make(map[uint8]bool),
 		logger:       slog.With(slog.String("module", "collector")),
 	}
 
-	for _, hiveID := range hiveIDs {
-		res.hiveIDFilter[hiveID] = true
+	err := res.config.deps.doMissingInjection()
+	if err != nil {
+		return nil, err
 	}
 
-	var err error
-	if journal == nil {
-		journal, err = res.connectJournal()
-		if err != nil {
-			return nil, err
-		}
+	for hiveID, collect := range config.HiveIDFilter {
+		res.hiveIDFilter[hiveID] = collect
 	}
 
-	if dev == nil {
-		dev, err = arisble.NewBLEDevice()
-		if err != nil {
-			return nil, fmt.Errorf("could not open BLE device: %w", err)
-		}
-	}
-
-	res.journal = journal
-	res.scanner = NewScanner(dev)
+	res.journal = res.config.deps.journal
+	res.scanner = NewScanner(res.config.deps.device)
+	res.cron = res.config.deps.cron
+	res.clock = res.config.deps.clock
+	res.config.deps = nil
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
@@ -358,7 +362,7 @@ func NewCollector(hiveIDs []uint8, journal DataJournal, dev BLEDevice) (*Collect
 			)
 			continue
 		}
-		res.devices[d.Address] = d
+		res.devices[ble.NewAddr(d.Address)] = d
 	}
 
 	return res, nil

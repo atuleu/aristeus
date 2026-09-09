@@ -33,7 +33,7 @@ func (s *CronSchedulerSuite) TestScheduling() {
 	called := make(chan struct{})
 	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Millisecond)
 	defer cancel()
-	s.scheduler.ScheduleLoop(ctx, HourOfDay{Hour: 0, Minute: 0}, func() { close(called) })
+	s.scheduler.ScheduleLoop(ctx, HourOfDay{Hour: 0, Minute: 0}, func(time.Time) { close(called) })
 	ok := true
 	select {
 	case _, ok = <-called:
