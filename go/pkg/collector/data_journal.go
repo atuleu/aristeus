@@ -2,7 +2,10 @@ package collector
 
 import (
 	"context"
+	"math"
 	"time"
+
+	"github.com/atuleu/aristeus/go/pkg/arisble"
 )
 
 type EnvironmentalReading struct {
@@ -14,6 +17,27 @@ type EnvironmentalReading struct {
 	Humidity_percent *float64
 	Pressure_hPa     *float64
 	CO2_ppm          *uint
+}
+
+func (r *EnvironmentalReading) setData(data arisble.DataPoint) {
+	r.Timestamp = data.Timestamp.ToTime()
+	updateField := func(value float64, dest **float64) {
+		if math.IsNaN(value) {
+			*dest = nil
+		} else {
+			*dest = new(float64)
+			**dest = value
+		}
+	}
+	updateField(data.Temperature.Float64(), &r.Temperature_C)
+	updateField(data.Humidity.Float64(), &r.Humidity_percent)
+	updateField(data.Pressure.Float64(), &r.Pressure_hPa)
+	if data.CO2 == arisble.CO2ConcentrationNaN {
+		r.CO2_ppm = nil
+	} else {
+		r.CO2_ppm = new(uint)
+		*r.CO2_ppm = uint(data.CO2)
+	}
 }
 
 type SensorLocation struct {

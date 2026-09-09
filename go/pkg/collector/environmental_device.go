@@ -130,36 +130,32 @@ func (d *EnvironmentalDevice) updateData(adv EnvironmentalAdvertisment) Environm
 	reading := EnvironmentalReading{
 		LocationID: d.Location.LocationID,
 		SensorID:   d.Address,
-		Timestamp:  adv.data.CurrentPoint.Timestamp.ToTime(),
 		ReceivedAt: adv.receivedAt,
 	}
 
 	d.Battery = adv.data.Battery.Float64()
 	d.MemoryUsage = adv.data.Memory.Float64()
 
-	updateField := func(value float64, readingValue **float64, stateValue *float64) {
+	reading.setData(adv.data.CurrentPoint)
+
+	updateField := func(value float64, stateValue *float64) {
 		if math.IsNaN(value) {
 			return
 		}
-		*readingValue = new(float64)
-		**readingValue = value
 		*stateValue = value
 	}
 	updateField(
 		adv.data.CurrentPoint.Temperature.Float64(),
-		&reading.Temperature_C,
 		&d.Current.Temperature_C,
 	)
 
 	updateField(
 		adv.data.CurrentPoint.Humidity.Float64(),
-		&reading.Humidity_percent,
 		&d.Current.Humidity_percent,
 	)
 
 	updateField(
 		adv.data.CurrentPoint.Pressure.Float64(),
-		&reading.Pressure_hPa,
 		&d.Current.Pressure_hPa,
 	)
 
@@ -167,7 +163,6 @@ func (d *EnvironmentalDevice) updateData(adv EnvironmentalAdvertisment) Environm
 		return reading
 	}
 	d.Current.CO2_PPM = adv.data.CurrentPoint.CO2.Float64()
-	reading.CO2_ppm = newValue(uint(d.Current.CO2_PPM))
 
 	return reading
 }

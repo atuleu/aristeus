@@ -3,6 +3,7 @@ package collector
 import (
 	"context"
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"log/slog"
 	"math/rand"
@@ -64,9 +65,6 @@ func (c *Collector) onAdvertisment(ctx context.Context, adv EnvironmentalAdverti
 
 }
 
-const ASSIGNMENT_MINIMUM_PERIOD = 5 * time.Minute
-const MAXIMAL_TIME_OFFSET = 3 * time.Minute
-
 func (c *Collector) onNewDevice(ctx context.Context, adv EnvironmentalAdvertisment) {
 	d, err := NewEnvironmentalDevice(adv)
 	if err != nil {
@@ -89,7 +87,7 @@ func (c *Collector) onNewDevice(ctx context.Context, adv EnvironmentalAdvertisme
 		activeAssignments := assignments[len(assignments)-1]
 		if activeAssignments.RemovedAt != nil &&
 			activeAssignments.SensorID != adv.address.String() &&
-			adv.data.CurrentPoint.Timestamp.ToTime().Sub(activeAssignments.InstalledAt) < ASSIGNMENT_MINIMUM_PERIOD {
+			adv.data.CurrentPoint.Timestamp.ToTime().Sub(activeAssignments.InstalledAt) < c.config.MinimumAssignementDuration {
 			c.logger.Error("dropping new device discovery as location was assigned not too long ago",
 				slog.String("address", adv.address.String()),
 				slog.String("location_id", activeAssignments.LocationID),
@@ -108,33 +106,6 @@ func (c *Collector) onNewDevice(ctx context.Context, adv EnvironmentalAdvertisme
 	c.pushEnvironmentalUpdate(ctx, d, adv)
 }
 
-func (c *Collector) synchronizeDevice(targetAddress ble.Addr) BLETask {
-
-	logger := c.logger.With(slog.String("target_address", targetAddress.String()))
-
-	return func(ctx context.Context, dev BLEDevice) {
-		ctxConn, cancel := context.WithTimeout(ctx, 60*time.Second)
-		defer cancel()
-
-		client, err := arisble.NewBLEDeviceConn(dev, ctxConn, targetAddress)
-		if err != nil {
-			logger.Error("could not connect to device for time synchronization",
-				slog.String("error", err.Error()),
-			)
-			return
-		}
-		err = client.SynchronizeBLEDevice()
-		if err != nil {
-			logger.Error("could not synchronize device",
-				slog.String("error", err.Error()),
-			)
-			return
-		}
-		logger.Info("synchronized device")
-	}
-
-}
-
 func (c *Collector) updateDevice(ctx context.Context, dev *EnvironmentalDevice, adv EnvironmentalAdvertisment) {
 
 	if adv.data.CurrentPoint.Timestamp.ToTime().After(dev.Current.Timestamp) == false {
@@ -143,7 +114,7 @@ func (c *Collector) updateDevice(ctx context.Context, dev *EnvironmentalDevice, 
 	locationID := BuildLocationID(adv.data.Location)
 
 	if locationID != dev.Location.LocationID &&
-		adv.data.CurrentPoint.Timestamp.ToTime().Sub(dev.assigned_since) < ASSIGNMENT_MINIMUM_PERIOD {
+		adv.data.CurrentPoint.Timestamp.ToTime().Sub(dev.assigned_since) < c.config.MinimumAssignementDuration {
 		c.logger.Error("dropping update since device changed location too rapidly",
 			slog.String("address", dev.Address),
 			slog.String("current_location_id", dev.Location.LocationID),
@@ -164,8 +135,8 @@ func (c *Collector) updateDevice(ctx context.Context, dev *EnvironmentalDevice, 
 
 	dev.TimeOffset = adv.receivedAt.Sub(adv.data.CurrentPoint.Timestamp.ToTime())
 
-	if dev.TimeOffset.Abs() > MAXIMAL_TIME_OFFSET {
-		c.scanner.Schedule(c.synchronizeDevice(adv.address))
+	if dev.TimeOffset.Abs() > c.config.MaximalTimeOffset {
+		c.scanner.Schedule(c.synchronizeEnvironmentalDevice(adv.address))
 	}
 
 	c.pushEnvironmentalUpdate(ctx, dev, adv)
@@ -298,23 +269,116 @@ func (c *Collector) janitorTasks(now time.Time) {
 		}
 
 		memoryUsage := envDev.MemoryUsage
+		locationID := envDev.Location.LocationID
 		go func() {
 			delay := time.Duration(rand.Int63n(c.config.ConnectionJitter.Nanoseconds()))
 			time.Sleep(delay)
 			if memoryUsage >= 95 {
-				c.scanner.Schedule(c.readbackAndEraseEnvironmentalDeviceMemory(addr))
+				c.scanner.Schedule(c.readbackAndEraseEnvironmentalDeviceMemory(addr, locationID))
 			}
-			c.scanner.Schedule(c.synchronizeDevice(addr))
+			c.scanner.Schedule(c.synchronizeEnvironmentalDevice(addr))
 		}()
 	}
 }
 
-func (c *Collector) readbackAndEraseEnvironmentalDeviceMemory(addr ble.Addr) BLETask {
-	return func(ctx context.Context, dev BLEDevice) {}
+func (c *Collector) readbackAndEraseEnvironmentalDeviceMemory(addr ble.Addr, locationID string) BLETask {
+	logger := c.logger.With(slog.String("target_address", addr.String()))
+	return func(ctx context.Context, dev BLEDevice) {
+		ctxConn, cancel := context.WithTimeout(ctx, 5*time.Minute)
+		defer cancel()
+		client, err := arisble.NewBLEDeviceConn(dev, ctxConn, addr)
+		if err != nil {
+			logger.Error("could not connect to device to clean-up memory",
+				slog.String("error", err.Error()),
+			)
+			return
+		}
+
+		reports, err := client.ReportRecords(arisble.TimestampNaN, arisble.TimestampNaN)
+		var readings []EnvironmentalReading
+		reading := EnvironmentalReading{
+			LocationID: locationID,
+			SensorID:   addr.String(),
+		}
+		notDone := true
+		for notDone {
+			var result arisble.RACPResult[arisble.DataPoint]
+			select {
+			case <-ctxConn.Done():
+				logger.Error("could not retrieve data",
+					slog.String("error", ctxConn.Err().Error()),
+				)
+				return
+			case result, notDone = <-reports:
+				if result.Error != nil {
+					logger.Error("could not retrieve data",
+						slog.String("error", result.Error.Error()))
+					return
+				}
+				reading.ReceivedAt = c.clock.Now()
+				reading.setData(result.Value)
+				readings = append(readings, reading)
+			}
+		}
+
+		err = c.journal.SaveEnvironmentalReadings(ctx, readings)
+		if err != nil {
+			logger.Error("could not save readings to journal",
+				slog.String("error", err.Error()),
+			)
+			return
+		}
+
+		errs, err := client.DeleteRecords(arisble.TimestampNaN, arisble.TimestampNaN)
+		if err != nil {
+			logger.Error("could not start erase device memory",
+				slog.String("error", err.Error()),
+			)
+			return
+		}
+		select {
+		case <-ctxConn.Done():
+			err = errors.New("timeout")
+		case err, notDone = <-errs:
+			if notDone == false {
+				err = errors.New("early delete termination")
+			}
+		}
+
+		if err != nil {
+			logger.Error("could not erase device memory",
+				slog.String("error", err.Error()),
+			)
+		}
+
+	}
 }
 
-func (c *Collector) synchronizeEnvironmentalDevice(addr ble.Addr) BLETask {
-	return func(ctx context.Context, dev BLEDevice) {}
+func (c *Collector) synchronizeEnvironmentalDevice(targetAddress ble.Addr) BLETask {
+
+	logger := c.logger.With(slog.String("target_address", targetAddress.String()))
+
+	return func(ctx context.Context, dev BLEDevice) {
+		ctxConn, cancel := context.WithTimeout(ctx, 60*time.Second)
+		defer cancel()
+
+		client, err := arisble.NewBLEDeviceConn(dev, ctxConn, targetAddress)
+		if err != nil {
+			logger.Error("could not connect to device for time synchronization",
+				slog.String("error", err.Error()),
+			)
+			return
+		}
+		err = client.SynchronizeBLEDevice()
+		if err != nil {
+			logger.Error("could not synchronize device",
+				slog.String("error", err.Error()),
+			)
+			return
+		}
+		logger.Info("synchronized device")
+	}
+
 }
 
 // Creates a new collector.
