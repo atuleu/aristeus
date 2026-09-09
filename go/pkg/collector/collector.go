@@ -16,6 +16,15 @@ import (
 	"github.com/go-ble/ble"
 )
 
+type CollectorConfig struct {
+	journal DataJournal // for dependency injection
+	device  BLEDevice   // for dependency injection
+
+	MinimumAssignementDuration time.Duration
+	MaximalTimeOffset          time.Duration
+	JanitorTime                HourOfDay
+}
+
 type Collector struct {
 	mx           sync.RWMutex
 	devices      map[string]*EnvironmentalDevice
