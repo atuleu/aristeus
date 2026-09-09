@@ -16,7 +16,7 @@ import (
 type CollectorSuite struct {
 	suite.Suite
 	journal         *MockDataJournal
-	device          *mockbleDevice
+	device          *MockBLEDevice
 	collector       *Collector
 	bleAdvertisment chan ble.Advertisement
 	collectError    chan error
@@ -98,7 +98,7 @@ func (s *CollectorSuite) sendEnvironmentalAdvertisment(adv EnvironmentalAdvertis
 func (s *CollectorSuite) SetupTest() {
 	s.bleAdvertisment = make(chan ble.Advertisement)
 	s.journal = NewMockDataJournal(s.T())
-	s.device = newMockbleDevice(s.T())
+	s.device = NewMockBLEDevice(s.T())
 	s.journal.EXPECT().GetActiveAssignments(mock.Anything).Return([]SensorAssignement{}, nil).Once()
 
 	var err error

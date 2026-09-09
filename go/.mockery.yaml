@@ -2,8 +2,8 @@ packages:
   github.com/atuleu/aristeus/go/pkg/collector:
     interfaces:
       DataJournal:
-      bleDevice:
       BLEDevice:
+      Clock:
   github.com/go-ble/ble:
     config:
       dir: "internal/blemock"

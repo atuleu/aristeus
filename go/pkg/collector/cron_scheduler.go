@@ -12,7 +12,7 @@ type HourOfDay struct {
 
 type Clock interface {
 	Now() time.Time
-	NewTimer(time.Duration) *time.Timer
+	NewTimer(d time.Duration) *time.Timer
 }
 
 type timeClock struct{}
@@ -24,9 +24,37 @@ func (t timeClock) NewTimer(d time.Duration) *time.Timer {
 	return time.NewTimer(d)
 }
 
-func CronSchedule(ctx context.Context, clock Clock, hod HourOfDay, fn func()) {
+type CronScheduler interface {
+	ScheduleLoop(ctx context.Context, hod HourOfDay, fn func())
+}
+
+type cronScheduler struct {
+	clock Clock
+}
+
+func NewCronScheduler(clock Clock) CronScheduler {
 	if clock == nil {
 		clock = timeClock{}
 	}
+	return cronScheduler{clock: clock}
+}
 
+func (s cronScheduler) nextTimer(hod HourOfDay) *time.Timer {
+	now := s.clock.Now()
+	next := time.Date(now.Year(), now.Month(), now.Day(), hod.Hour, hod.Minute, 0, 0, now.Location()).Add(24 * time.Hour)
+	return s.clock.NewTimer(next.Sub(now))
+}
+
+func (s cronScheduler) ScheduleLoop(ctx context.Context, hod HourOfDay, fn func()) {
+	next := s.nextTimer(hod)
+	for {
+		select {
+		case <-ctx.Done():
+			next.Stop()
+			return
+		case <-next.C:
+			fn()
+			next = s.nextTimer(hod)
+		}
+	}
 }
