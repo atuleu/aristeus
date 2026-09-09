@@ -3,7 +3,9 @@ packages:
     interfaces:
       DataJournal:
       BLEDevice:
+      BLEScanner:
       Clock:
+      CronScheduler:
   github.com/go-ble/ble:
     config:
       dir: "internal/blemock"

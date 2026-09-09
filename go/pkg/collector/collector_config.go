@@ -14,7 +14,7 @@ import (
 
 type collectorDependencies struct {
 	journal DataJournal // for dependency injection
-	device  BLEDevice   // for dependency injection
+	scanner BLEScanner
 	cron    CronScheduler
 	clock   Clock
 }
@@ -28,15 +28,16 @@ func (c *collectorDependencies) doMissingInjection() error {
 		}
 	}
 
-	if c.device == nil {
-		c.device, err = arisble.NewBLEDevice()
+	if c.clock == nil {
+		c.clock = timeClock{}
+	}
+
+	if c.scanner == nil {
+		device, err := arisble.NewBLEDevice()
 		if err != nil {
 			return fmt.Errorf("could not open BLE device: %w", err)
 		}
-	}
-
-	if c.clock == nil {
-		c.clock = timeClock{}
+		c.scanner = NewScanner(device)
 	}
 
 	if c.cron == nil {
@@ -135,9 +136,9 @@ func withJournal(journal DataJournal) CollectorConfigOption {
 	}
 }
 
-func withDevice(device BLEDevice) CollectorConfigOption {
+func withScanner(scanner BLEScanner) CollectorConfigOption {
 	return func(config *CollectorConfig) {
-		config.deps.device = device
+		config.deps.scanner = scanner
 	}
 }
 

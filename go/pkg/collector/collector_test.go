@@ -2,7 +2,6 @@ package collector
 
 import (
 	"context"
-	"log/slog"
 	"sync"
 	"testing"
 	"time"
@@ -16,9 +15,10 @@ import (
 type CollectorSuite struct {
 	suite.Suite
 	journal         *MockDataJournal
-	device          *MockBLEDevice
+	scanner         *MockBLEScanner
+	cron            *MockCronScheduler
 	collector       *Collector
-	bleAdvertisment chan ble.Advertisement
+	bleAdvertisment chan TimedAdvertisement
 	collectError    chan error
 	ctx             context.Context
 	cancel          context.CancelFunc
@@ -71,50 +71,57 @@ func fromEnvironmentalAdvertisment(adv EnvironmentalAdvertisment) ble.Advertisem
 }
 
 func (s *CollectorSuite) expectScanLoop() {
-	s.device.EXPECT().Scan(mock.Anything, mock.Anything, mock.Anything).
+	errs := make(chan error)
+	s.bleAdvertisment = make(chan TimedAdvertisement)
+	s.scanner.EXPECT().ScanLoop(mock.Anything, mock.Anything).
 		RunAndReturn(
 			func(ctx context.Context,
-				allowDuplicates bool,
-				handler ble.AdvHandler) error {
-				for {
-					select {
-					case <-ctx.Done():
-						return ctx.Err()
-					case adv := <-s.bleAdvertisment:
-						slog.Info("received",
-							slog.String("address", adv.Addr().String()))
-						handler(adv)
-					}
-				}
+				filter ble.AdvFilter) (<-chan TimedAdvertisement, <-chan error, error) {
+				go func() {
+					<-ctx.Done()
+					errs <- nil
+					close(errs)
+					close(s.bleAdvertisment)
+				}()
+				return s.bleAdvertisment, errs, nil
 			})
 
 }
 
-func (s *CollectorSuite) sendEnvironmentalAdvertisment(adv EnvironmentalAdvertisment) {
-	s.bleAdvertisment <- fromEnvironmentalAdvertisment(adv)
+func (s *CollectorSuite) sendEnvironmentalAdvertisment(receivedAt time.Time, adv EnvironmentalAdvertisment) {
+	s.bleAdvertisment <- TimedAdvertisement{
+		ReceivedAt: receivedAt,
+		Adv:        fromEnvironmentalAdvertisment(adv),
+	}
 
 }
 
 func (s *CollectorSuite) SetupTest() {
-	s.bleAdvertisment = make(chan ble.Advertisement)
 	s.journal = NewMockDataJournal(s.T())
-	s.device = NewMockBLEDevice(s.T())
+	s.scanner = NewMockBLEScanner(s.T())
+	s.cron = NewMockCronScheduler(s.T())
 	s.journal.EXPECT().GetActiveAssignments(mock.Anything).Return([]SensorAssignement{}, nil).Once()
 
 	var err error
 
-	s.collector, err = NewCollector(NewCollectorConfig(withJournal(s.journal), withDevice(s.device)))
+	s.collector, err = NewCollector(
+		NewCollectorConfig(
+			withJournal(s.journal),
+			withScanner(s.scanner),
+			withCron(s.cron),
+		),
+	)
 	s.Require().NoError(err)
 
 	s.ctx, s.cancel = context.WithTimeout(context.Background(), 500*time.Millisecond)
 
 	s.collectError = make(chan error)
 	s.expectScanLoop()
+	s.cron.EXPECT().ScheduleLoop(mock.Anything, HourOfDay{Hour: 1, Minute: 42}, mock.Anything)
 	go func() {
 		defer close(s.collectError)
 
 		s.collectError <- s.collector.Collect(s.ctx)
-
 	}()
 
 }
@@ -125,9 +132,6 @@ func (s *CollectorSuite) TearDownTest() {
 	s.Require().NoError(err)
 	_, ok := <-s.collectError
 	s.Assert().Equal(false, ok)
-
-	s.journal.AssertExpectations(s.T())
-	s.device.AssertExpectations(s.T())
 }
 
 func (s *CollectorSuite) TestEmpty() {}
@@ -150,15 +154,16 @@ func (s *CollectorSuite) TestDuplicates() {
 	s.Require().NotNil(subscription)
 	var wg sync.WaitGroup
 	wg.Go(func() {
-		s.sendEnvironmentalAdvertisment(adv)
-		s.sendEnvironmentalAdvertisment(adv)
+		s.sendEnvironmentalAdvertisment(t, adv)
+		s.sendEnvironmentalAdvertisment(t.Add(100*time.Millisecond), adv)
 	})
 
 	received, ok := <-subscription
 
 	s.Require().True(ok)
 	s.Assert().Equal(adv.address.String(), received.Address)
-	s.Assert().Equal(adv.data.CurrentPoint.Timestamp.ToTime(), received.Current.Timestamp)
+	s.Assert().Equal(t, received.Current.Timestamp)
+	s.Assert().Equal(t, received.LastSeen)
 
 	wg.Wait()
 

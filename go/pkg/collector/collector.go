@@ -401,7 +401,7 @@ func NewCollector(config CollectorConfig) (*Collector, error) {
 	}
 
 	res.journal = res.config.deps.journal
-	res.scanner = NewScanner(res.config.deps.device)
+	res.scanner = res.config.deps.scanner
 	res.cron = res.config.deps.cron
 	res.clock = res.config.deps.clock
 	res.config.deps = nil
