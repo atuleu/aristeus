@@ -6,6 +6,7 @@ packages:
       BLEScanner:
       Clock:
       CronScheduler:
+      environmentalOperator:
   github.com/go-ble/ble:
     config:
       dir: "internal/blemock"

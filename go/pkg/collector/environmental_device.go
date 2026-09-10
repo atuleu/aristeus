@@ -123,6 +123,7 @@ func NewEnvironmentalDevice(adv EnvironmentalAdvertisment) (*EnvironmentalDevice
 		},
 	}
 
+	res.TimeOffset = adv.receivedAt.Sub(res.Current.Timestamp)
 	return res, nil
 }
 
@@ -135,6 +136,8 @@ func (d *EnvironmentalDevice) updateData(adv EnvironmentalAdvertisment) Environm
 
 	d.Battery = adv.data.Battery.Float64()
 	d.MemoryUsage = adv.data.Memory.Float64()
+	d.Current.Timestamp = adv.data.CurrentPoint.Timestamp.ToTime()
+	d.TimeOffset = adv.receivedAt.Sub(d.Current.Timestamp)
 
 	reading.setData(adv.data.CurrentPoint)
 

@@ -159,6 +159,12 @@ func withClock(clock Clock) CollectorConfigOption {
 	}
 }
 
+func withEnvironmentalOperator(eo environmentalOperator) CollectorConfigOption {
+	return func(config *CollectorConfig) {
+		config.deps.environmentalOperator = eo
+	}
+}
+
 func NewCollectorConfig(opts ...CollectorConfigOption) CollectorConfig {
 	cfg := defaultCollectorConfig()
 	for _, opt := range opts {

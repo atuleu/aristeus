@@ -138,17 +138,15 @@ func (c *Collector) updateDevice(ctx context.Context, dev *EnvironmentalDevice, 
 		return
 	}
 
-	dev.TimeOffset = adv.receivedAt.Sub(adv.data.CurrentPoint.Timestamp.ToTime())
-
-	if dev.TimeOffset.Abs() > c.config.MaximalTimeOffset {
-		c.scanner.Schedule(c.synchronizeEnvironmentalDeviceTask(adv.address))
-	}
-
 	c.pushEnvironmentalUpdate(ctx, dev, adv)
 }
 
 func (c *Collector) pushEnvironmentalUpdate(ctx context.Context, dev *EnvironmentalDevice, adv EnvironmentalAdvertisment) {
 	reading := dev.updateData(adv)
+
+	if dev.TimeOffset.Abs() > c.config.MaximalTimeOffset {
+		c.scanner.Schedule(c.synchronizeEnvironmentalDeviceTask(adv.address))
+	}
 
 	c.envPublisher.Update(dev.clone())
 
@@ -250,7 +248,7 @@ func (c *Collector) Collect(ctx context.Context) error {
 				)
 			}
 
-			wg.Go(func() { c.onAdvertisment(ctx, eAdv) })
+			c.onAdvertisment(ctx, eAdv)
 		}
 	})
 

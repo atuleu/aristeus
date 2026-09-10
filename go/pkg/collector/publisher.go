@@ -12,7 +12,7 @@ type Publisher[T any] struct {
 }
 
 func (p *Publisher[T]) Subscribe(initialValues []T) <-chan T {
-	res := make(chan T, len(initialValues))
+	res := make(chan T, max(len(initialValues), 2))
 	p.mx.Lock()
 	defer p.mx.Unlock()
 
