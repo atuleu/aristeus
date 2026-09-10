@@ -29,9 +29,10 @@ type BLEScanner interface {
 }
 
 type bleScanner struct {
-	device BLEDevice
-	tasks  chan BLETask
-	mx     sync.RWMutex
+	device  BLEDevice
+	tasks   chan BLETask
+	mx      sync.RWMutex
+	closing chan struct{}
 }
 
 func NewScanner(dev BLEDevice) BLEScanner {
@@ -48,6 +49,8 @@ func (s *bleScanner) ScanLoop(ctx context.Context, filter ble.AdvFilter) (<-chan
 		return nil, nil, errors.New("already started")
 	}
 	s.tasks = make(chan BLETask, 64)
+	s.closing = make(chan struct{})
+
 	advertisments := make(chan TimedAdvertisement, 64)
 	errors := make(chan error, 1)
 	go s.scanLoop(ctx, filter, advertisments, errors)
@@ -67,10 +70,20 @@ func (s *bleScanner) scanLoop(ctx context.Context, filter ble.AdvFilter, adverti
 		logger.Debug("closed errs")
 	}()
 	defer func() {
+		// allow for all pending schedule to terminate
+		close(s.closing)
+
+		// locking for closing
 		s.mx.Lock()
 		defer s.mx.Unlock()
+
 		close(s.tasks)
+		for t := range s.tasks {
+			logger.Warn("dropping task", slog.Any("task", t))
+		}
+
 		s.tasks = nil
+		s.closing = nil
 		logger.Debug("closed tasks")
 	}()
 
@@ -168,6 +181,10 @@ func (s *bleScanner) Schedule(task BLETask) error {
 	if s.tasks == nil {
 		return errors.New("not started")
 	}
-	s.tasks <- task
-	return nil
+	select {
+	case <-s.closing:
+		return errors.New("closing")
+	case s.tasks <- task:
+		return nil
+	}
 }
