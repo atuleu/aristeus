@@ -1,9 +1,12 @@
 package collector
 
 import (
+	"cmp"
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
+	"slices"
 	"time"
 
 	_ "modernc.org/sqlite"
@@ -25,17 +28,66 @@ func NewSQLiteStore(ctx context.Context, path string) (DataJournal, error) {
 
 	err = res.ensureSchema(ctx)
 	if err != nil {
-		return nil, err
+		return nil, errors.Join(err, res.db.Close())
 	}
 
-	return &SQLiteStore{db: db}, nil
+	return res, nil
 }
 
 func (s *SQLiteStore) Close() error {
 	return s.db.Close()
 }
 
-func (s *SQLiteStore) SaveEnvironmentalReadings(ctx context.Context, readings []EnvironmentalReading) error {
+func filterEnvironmentalReading(input []EnvironmentalReading) (locationsIDs []string, assignements []SensorAssignement, output []EnvironmentalReading, err error) {
+	output = make([]EnvironmentalReading, 0, len(input))
+	locationSet := make(map[string]bool)
+
+	type untimedAssignments struct {
+		SensorID, LocationID string
+	}
+	assignementsSet := make(map[untimedAssignments]bool)
+
+	slices.SortStableFunc(input, func(a, b EnvironmentalReading) int {
+		if n := cmp.Compare(a.LocationID, b.LocationID); n != 0 {
+			return n
+		}
+		return a.Timestamp.Compare(b.Timestamp)
+	})
+
+	for _, r := range input {
+		if r.Temperature_C == nil && r.Humidity_percent == nil && r.Pressure_hPa == nil && r.CO2_ppm == nil {
+			continue
+		}
+
+		if len(r.LocationID) == 0 {
+			return nil, nil, nil, errors.New("empty LocationID")
+		}
+		if len(r.SensorID) == 0 {
+			return nil, nil, nil, errors.New("empty SensorID")
+		}
+
+		output = append(output, r)
+
+		if locationSet[r.LocationID] == false {
+			locationSet[r.LocationID] = true
+			locationsIDs = append(locationsIDs, r.LocationID)
+		}
+
+		a := untimedAssignments{SensorID: r.SensorID, LocationID: r.LocationID}
+		if assignementsSet[a] == false {
+			assignementsSet[a] = true
+			assignements = append(assignements, SensorAssignement{
+				SensorID:    r.SensorID,
+				LocationID:  r.LocationID,
+				InstalledAt: r.Timestamp,
+			})
+		}
+	}
+
+	return
+}
+
+func (s *SQLiteStore) SaveEnvironmentalReadings(ctx context.Context, readings []EnvironmentalReading) (err error) {
 	insertion_query := `INSERT OR IGNORE INTO environmental_readings (
 location_id,
 sensor_id,
@@ -47,58 +99,6 @@ pressure_hpa,
 co2_ppm
 ) VALUES (?,?,?,?,?,?,?,?);
 `
-
-	for _, r := range readings {
-		if len(r.LocationID) == 0 {
-			return fmt.Errorf("LocationID cannot be empty")
-		}
-		if len(r.SensorID) == 0 {
-			return fmt.Errorf("SensorID cannot be empty")
-		}
-
-	}
-
-	for _, r := range readings {
-		if err := s.maintainLocationAndAssignments(ctx, r.LocationID, r.SensorID, r.Timestamp); err != nil {
-			return err
-		}
-	}
-
-	added := 0
-	for _, r := range readings {
-		if r.Temperature_C == nil && r.Humidity_percent == nil && r.Pressure_hPa == nil && r.CO2_ppm == nil {
-			continue
-		}
-
-		_, err := s.db.ExecContext(ctx, insertion_query,
-			r.LocationID,
-			r.SensorID,
-			r.Timestamp.Unix(),
-			r.ReceivedAt.UnixMilli(),
-			r.Temperature_C,
-			r.Humidity_percent,
-			r.Pressure_hPa,
-			r.CO2_ppm)
-		if err != nil {
-			return fmt.Errorf("could not store reading (%s,%s): %w", r.LocationID, r.Timestamp, err)
-		}
-		added += 1
-	}
-
-	if added == 0 && len(readings) != 0 {
-		return fmt.Errorf("all records were empty")
-	}
-	return nil
-}
-
-func (s *SQLiteStore) maintainLocationAndAssignments(ctx context.Context, locationID, sensorID string, timestamp time.Time) error {
-	if len(locationID) == 0 {
-		return fmt.Errorf("LocationID cannot be empty")
-	}
-	if len(sensorID) == 0 {
-		return fmt.Errorf("SensorID cannot be empty")
-	}
-
 	locations_query := `
 INSERT OR IGNORE INTO locations (location_id)
 VALUES (?);
@@ -125,37 +125,74 @@ WHERE NOT EXISTS (
 		AND removed_at IS NULL
 );
 `
-
-	_, err := s.db.ExecContext(ctx, locations_query, locationID)
+	locationIDs, assignements, readings, err := filterEnvironmentalReading(readings)
 	if err != nil {
-		return fmt.Errorf("could not add missing location: %w", err)
+		return fmt.Errorf("invalid EnvironmentalReading: %w", err)
+	}
+
+	if len(readings) == 0 {
+		return errors.New("no non-empty readings")
 	}
 
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return fmt.Errorf("failed to begin transaction: %w", err)
 	}
+	defer func() {
+		if rbErr := tx.Rollback(); rbErr != nil && rbErr != sql.ErrTxDone {
+			err = errors.Join(err, rbErr)
+		}
+	}()
 
-	_, err = tx.ExecContext(ctx, clear_previous_assignments_query,
-		sql.Named("sensor_id", sensorID),
-		sql.Named("location_id", locationID),
-		sql.Named("timestamp", timestamp.Unix()))
-	if err != nil {
-		return fmt.Errorf("could not remove outdated assignments: %w", err)
+	for _, locationID := range locationIDs {
+		_, err := tx.ExecContext(ctx, locations_query, locationID)
+		if err != nil {
+			return fmt.Errorf("could not add missing '%s' location: %w", locationID, err)
+		}
 	}
 
-	_, err = tx.ExecContext(ctx, add_missing_assginements_query,
-		sql.Named("sensor_id", sensorID),
-		sql.Named("location_id", locationID),
-		sql.Named("timestamp", timestamp.Unix()))
-	if err != nil {
-		return fmt.Errorf("could not add missing assignments: %w", err)
+	for _, assignement := range assignements {
+		_, err := tx.ExecContext(ctx, clear_previous_assignments_query,
+			sql.Named("sensor_id", assignement.SensorID),
+			sql.Named("location_id", assignement.LocationID),
+			sql.Named("timestamp", assignement.InstalledAt.Unix()),
+		)
+		if err != nil {
+			return fmt.Errorf("could not removed outdated assignements: %w", err)
+		}
+
+		_, err = tx.ExecContext(ctx, add_missing_assginements_query,
+			sql.Named("sensor_id", assignement.SensorID),
+			sql.Named("location_id", assignement.LocationID),
+			sql.Named("timestamp", assignement.InstalledAt.Unix()),
+		)
+		if err != nil {
+			return fmt.Errorf("could not add missing assignements: %w", err)
+		}
+
+	}
+
+	for _, r := range readings {
+		_, err := tx.ExecContext(ctx, insertion_query,
+			r.LocationID,
+			r.SensorID,
+			r.Timestamp.Unix(),
+			r.ReceivedAt.UnixMilli(),
+			r.Temperature_C,
+			r.Humidity_percent,
+			r.Pressure_hPa,
+			r.CO2_ppm)
+
+		if err != nil {
+			return fmt.Errorf("could not store reading (%s,%s): %w", r.LocationID, r.Timestamp, err)
+		}
 	}
 
 	err = tx.Commit()
 	if err != nil {
-		return fmt.Errorf("could not update assignments: %w", err)
+		return fmt.Errorf("could not commit transaction: %w", err)
 	}
+
 	return nil
 }
 
@@ -170,14 +207,18 @@ SELECT
 	pressure_hpa,
 	co2_ppm
 FROM environmental_readings
-WHERE location_id = ?
-  AND timestamp >= ?
-  AND timestamp <= ?;
+WHERE
+	location_id = ?
+	AND timestamp >= ?
+	AND timestamp <= ?
+ORDER BY timestamp ASC;
 `
 	rows, err := s.db.QueryContext(ctx, query, locationID, start.Unix(), end.Unix())
 	if err != nil {
 		return nil, fmt.Errorf("could not perform query: %w", err)
 	}
+	defer rows.Close()
+
 	res := make([]EnvironmentalReading, 0)
 	for rows.Next() {
 		r := EnvironmentalReading{LocationID: locationID}
@@ -190,7 +231,12 @@ WHERE location_id = ?
 		res = append(res, r)
 	}
 
-	return res, nil
+	err = rows.Err()
+	if err != nil {
+		err = fmt.Errorf("incomplete read: %w", err)
+	}
+
+	return res, err
 }
 
 func (s *SQLiteStore) SaveLocation(ctx context.Context, loc SensorLocation) error {
@@ -221,12 +267,15 @@ SELECT
 	removed_at
 FROM assignments
 WHERE
-	location_id = ?;
+	location_id = ?
+ORDER BY installed_at ASC;
 `
 	rows, err := s.db.QueryContext(ctx, query, locationID)
 	if err != nil {
 		return nil, fmt.Errorf("could not perform assignment query: %w", err)
 	}
+	defer rows.Close()
+
 	var res []SensorAssignement
 	for rows.Next() {
 		var a SensorAssignement
@@ -244,7 +293,12 @@ WHERE
 		}
 		res = append(res, a)
 	}
-	return res, nil
+	err = rows.Err()
+	if err != nil {
+		err = fmt.Errorf("incomplete read: %w", err)
+	}
+
+	return res, err
 
 }
 
@@ -264,12 +318,15 @@ SELECT
 	removed_at
 FROM assignments
 WHERE
-	sensor_id = ?;
+	sensor_id = ?
+ORDER BY installed_at ASC;
 `
 	rows, err := s.db.QueryContext(ctx, query, sensorID)
 	if err != nil {
 		return nil, fmt.Errorf("could not perform assignment query: %w", err)
 	}
+	defer rows.Close()
+
 	var res []SensorAssignement
 	for rows.Next() {
 		var a SensorAssignement
@@ -287,7 +344,13 @@ WHERE
 
 		res = append(res, a)
 	}
-	return res, nil
+
+	err = rows.Err()
+	if err != nil {
+		err = fmt.Errorf("incomplete read: %w", err)
+	}
+
+	return res, err
 }
 
 func (s *SQLiteStore) GetActiveAssignments(ctx context.Context) ([]SensorAssignement, error) {
@@ -298,12 +361,15 @@ SELECT
 	installed_at
 FROM assignments
 WHERE
-	removed_at IS NULL;
+	removed_at IS NULL
+ORDER BY location_id ASC;
 `
 	rows, err := s.db.QueryContext(ctx, query)
 	if err != nil {
 		return nil, fmt.Errorf("could not retrieve active assignments: %w", err)
 	}
+	defer rows.Close()
+
 	var res []SensorAssignement = nil
 	for rows.Next() {
 		var a SensorAssignement
@@ -314,11 +380,17 @@ WHERE
 		a.InstalledAt = time.Unix(installedAt, 0)
 		res = append(res, a)
 	}
-	return res, nil
+
+	err = rows.Err()
+	if err != nil {
+		err = fmt.Errorf("incomplete read: %w", err)
+	}
+
+	return res, err
 
 }
 
-func (s *SQLiteStore) ensureSchema(ctx context.Context) error {
+func (s *SQLiteStore) ensureSchema(ctx context.Context) (err error) {
 	pragmas := `
 PRAGMA journal_mode=WAL;
 PRAGMA synchronous= NORMAL;
@@ -333,6 +405,12 @@ PRAGMA temp_store= MEMORY;
 	if err != nil {
 		return fmt.Errorf("failed to begin migration tx: %w", err)
 	}
+
+	defer func() {
+		if rbErr := tx.Rollback(); rbErr != nil && rbErr != sql.ErrTxDone {
+			err = errors.Join(err, rbErr)
+		}
+	}()
 
 	schema := `
 -- 1. Locations

@@ -100,118 +100,63 @@ func (s *SQLiteStoreTestSuite) TestAssignmentConsistency() {
 		EnvironmentalReading{LocationID: "loc_b", SensorID: "sensor_d", Timestamp: a, Temperature_C: newValue(22.2)},
 		EnvironmentalReading{LocationID: "loc_b", SensorID: "sensor_d", Timestamp: b, Temperature_C: newValue(22.2)},
 		EnvironmentalReading{LocationID: "loc_b", SensorID: "sensor_d", Timestamp: c, Temperature_C: newValue(22.2)},
-		EnvironmentalReading{LocationID: "loc_c", SensorID: "sensor_e", Timestamp: a, Temperature_C: newValue(22.2)},
+		EnvironmentalReading{LocationID: "loc_c", SensorID: "sensor_e", Timestamp: b, Temperature_C: newValue(22.2)},
 		EnvironmentalReading{LocationID: "loc_c", SensorID: "sensor_a", Timestamp: c, Temperature_C: newValue(22.2)},
 	}))
 
 	assignments, err := s.journal.GetSensorAssignements(s.ctx, "sensor_a")
 	s.Require().NoError(err)
-	if s.Assert().Len(assignments, 2) == true {
-		s.Assert().Equal("sensor_a", assignments[0].SensorID)
-		s.Assert().Equal("loc_a", assignments[0].LocationID)
-		s.Assert().Equal(a, assignments[0].InstalledAt, "a")
-		if s.Assert().NotNil(assignments[0].RemovedAt) == true {
-			s.Assert().Equal(b, *assignments[0].RemovedAt, "b")
-		}
-
-		s.Assert().Equal("sensor_a", assignments[1].SensorID)
-		s.Assert().Equal("loc_c", assignments[1].LocationID)
-		s.Assert().Equal(c, assignments[1].InstalledAt)
-		s.Assert().Nil(assignments[1].RemovedAt)
-
-	}
+	s.Assert().Equal([]SensorAssignement{
+		{LocationID: "loc_a", SensorID: "sensor_a", InstalledAt: a, RemovedAt: newValue(b)},
+		{LocationID: "loc_c", SensorID: "sensor_a", InstalledAt: c},
+	}, assignments)
 
 	assignments, err = s.journal.GetSensorAssignements(s.ctx, "sensor_b")
 	s.Require().NoError(err)
-	if s.Assert().Len(assignments, 1) == true {
-		s.Assert().Equal("sensor_b", assignments[0].SensorID)
-		s.Assert().Equal("loc_a", assignments[0].LocationID)
-		s.Assert().Equal(b, assignments[0].InstalledAt, "b")
-		s.Assert().Nil(assignments[0].RemovedAt)
-	}
+	s.Assert().Equal([]SensorAssignement{
+		{LocationID: "loc_a", SensorID: "sensor_b", InstalledAt: b},
+	}, assignments)
 
 	assignments, err = s.journal.GetSensorAssignements(s.ctx, "sensor_d")
 	s.Require().NoError(err)
-	if s.Assert().Len(assignments, 1) == true {
-		s.Assert().Equal("sensor_d", assignments[0].SensorID)
-		s.Assert().Equal("loc_b", assignments[0].LocationID)
-		s.Assert().Equal(a, assignments[0].InstalledAt, "a")
-		s.Assert().Nil(assignments[0].RemovedAt)
-	}
+	s.Assert().Equal([]SensorAssignement{
+		{LocationID: "loc_b", SensorID: "sensor_d", InstalledAt: a},
+	}, assignments)
 
 	assignments, err = s.journal.GetSensorAssignements(s.ctx, "sensor_e")
 	s.Require().NoError(err)
-	if s.Assert().Len(assignments, 1) == true {
-		s.Assert().Equal("sensor_e", assignments[0].SensorID)
-		s.Assert().Equal("loc_c", assignments[0].LocationID)
-		s.Assert().Equal(a, assignments[0].InstalledAt, "a")
-		if s.Assert().NotNil(assignments[0].RemovedAt) == true {
-			s.Assert().Equal(c, *assignments[0].RemovedAt, "c")
-		}
-	}
+	s.Assert().Equal([]SensorAssignement{
+		{LocationID: "loc_c", SensorID: "sensor_e", InstalledAt: b, RemovedAt: newValue(c)},
+	}, assignments)
 
 	assignments, err = s.journal.GetLocationAssignements(s.ctx, "loc_a")
 	s.Require().NoError(err)
-	if s.Assert().Len(assignments, 2) == true {
-		s.Assert().Equal("sensor_a", assignments[0].SensorID)
-		s.Assert().Equal("loc_a", assignments[0].LocationID)
-		s.Assert().Equal(a, assignments[0].InstalledAt, "a")
-		if s.Assert().NotNil(assignments[0].RemovedAt) == true {
-			s.Assert().Equal(b, *assignments[0].RemovedAt, "b")
-		}
-
-		s.Assert().Equal("sensor_b", assignments[1].SensorID)
-		s.Assert().Equal("loc_a", assignments[1].LocationID)
-		s.Assert().Equal(b, assignments[1].InstalledAt, "b")
-		s.Assert().Nil(assignments[1].RemovedAt)
-
-	}
+	s.Assert().Equal([]SensorAssignement{
+		{LocationID: "loc_a", SensorID: "sensor_a", InstalledAt: a, RemovedAt: newValue(b)},
+		{LocationID: "loc_a", SensorID: "sensor_b", InstalledAt: b, RemovedAt: nil},
+	}, assignments)
 
 	assignments, err = s.journal.GetLocationAssignements(s.ctx, "loc_b")
 	s.Require().NoError(err)
-	if s.Assert().Len(assignments, 1) == true {
-		s.Assert().Equal("sensor_d", assignments[0].SensorID)
-		s.Assert().Equal("loc_b", assignments[0].LocationID)
-		s.Assert().Equal(a, assignments[0].InstalledAt, "a")
-		s.Assert().Nil(assignments[0].RemovedAt)
-	}
+	s.Assert().Equal([]SensorAssignement{
+		{LocationID: "loc_b", SensorID: "sensor_d", InstalledAt: a},
+	}, assignments)
 
 	assignments, err = s.journal.GetLocationAssignements(s.ctx, "loc_c")
-	s.Require().NoError(err)
-	if s.Assert().Len(assignments, 2) == true {
-		s.Assert().Equal("sensor_e", assignments[0].SensorID)
-		s.Assert().Equal("loc_c", assignments[0].LocationID)
-		s.Assert().Equal(a, assignments[0].InstalledAt, "a")
-		if s.Assert().NotNil(assignments[0].RemovedAt) == true {
-			s.Assert().Equal(c, *assignments[0].RemovedAt, "c")
-		}
 
-		s.Assert().Equal("sensor_a", assignments[1].SensorID)
-		s.Assert().Equal("loc_c", assignments[1].LocationID)
-		s.Assert().Equal(c, assignments[1].InstalledAt, "c")
-		s.Assert().Nil(assignments[1].RemovedAt)
-	}
+	s.Require().NoError(err)
+	s.Assert().Equal([]SensorAssignement{
+		{LocationID: "loc_c", SensorID: "sensor_e", InstalledAt: b, RemovedAt: newValue(c)},
+		{LocationID: "loc_c", SensorID: "sensor_a", InstalledAt: c},
+	}, assignments)
 
 	assignments, err = s.journal.GetActiveAssignments(s.ctx)
 	s.Require().NoError(err)
-	if s.Assert().Len(assignments, 3) {
-		// Result are (sensor_id,installed_at) ordered
-		s.Assert().Equal("sensor_a", assignments[0].SensorID)
-		s.Assert().Equal("loc_c", assignments[0].LocationID)
-		s.Assert().Equal(c, assignments[0].InstalledAt, "c")
-		s.Assert().Nil(assignments[0].RemovedAt)
-
-		s.Assert().Equal("sensor_b", assignments[1].SensorID)
-		s.Assert().Equal("loc_a", assignments[1].LocationID)
-		s.Assert().Equal(b, assignments[1].InstalledAt, "b")
-		s.Assert().Nil(assignments[1].RemovedAt)
-
-		s.Assert().Equal("sensor_d", assignments[2].SensorID)
-		s.Assert().Equal("loc_b", assignments[2].LocationID)
-		s.Assert().Equal(a, assignments[2].InstalledAt, "a")
-		s.Assert().Nil(assignments[2].RemovedAt)
-
-	}
+	s.Assert().Equal([]SensorAssignement{
+		{LocationID: "loc_a", SensorID: "sensor_b", InstalledAt: b},
+		{LocationID: "loc_b", SensorID: "sensor_d", InstalledAt: a},
+		{LocationID: "loc_c", SensorID: "sensor_a", InstalledAt: c},
+	}, assignments)
 
 }
 
