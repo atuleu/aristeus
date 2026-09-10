@@ -13,10 +13,11 @@ import (
 )
 
 type collectorDependencies struct {
-	journal DataJournal // for dependency injection
-	scanner BLEScanner
-	cron    CronScheduler
-	clock   Clock
+	journal               DataJournal // for dependency injection
+	scanner               BLEScanner
+	cron                  CronScheduler
+	clock                 Clock
+	environmentalOperator environmentalOperator
 }
 
 func (c *collectorDependencies) doMissingInjection() error {
@@ -42,6 +43,10 @@ func (c *collectorDependencies) doMissingInjection() error {
 
 	if c.cron == nil {
 		c.cron = NewCronScheduler(c.clock)
+	}
+
+	if c.environmentalOperator == nil {
+		c.environmentalOperator = environmentalOperatorImpl{}
 	}
 
 	return nil

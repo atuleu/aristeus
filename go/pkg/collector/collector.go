@@ -14,6 +14,11 @@ import (
 	"github.com/go-ble/ble"
 )
 
+type environmentalOperator interface {
+	SynchronizeDevice(ctx context.Context, dev BLEDevice, address ble.Addr) error
+	ReadJournalAndEraseDevice(ctx context.Context, dev BLEDevice, address ble.Addr, locationID string, journal DataJournal) error
+}
+
 type Collector struct {
 	config CollectorConfig
 
@@ -25,10 +30,10 @@ type Collector struct {
 
 	logger *slog.Logger
 
-	journal DataJournal
-	scanner BLEScanner
-	cron    CronScheduler
-	clock   Clock
+	journal               DataJournal
+	scanner               BLEScanner
+	cron                  CronScheduler
+	environmentalOperator environmentalOperator
 }
 
 func (c *Collector) bleAdvFilter() ble.AdvFilter {
@@ -136,7 +141,7 @@ func (c *Collector) updateDevice(ctx context.Context, dev *EnvironmentalDevice, 
 	dev.TimeOffset = adv.receivedAt.Sub(adv.data.CurrentPoint.Timestamp.ToTime())
 
 	if dev.TimeOffset.Abs() > c.config.MaximalTimeOffset {
-		c.scanner.Schedule(c.synchronizeEnvironmentalDevice(adv.address))
+		c.scanner.Schedule(c.synchronizeEnvironmentalDeviceTask(adv.address))
 	}
 
 	c.pushEnvironmentalUpdate(ctx, dev, adv)
@@ -261,7 +266,7 @@ func (c *Collector) janitorTasks(now time.Time) {
 	activeThreshold := now.Add(-c.config.ActiveThresholdDuration)
 	for addr, envDev := range c.devices {
 		if envDev.LastSeen.Before(activeThreshold) {
-			c.logger.Info("not performing janitor task",
+			c.logger.Info("not performing janitor task, as device seems inactive",
 				slog.String("address", envDev.Address),
 				slog.Time("last_seen", envDev.LastSeen),
 			)
@@ -270,115 +275,115 @@ func (c *Collector) janitorTasks(now time.Time) {
 
 		memoryUsage := envDev.MemoryUsage
 		locationID := envDev.Location.LocationID
+		targetAddress := addr
 		go func() {
 			delay := time.Duration(rand.Int63n(c.config.ConnectionJitter.Nanoseconds()))
 			time.Sleep(delay)
+
 			if memoryUsage >= 95 {
-				c.scanner.Schedule(c.readbackAndEraseEnvironmentalDeviceMemory(addr, locationID))
+				c.scanner.Schedule(c.readAndEraseEnvironmentalDeviceMemoryTask(targetAddress, locationID))
 			}
-			c.scanner.Schedule(c.synchronizeEnvironmentalDevice(addr))
+			c.scanner.Schedule(c.synchronizeEnvironmentalDeviceTask(targetAddress))
 		}()
 	}
 }
 
-func (c *Collector) readbackAndEraseEnvironmentalDeviceMemory(addr ble.Addr, locationID string) BLETask {
-	logger := c.logger.With(slog.String("target_address", addr.String()))
+func (c *Collector) readAndEraseEnvironmentalDeviceMemoryTask(addr ble.Addr, locationID string) BLETask {
+	logger := c.logger.With(slog.String("address", addr.String()))
 	return func(ctx context.Context, dev BLEDevice) {
-		ctxConn, cancel := context.WithTimeout(ctx, 5*time.Minute)
-		defer cancel()
-		client, err := arisble.NewBLEDeviceConn(dev, ctxConn, addr)
+		err := c.environmentalOperator.ReadJournalAndEraseDevice(ctx, dev, addr, locationID, c.journal)
 		if err != nil {
-			logger.Error("could not connect to device to clean-up memory",
+			logger.Error("could not purge device data",
 				slog.String("error", err.Error()),
 			)
-			return
+		} else {
+			c.logger.Info("purged device memory")
 		}
-
-		reports, err := client.ReportRecords(arisble.TimestampNaN, arisble.TimestampNaN)
-		var readings []EnvironmentalReading
-		reading := EnvironmentalReading{
-			LocationID: locationID,
-			SensorID:   addr.String(),
-		}
-		notDone := true
-		for notDone {
-			var result arisble.RACPResult[arisble.DataPoint]
-			select {
-			case <-ctxConn.Done():
-				logger.Error("could not retrieve data",
-					slog.String("error", ctxConn.Err().Error()),
-				)
-				return
-			case result, notDone = <-reports:
-				if result.Error != nil {
-					logger.Error("could not retrieve data",
-						slog.String("error", result.Error.Error()))
-					return
-				}
-				reading.ReceivedAt = c.clock.Now()
-				reading.setData(result.Value)
-				readings = append(readings, reading)
-			}
-		}
-
-		err = c.journal.SaveEnvironmentalReadings(ctx, readings)
-		if err != nil {
-			logger.Error("could not save readings to journal",
-				slog.String("error", err.Error()),
-			)
-			return
-		}
-
-		errs, err := client.DeleteRecords(arisble.TimestampNaN, arisble.TimestampNaN)
-		if err != nil {
-			logger.Error("could not start erase device memory",
-				slog.String("error", err.Error()),
-			)
-			return
-		}
-		select {
-		case <-ctxConn.Done():
-			err = errors.New("timeout")
-		case err, notDone = <-errs:
-			if notDone == false {
-				err = errors.New("early delete termination")
-			}
-		}
-
-		if err != nil {
-			logger.Error("could not erase device memory",
-				slog.String("error", err.Error()),
-			)
-		}
-
 	}
 }
 
-func (c *Collector) synchronizeEnvironmentalDevice(targetAddress ble.Addr) BLETask {
-
-	logger := c.logger.With(slog.String("target_address", targetAddress.String()))
-
+func (c *Collector) synchronizeEnvironmentalDeviceTask(addr ble.Addr) BLETask {
+	logger := c.logger.With(slog.String("address", addr.String()))
 	return func(ctx context.Context, dev BLEDevice) {
-		ctxConn, cancel := context.WithTimeout(ctx, 60*time.Second)
-		defer cancel()
-
-		client, err := arisble.NewBLEDeviceConn(dev, ctxConn, targetAddress)
-		if err != nil {
-			logger.Error("could not connect to device for time synchronization",
-				slog.String("error", err.Error()),
-			)
-			return
-		}
-		err = client.SynchronizeBLEDevice()
+		err := c.environmentalOperator.SynchronizeDevice(ctx, dev, addr)
 		if err != nil {
 			logger.Error("could not synchronize device",
 				slog.String("error", err.Error()),
 			)
-			return
+		} else {
+			c.logger.Info("synchronized device")
 		}
-		logger.Info("synchronized device")
+	}
+}
+
+type environmentalOperatorImpl struct {
+}
+
+func (eoi environmentalOperatorImpl) ReadJournalAndEraseDevice(ctx context.Context, dev BLEDevice, addr ble.Addr, locationID string, journal DataJournal) error {
+	ctxConn, cancel := context.WithTimeout(ctx, 5*time.Minute)
+	defer cancel()
+	client, err := arisble.NewBLEDeviceConn(dev, ctxConn, addr)
+	if err != nil {
+		return fmt.Errorf("could not connect to device: %w", err)
 	}
 
+	reports, err := client.ReportRecords(arisble.TimestampNaN, arisble.TimestampNaN)
+	var readings []EnvironmentalReading
+	reading := EnvironmentalReading{
+		LocationID: locationID,
+		SensorID:   addr.String(),
+	}
+	notDone := true
+	for notDone {
+		var result arisble.RACPResult[arisble.DataPoint]
+		select {
+		case <-ctxConn.Done():
+			return fmt.Errorf("could not retrieve device data: %w", err)
+		case result, notDone = <-reports:
+			if result.Error != nil {
+				return fmt.Errorf("error while retrieving device data: %w", err)
+			}
+			reading.ReceivedAt = time.Now()
+			reading.setData(result.Value)
+			readings = append(readings, reading)
+		}
+	}
+	err = journal.SaveEnvironmentalReadings(ctx, readings)
+	if err != nil {
+		return fmt.Errorf("could not save device data to journal: %w", err)
+	}
+
+	errs, err := client.DeleteRecords(arisble.TimestampNaN, arisble.TimestampNaN)
+	if err != nil {
+		return fmt.Errorf("could not send delete command to device: %w", err)
+	}
+	select {
+	case <-ctxConn.Done():
+		err = ctx.Err()
+	case err, notDone = <-errs:
+		if notDone == false {
+			err = errors.New("early delete termination")
+		}
+	}
+	if err != nil {
+		return fmt.Errorf("could not delete device's data: %w", err)
+	}
+	return nil
+}
+
+func (eoi environmentalOperatorImpl) SynchronizeDevice(ctx context.Context, dev BLEDevice, targetAddress ble.Addr) error {
+	ctxConn, cancel := context.WithTimeout(ctx, 2*time.Minute)
+	defer cancel()
+
+	client, err := arisble.NewBLEDeviceConn(dev, ctxConn, targetAddress)
+	if err != nil {
+		return fmt.Errorf("could not connect to device: %w", err)
+	}
+	err = client.SynchronizeBLEDevice()
+	if err != nil {
+		return fmt.Errorf("could not synchronize device: %w", err)
+	}
+	return nil
 }
 
 // Creates a new collector.
@@ -403,7 +408,7 @@ func NewCollector(config CollectorConfig) (*Collector, error) {
 	res.journal = res.config.deps.journal
 	res.scanner = res.config.deps.scanner
 	res.cron = res.config.deps.cron
-	res.clock = res.config.deps.clock
+	res.environmentalOperator = res.config.deps.environmentalOperator
 	res.config.deps = nil
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
