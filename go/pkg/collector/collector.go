@@ -20,8 +20,8 @@ type environmentalOperator interface {
 }
 
 type Collector struct {
-	config CollectorConfig
-
+	config       CollectorConfig
+	wg           sync.WaitGroup
 	mx           sync.RWMutex
 	devices      map[ble.Addr]*EnvironmentalDevice
 	envPublisher Publisher[EnvironmentalDevice]
@@ -60,12 +60,12 @@ func (c *Collector) bleAdvFilter() ble.AdvFilter {
 func (c *Collector) onAdvertisment(ctx context.Context, adv EnvironmentalAdvertisment) {
 	c.mx.Lock()
 	defer c.mx.Unlock()
-
 	d, ok := c.devices[adv.address]
 	if ok == false {
 		c.onNewDevice(ctx, adv)
 	} else {
 		c.updateDevice(ctx, d, adv)
+
 	}
 
 }
@@ -116,6 +116,7 @@ func (c *Collector) updateDevice(ctx context.Context, dev *EnvironmentalDevice, 
 	if adv.data.CurrentPoint.Timestamp.ToTime().After(dev.Current.Timestamp) == false {
 		return
 	}
+
 	locationID := BuildLocationID(adv.data.Location)
 
 	if locationID != dev.Location.LocationID &&
@@ -144,13 +145,27 @@ func (c *Collector) updateDevice(ctx context.Context, dev *EnvironmentalDevice, 
 func (c *Collector) pushEnvironmentalUpdate(ctx context.Context, dev *EnvironmentalDevice, adv EnvironmentalAdvertisment) {
 	reading := dev.updateData(adv)
 
+	logger := c.logger.With(slog.String("address", adv.address.String()))
 	if dev.TimeOffset.Abs() > c.config.MaximalTimeOffset {
-		c.scanner.Schedule(c.synchronizeEnvironmentalDeviceTask(adv.address))
+		logger.Warn("device out of sync",
+			slog.Duration("time_offset", dev.TimeOffset),
+		)
+		if err := c.scanner.Schedule(c.synchronizeEnvironmentalDeviceTask(adv.address)); err != nil {
+			logger.Error("could not schedule synchronization",
+				slog.String("error", err.Error()),
+			)
+		}
 	}
 
-	c.envPublisher.Update(dev.clone())
+	if err := c.envPublisher.Update(dev.clone()); err != nil {
+		c.logger.Warn("could not push update",
+			slog.String("error", err.Error()))
+	} else {
+		c.logger.Debug("pushing update",
+			slog.String("address", adv.address.String()))
+	}
 
-	go func() {
+	c.wg.Go(func() {
 		txContext, txCancel := context.WithTimeout(ctx, 5*time.Second)
 		defer txCancel()
 		err := c.journal.SaveEnvironmentalReadings(txContext, []EnvironmentalReading{reading})
@@ -161,10 +176,10 @@ func (c *Collector) pushEnvironmentalUpdate(ctx context.Context, dev *Environmen
 				slog.String("error", err.Error()),
 			)
 		}
-	}()
+	})
 }
 
-func (c *Collector) Subscribe() (ch <-chan EnvironmentalDevice) {
+func (c *Collector) Subscribe(capacity int) (ch <-chan EnvironmentalDevice) {
 	defer func() {
 		c.logger.Info("subscribed", slog.Any("channel", ch))
 	}()
@@ -176,7 +191,7 @@ func (c *Collector) Subscribe() (ch <-chan EnvironmentalDevice) {
 	}
 	c.mx.RUnlock()
 
-	ch = c.envPublisher.Subscribe(devices)
+	ch = c.envPublisher.Subscribe(devices, capacity)
 	return
 }
 
@@ -208,33 +223,31 @@ func (c *Collector) ConnectEnvironmentalDevice(addr ble.Addr, timeout time.Durat
 
 	timeout = min(timeout, 5*time.Minute)
 
-	c.scanner.Schedule(func(ctx context.Context, dev BLEDevice) {
+	return c.scanner.Schedule(func(ctx context.Context, dev BLEDevice) {
 		ctx, cancel := context.WithTimeout(ctx, timeout)
 		defer cancel()
 		conn, err := arisble.NewBLEDeviceConn(dev, ctx, addr)
 		if err != nil {
 			fn(nil, err)
+			return
 		}
 		defer conn.Close()
 		fn(conn, nil)
 	})
-
-	return nil
 }
 
 // Runs the collection loops, i.e. gather BLE data, save it to journal, maintain
 // a list of device we can control
 func (c *Collector) Collect(ctx context.Context) error {
 
-	var wg sync.WaitGroup
-	defer wg.Wait()
+	defer c.wg.Wait()
 
 	advs, errs, err := c.scanner.ScanLoop(ctx, c.bleAdvFilter())
 	if err != nil {
 		return err
 	}
 
-	wg.Go(func() {
+	c.wg.Go(func() {
 		for adv := range advs {
 			logger := c.logger.With(slog.String("address", adv.Adv.Addr().String()))
 			eAdv := EnvironmentalAdvertisment{
@@ -252,12 +265,12 @@ func (c *Collector) Collect(ctx context.Context) error {
 		}
 	})
 
-	wg.Go(func() { c.cron.ScheduleLoop(ctx, HourOfDay{Hour: 1, Minute: 42}, c.janitorTasks) })
+	c.wg.Go(func() { c.cron.ScheduleLoop(ctx, c.config.JanitorTime, c.janitorTasks) })
 
 	return <-errs
 }
 
-func (c *Collector) janitorTasks(now time.Time) {
+func (c *Collector) janitorTasks(ctx context.Context, now time.Time) {
 	c.mx.Lock()
 	defer c.mx.Unlock()
 
@@ -274,15 +287,34 @@ func (c *Collector) janitorTasks(now time.Time) {
 		memoryUsage := envDev.MemoryUsage
 		locationID := envDev.Location.LocationID
 		targetAddress := addr
-		go func() {
+		logger := c.logger.With(slog.String("address", targetAddress.String()))
+		c.wg.Go(func() {
 			delay := time.Duration(rand.Int63n(c.config.ConnectionJitter.Nanoseconds()))
-			time.Sleep(delay)
+			timer := time.NewTimer(delay)
+			defer timer.Stop()
+			select {
+			case <-timer.C:
+			case <-ctx.Done():
+				logger.Error("could not perform janitor task for device",
+					slog.String("address", targetAddress.String()),
+					slog.String("error", ctx.Err().Error()),
+				)
+				return
+			}
 
 			if memoryUsage >= 95 {
-				c.scanner.Schedule(c.readAndEraseEnvironmentalDeviceMemoryTask(targetAddress, locationID))
+				if err := c.scanner.Schedule(c.readAndEraseEnvironmentalDeviceMemoryTask(targetAddress, locationID)); err != nil {
+					logger.Error("could not schedule read and erase for device",
+						slog.String("error", err.Error()),
+					)
+				}
 			}
-			c.scanner.Schedule(c.synchronizeEnvironmentalDeviceTask(targetAddress))
-		}()
+			if err := c.scanner.Schedule(c.synchronizeEnvironmentalDeviceTask(targetAddress)); err != nil {
+				logger.Error("could not schedule device synchronization",
+					slog.String("error", err.Error()),
+				)
+			}
+		})
 	}
 }
 
@@ -324,6 +356,7 @@ func (eoi environmentalOperatorImpl) ReadJournalAndEraseDevice(ctx context.Conte
 	if err != nil {
 		return fmt.Errorf("could not connect to device: %w", err)
 	}
+	defer client.Close()
 
 	reports, err := client.ReportRecords(arisble.TimestampNaN, arisble.TimestampNaN)
 	var readings []EnvironmentalReading
@@ -377,6 +410,8 @@ func (eoi environmentalOperatorImpl) SynchronizeDevice(ctx context.Context, dev 
 	if err != nil {
 		return fmt.Errorf("could not connect to device: %w", err)
 	}
+	defer client.Close()
+
 	err = client.SynchronizeBLEDevice()
 	if err != nil {
 		return fmt.Errorf("could not synchronize device: %w", err)

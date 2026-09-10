@@ -11,8 +11,8 @@ type Publisher[T any] struct {
 	subscriptions map[<-chan T]chan T
 }
 
-func (p *Publisher[T]) Subscribe(initialValues []T) <-chan T {
-	res := make(chan T, max(len(initialValues), 2))
+func (p *Publisher[T]) Subscribe(initialValues []T, capacity int) <-chan T {
+	res := make(chan T, max(len(initialValues), capacity))
 	p.mx.Lock()
 	defer p.mx.Unlock()
 

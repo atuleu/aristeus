@@ -686,7 +686,7 @@ func (_m *MockCronScheduler) EXPECT() *MockCronScheduler_Expecter {
 }
 
 // ScheduleLoop provides a mock function for the type MockCronScheduler
-func (_mock *MockCronScheduler) ScheduleLoop(ctx context.Context, hod HourOfDay, fn func(time.Time)) {
+func (_mock *MockCronScheduler) ScheduleLoop(ctx context.Context, hod HourOfDay, fn func(context.Context, time.Time)) {
 	_mock.Called(ctx, hod, fn)
 	return
 }
@@ -699,12 +699,12 @@ type MockCronScheduler_ScheduleLoop_Call struct {
 // ScheduleLoop is a helper method to define mock.On call
 //   - ctx context.Context
 //   - hod HourOfDay
-//   - fn func(time.Time)
+//   - fn func(context.Context, time.Time)
 func (_e *MockCronScheduler_Expecter) ScheduleLoop(ctx any, hod any, fn any) *MockCronScheduler_ScheduleLoop_Call {
 	return &MockCronScheduler_ScheduleLoop_Call{Call: _e.mock.On("ScheduleLoop", ctx, hod, fn)}
 }
 
-func (_c *MockCronScheduler_ScheduleLoop_Call) Run(run func(ctx context.Context, hod HourOfDay, fn func(time.Time))) *MockCronScheduler_ScheduleLoop_Call {
+func (_c *MockCronScheduler_ScheduleLoop_Call) Run(run func(ctx context.Context, hod HourOfDay, fn func(context.Context, time.Time))) *MockCronScheduler_ScheduleLoop_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -714,9 +714,9 @@ func (_c *MockCronScheduler_ScheduleLoop_Call) Run(run func(ctx context.Context,
 		if args[1] != nil {
 			arg1 = args[1].(HourOfDay)
 		}
-		var arg2 func(time.Time)
+		var arg2 func(context.Context, time.Time)
 		if args[2] != nil {
-			arg2 = args[2].(func(time.Time))
+			arg2 = args[2].(func(context.Context, time.Time))
 		}
 		run(
 			arg0,
@@ -732,7 +732,7 @@ func (_c *MockCronScheduler_ScheduleLoop_Call) Return() *MockCronScheduler_Sched
 	return _c
 }
 
-func (_c *MockCronScheduler_ScheduleLoop_Call) RunAndReturn(run func(ctx context.Context, hod HourOfDay, fn func(time.Time))) *MockCronScheduler_ScheduleLoop_Call {
+func (_c *MockCronScheduler_ScheduleLoop_Call) RunAndReturn(run func(ctx context.Context, hod HourOfDay, fn func(context.Context, time.Time))) *MockCronScheduler_ScheduleLoop_Call {
 	_c.Run(run)
 	return _c
 }

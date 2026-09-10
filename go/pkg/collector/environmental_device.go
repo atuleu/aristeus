@@ -128,6 +128,12 @@ func NewEnvironmentalDevice(adv EnvironmentalAdvertisment) (*EnvironmentalDevice
 }
 
 func (d *EnvironmentalDevice) updateData(adv EnvironmentalAdvertisment) EnvironmentalReading {
+	if d.location != adv.data.Location {
+		d.location = adv.data.Location
+		d.Location = BuildSensorLocation(adv.data.Location)
+		d.assigned_since = adv.data.CurrentPoint.Timestamp.ToTime()
+	}
+
 	reading := EnvironmentalReading{
 		LocationID: d.Location.LocationID,
 		SensorID:   d.Address,

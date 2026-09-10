@@ -124,7 +124,7 @@ func (s *CollectorSuite) SetupTest() {
 	s.expectScanLoop()
 	s.cronTick = make(chan time.Time)
 	s.cron.EXPECT().ScheduleLoop(mock.Anything, HourOfDay{Hour: 1, Minute: 42}, mock.Anything).Run(
-		func(ctx context.Context, hod HourOfDay, fn func(time.Time)) {
+		func(ctx context.Context, hod HourOfDay, fn func(context.Context, time.Time)) {
 			for {
 				select {
 				case <-ctx.Done():
@@ -136,7 +136,7 @@ func (s *CollectorSuite) SetupTest() {
 					if ok == false {
 						return
 					}
-					fn(t)
+					fn(ctx, t)
 				}
 			}
 		})
@@ -172,7 +172,7 @@ func (s *CollectorSuite) TestDuplicates() {
 
 	s.journal.EXPECT().GetLocationAssignements(mock.Anything, "hive_001_general").Return(nil, nil).Once()
 	s.journal.EXPECT().SaveEnvironmentalReadings(mock.Anything, mock.Anything).Return(nil).Once()
-	subscription := s.collector.Subscribe()
+	subscription := s.collector.Subscribe(2)
 	s.Require().NotNil(subscription)
 	var wg sync.WaitGroup
 	wg.Go(func() {
@@ -217,7 +217,7 @@ func (s *CollectorSuite) TestSynchronizeDevice() {
 	})
 	s.environmentalOperator.EXPECT().SynchronizeDevice(mock.Anything, nil, adv.address).Return(nil).Once()
 
-	subscription := s.collector.Subscribe()
+	subscription := s.collector.Subscribe(1)
 
 	var wg sync.WaitGroup
 	wg.Go(func() {
@@ -276,7 +276,8 @@ func (s *CollectorSuite) TestJanitor() {
 	s.journal.EXPECT().GetLocationAssignements(mock.Anything, "hive_002_general").Return(nil, nil)
 	s.journal.EXPECT().GetLocationAssignements(mock.Anything, "hive_003_general").Return(nil, nil)
 	s.journal.EXPECT().SaveEnvironmentalReadings(mock.Anything, mock.Anything).Return(nil)
-	subscription := s.collector.Subscribe()
+
+	subscription := s.collector.Subscribe(len(advs))
 
 	var wg sync.WaitGroup
 	wg.Go(func() {
@@ -285,7 +286,6 @@ func (s *CollectorSuite) TestJanitor() {
 		}
 	})
 	wg.Wait()
-
 	for _, adv := range advs {
 		received, ok := <-subscription
 		s.Require().True(ok)

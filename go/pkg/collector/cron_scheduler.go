@@ -25,7 +25,7 @@ func (t timeClock) NewTimer(d time.Duration) *time.Timer {
 }
 
 type CronScheduler interface {
-	ScheduleLoop(ctx context.Context, hod HourOfDay, fn func(time.Time))
+	ScheduleLoop(ctx context.Context, hod HourOfDay, fn func(context.Context, time.Time))
 }
 
 type cronScheduler struct {
@@ -45,7 +45,7 @@ func (s cronScheduler) nextTimer(hod HourOfDay) *time.Timer {
 	return s.clock.NewTimer(next.Sub(now))
 }
 
-func (s cronScheduler) ScheduleLoop(ctx context.Context, hod HourOfDay, fn func(time.Time)) {
+func (s cronScheduler) ScheduleLoop(ctx context.Context, hod HourOfDay, fn func(context.Context, time.Time)) {
 	next := s.nextTimer(hod)
 	for {
 		select {
@@ -53,7 +53,7 @@ func (s cronScheduler) ScheduleLoop(ctx context.Context, hod HourOfDay, fn func(
 			next.Stop()
 			return
 		case now := <-next.C:
-			fn(now)
+			fn(ctx, now)
 			next = s.nextTimer(hod)
 		}
 	}
