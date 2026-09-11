@@ -147,7 +147,7 @@ func (c *Collector) pushEnvironmentalUpdate(ctx context.Context, dev *Environmen
 	reading := dev.updateData(adv)
 
 	logger := c.logger.With(slog.String("address", adv.address.String()))
-	if dev.TimeOffset.Abs() > c.config.MaximalTimeOffset {
+	if c.config.SynchronizeDevices == true && dev.TimeOffset.Abs() > c.config.MaximalTimeOffset {
 		logger.Warn("device out of sync",
 			slog.Duration("time_offset", dev.TimeOffset),
 		)

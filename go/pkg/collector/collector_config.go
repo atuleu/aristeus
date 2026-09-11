@@ -80,6 +80,7 @@ type CollectorConfig struct {
 	ActiveThresholdDuration    time.Duration
 	ConnectionJitter           time.Duration
 	JanitorTime                HourOfDay
+	SynchronizeDevices         bool
 }
 
 type CollectorConfigOption func(*CollectorConfig)
@@ -92,7 +93,14 @@ func defaultCollectorConfig() CollectorConfig {
 		MaximalTimeOffset:          3 * time.Minute,
 		ActiveThresholdDuration:    5 * time.Minute,
 		ConnectionJitter:           10 * time.Minute,
+		SynchronizeDevices:         true,
 		JanitorTime:                HourOfDay{Hour: 1, Minute: 42},
+	}
+}
+
+func WithSynchronizeDevice(enabled bool) CollectorConfigOption {
+	return func(config *CollectorConfig) {
+		config.SynchronizeDevices = enabled
 	}
 }
 

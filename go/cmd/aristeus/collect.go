@@ -10,7 +10,8 @@ import (
 )
 
 type CollectCommand struct {
-	HiveIDs []uint8 `short:"i" long:"hive-id" description:"hive id to filter, none accepts all"`
+	HiveIDs                []uint8 `short:"i" long:"hive-id" description:"hive id to filter, none accepts all"`
+	DisableSynchronization bool    `long:"disable-synchronization" description:"disable device synchronization"`
 }
 
 func (c *CollectCommand) Execute(args []string) error {
@@ -21,6 +22,7 @@ func (c *CollectCommand) Execute(args []string) error {
 	collector, err := collector.NewCollector(
 		collector.NewCollectorConfig(
 			collector.WithHiveIDFilter(c.HiveIDs...),
+			collector.WithSynchronizeDevice(!c.DisableSynchronization),
 		),
 	)
 	if err != nil {
