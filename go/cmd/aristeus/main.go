@@ -59,7 +59,9 @@ func (opts *Options) setupLogger() {
 
 	handler := tint.NewTextHandler(os.Stderr, options)
 	logger := slog.New(handler)
+
 	slog.SetDefault(logger)
+	slog.SetLogLoggerLevel(slog.LevelDebug)
 }
 
 func execute() error {
