@@ -29,7 +29,7 @@ func (s *DataJournalSuite) TearDownTest() {
 	s.cancel()
 }
 
-func (s *DataJournalSuite) TestSaveOutOfOrder() {
+func (s *DataJournalSuite) TestSaveEnvironmentOutOfOrder() {
 	t := time.Now()
 	err := s.journal.SaveEnvironmentalReadings(s.ctx, []EnvironmentalReading{
 		EnvironmentalReading{
@@ -179,5 +179,107 @@ func (s *DataJournalSuite) TestAssignmentConsistency() {
 		{LocationID: "loc_b", SensorID: "sensor_d", InstalledAt: a},
 		{LocationID: "loc_c", SensorID: "sensor_a", InstalledAt: c},
 	}, assignments)
+
+}
+
+func (s *DataJournalSuite) TestScaleReadingsIO() {
+	t := time.Date(2026, 1, 1, 0, 0, 0, 0, time.Local)
+	var err error
+	err = s.journal.SaveScaleReading(s.ctx, []ScaleReading{
+		ScaleReading{
+			LocationID: "hive_001_general",
+			SensorID:   "02:02:02:02:02:02",
+			Timestamp:  t.Add(1 * time.Minute),
+			ReceivedAt: t.Add(1 * time.Minute),
+			Total_kg:   newValue(45.3),
+		},
+	})
+	s.Require().NoError(err)
+
+	expected := []ScaleReading{
+		ScaleReading{
+			LocationID:        "hive_001_general",
+			SensorID:          "02:02:02:02:02:02",
+			Timestamp:         t,
+			ReceivedAt:        t,
+			Total_kg:          newValue(45.2),
+			Temperature_C:     newValue(23.0),
+			Humidity_percent:  newValue(43.0),
+			CellFrontLeft_kg:  newValue(11.3),
+			CellFrontRight_kg: newValue(11.3),
+			CellBackLeft_kg:   newValue(11.2),
+			CellBackRight_kg:  newValue(11.4),
+		},
+		ScaleReading{
+			LocationID:        "hive_001_general",
+			SensorID:          "02:02:02:02:02:02",
+			Timestamp:         t.Add(1 * time.Minute),
+			ReceivedAt:        t.Add(1 * time.Minute),
+			Total_kg:          newValue(45.3),
+			Temperature_C:     newValue(23.0),
+			Humidity_percent:  newValue(43.0),
+			CellFrontLeft_kg:  newValue(11.4),
+			CellFrontRight_kg: newValue(11.3),
+			CellBackLeft_kg:   newValue(11.2),
+			CellBackRight_kg:  newValue(11.4),
+		},
+	}
+
+	err = s.journal.SaveScaleReading(s.ctx, expected)
+	s.Require().NoError(err)
+
+	readings, err := s.journal.GetScaleHistory(s.ctx, "hive_001_general", t, t.Add(1*time.Minute))
+	s.Require().NoError(err)
+	s.Assert().Equal(expected, readings)
+
+	assignements, err := s.journal.GetActiveAssignments(s.ctx)
+	s.Require().NoError(err)
+	s.Assert().Equal([]SensorAssignement{
+		{SensorID: "02:02:02:02:02:02", LocationID: "hive_001_general", InstalledAt: t},
+	}, assignements)
+
+}
+
+func (s *DataJournalSuite) TestTrafficIO() {
+	t := time.Date(2026, 1, 1, 0, 0, 0, 0, time.Local)
+	var err error
+	err = s.journal.SaveTrafficCount(s.ctx, []TrafficCount{
+		TrafficCount{
+			LocationID: "hive_001_general",
+			Timestamp:  t.Add(1 * time.Minute),
+			Duration:   time.Minute,
+			ReceivedAt: t.Add(1 * time.Minute),
+			Outgoing:   10,
+			Ingoing:    3,
+		},
+	})
+	s.Require().NoError(err)
+
+	expected := []TrafficCount{
+		TrafficCount{
+			LocationID: "hive_001_general",
+			Timestamp:  t,
+			Duration:   time.Minute,
+			ReceivedAt: t,
+			Outgoing:   8,
+			Ingoing:    9,
+		},
+		TrafficCount{
+			LocationID: "hive_001_general",
+			Timestamp:  t.Add(1 * time.Minute),
+			Duration:   time.Minute,
+			ReceivedAt: t.Add(1 * time.Minute),
+			Outgoing:   10,
+			Ingoing:    5,
+		},
+	}
+
+	err = s.journal.SaveTrafficCount(s.ctx, expected)
+	expected[1].Ingoing = 3
+	s.Require().NoError(err)
+
+	readings, err := s.journal.GetTrafficHistory(s.ctx, "hive_001_general", t, t.Add(1*time.Minute))
+	s.Require().NoError(err)
+	s.Assert().Equal(expected, readings)
 
 }

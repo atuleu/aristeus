@@ -20,19 +20,21 @@ type EnvironmentalReading struct {
 }
 
 type TrafficCount struct {
-	HiveID            string
-	Start, ReceivedAt time.Time
+	LocationID            string
+	Timestamp, ReceivedAt time.Time
 
 	Duration          time.Duration
 	Outgoing, Ingoing int
 }
 
 type ScaleReading struct {
-	HiveID            string
+	LocationID        string
 	SensorID          string
 	Timestamp         time.Time
 	ReceivedAt        time.Time
 	Total_kg          *float64
+	Temperature_C     *float64
+	Humidity_percent  *float64
 	CellFrontLeft_kg  *float64
 	CellFrontRight_kg *float64
 	CellBackLeft_kg   *float64
