@@ -18,10 +18,19 @@ func NewMockBLEDevice(t interface {
 	mock.TestingT
 	Cleanup(func())
 }) *MockBLEDevice {
+	if helper, ok := t.(interface{ Helper() }); ok {
+		helper.Helper()
+	}
+
 	mock := &MockBLEDevice{}
 	mock.Mock.Test(t)
 
-	t.Cleanup(func() { mock.AssertExpectations(t) })
+	t.Cleanup(func() {
+		if helper, ok := t.(interface{ Helper() }); ok {
+			helper.Helper()
+		}
+		mock.AssertExpectations(t)
+	})
 
 	return mock
 }
@@ -176,10 +185,19 @@ func NewMockBLEScanner(t interface {
 	mock.TestingT
 	Cleanup(func())
 }) *MockBLEScanner {
+	if helper, ok := t.(interface{ Helper() }); ok {
+		helper.Helper()
+	}
+
 	mock := &MockBLEScanner{}
 	mock.Mock.Test(t)
 
-	t.Cleanup(func() { mock.AssertExpectations(t) })
+	t.Cleanup(func() {
+		if helper, ok := t.(interface{ Helper() }); ok {
+			helper.Helper()
+		}
+		mock.AssertExpectations(t)
+	})
 
 	return mock
 }
@@ -330,10 +348,19 @@ func newMockenvironmentalOperator(t interface {
 	mock.TestingT
 	Cleanup(func())
 }) *mockenvironmentalOperator {
+	if helper, ok := t.(interface{ Helper() }); ok {
+		helper.Helper()
+	}
+
 	mock := &mockenvironmentalOperator{}
 	mock.Mock.Test(t)
 
-	t.Cleanup(func() { mock.AssertExpectations(t) })
+	t.Cleanup(func() {
+		if helper, ok := t.(interface{ Helper() }); ok {
+			helper.Helper()
+		}
+		mock.AssertExpectations(t)
+	})
 
 	return mock
 }
@@ -495,10 +522,19 @@ func NewMockClock(t interface {
 	mock.TestingT
 	Cleanup(func())
 }) *MockClock {
+	if helper, ok := t.(interface{ Helper() }); ok {
+		helper.Helper()
+	}
+
 	mock := &MockClock{}
 	mock.Mock.Test(t)
 
-	t.Cleanup(func() { mock.AssertExpectations(t) })
+	t.Cleanup(func() {
+		if helper, ok := t.(interface{ Helper() }); ok {
+			helper.Helper()
+		}
+		mock.AssertExpectations(t)
+	})
 
 	return mock
 }
@@ -619,10 +655,19 @@ func NewMockCronScheduler(t interface {
 	mock.TestingT
 	Cleanup(func())
 }) *MockCronScheduler {
+	if helper, ok := t.(interface{ Helper() }); ok {
+		helper.Helper()
+	}
+
 	mock := &MockCronScheduler{}
 	mock.Mock.Test(t)
 
-	t.Cleanup(func() { mock.AssertExpectations(t) })
+	t.Cleanup(func() {
+		if helper, ok := t.(interface{ Helper() }); ok {
+			helper.Helper()
+		}
+		mock.AssertExpectations(t)
+	})
 
 	return mock
 }
@@ -698,10 +743,19 @@ func NewMockDataJournal(t interface {
 	mock.TestingT
 	Cleanup(func())
 }) *MockDataJournal {
+	if helper, ok := t.(interface{ Helper() }); ok {
+		helper.Helper()
+	}
+
 	mock := &MockDataJournal{}
 	mock.Mock.Test(t)
 
-	t.Cleanup(func() { mock.AssertExpectations(t) })
+	t.Cleanup(func() {
+		if helper, ok := t.(interface{ Helper() }); ok {
+			helper.Helper()
+		}
+		mock.AssertExpectations(t)
+	})
 
 	return mock
 }
@@ -973,6 +1027,86 @@ func (_c *MockDataJournal_GetLocationAssignements_Call) RunAndReturn(run func(ct
 	return _c
 }
 
+// GetScaleHistory provides a mock function for the type MockDataJournal
+func (_mock *MockDataJournal) GetScaleHistory(ctx context.Context, hiveID string, start time.Time, end time.Time) ([]ScaleReading, error) {
+	ret := _mock.Called(ctx, hiveID, start, end)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetScaleHistory")
+	}
+
+	var r0 []ScaleReading
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, time.Time, time.Time) ([]ScaleReading, error)); ok {
+		return returnFunc(ctx, hiveID, start, end)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, time.Time, time.Time) []ScaleReading); ok {
+		r0 = returnFunc(ctx, hiveID, start, end)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]ScaleReading)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, string, time.Time, time.Time) error); ok {
+		r1 = returnFunc(ctx, hiveID, start, end)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockDataJournal_GetScaleHistory_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetScaleHistory'
+type MockDataJournal_GetScaleHistory_Call struct {
+	*mock.Call
+}
+
+// GetScaleHistory is a helper method to define mock.On call
+//   - ctx context.Context
+//   - hiveID string
+//   - start time.Time
+//   - end time.Time
+func (_e *MockDataJournal_Expecter) GetScaleHistory(ctx any, hiveID any, start any, end any) *MockDataJournal_GetScaleHistory_Call {
+	return &MockDataJournal_GetScaleHistory_Call{Call: _e.mock.On("GetScaleHistory", ctx, hiveID, start, end)}
+}
+
+func (_c *MockDataJournal_GetScaleHistory_Call) Run(run func(ctx context.Context, hiveID string, start time.Time, end time.Time)) *MockDataJournal_GetScaleHistory_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 string
+		if args[1] != nil {
+			arg1 = args[1].(string)
+		}
+		var arg2 time.Time
+		if args[2] != nil {
+			arg2 = args[2].(time.Time)
+		}
+		var arg3 time.Time
+		if args[3] != nil {
+			arg3 = args[3].(time.Time)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+			arg3,
+		)
+	})
+	return _c
+}
+
+func (_c *MockDataJournal_GetScaleHistory_Call) Return(scaleReadings []ScaleReading, err error) *MockDataJournal_GetScaleHistory_Call {
+	_c.Call.Return(scaleReadings, err)
+	return _c
+}
+
+func (_c *MockDataJournal_GetScaleHistory_Call) RunAndReturn(run func(ctx context.Context, hiveID string, start time.Time, end time.Time) ([]ScaleReading, error)) *MockDataJournal_GetScaleHistory_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // GetSensorAssignements provides a mock function for the type MockDataJournal
 func (_mock *MockDataJournal) GetSensorAssignements(ctx context.Context, sensorID string) ([]SensorAssignement, error) {
 	ret := _mock.Called(ctx, sensorID)
@@ -1103,6 +1237,86 @@ func (_c *MockDataJournal_GetSensorLocations_Call) RunAndReturn(run func(ctx con
 	return _c
 }
 
+// GetTrafficHistory provides a mock function for the type MockDataJournal
+func (_mock *MockDataJournal) GetTrafficHistory(ctx context.Context, hiveID string, start time.Time, end time.Time) ([]TrafficCount, error) {
+	ret := _mock.Called(ctx, hiveID, start, end)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetTrafficHistory")
+	}
+
+	var r0 []TrafficCount
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, time.Time, time.Time) ([]TrafficCount, error)); ok {
+		return returnFunc(ctx, hiveID, start, end)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, time.Time, time.Time) []TrafficCount); ok {
+		r0 = returnFunc(ctx, hiveID, start, end)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]TrafficCount)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, string, time.Time, time.Time) error); ok {
+		r1 = returnFunc(ctx, hiveID, start, end)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockDataJournal_GetTrafficHistory_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetTrafficHistory'
+type MockDataJournal_GetTrafficHistory_Call struct {
+	*mock.Call
+}
+
+// GetTrafficHistory is a helper method to define mock.On call
+//   - ctx context.Context
+//   - hiveID string
+//   - start time.Time
+//   - end time.Time
+func (_e *MockDataJournal_Expecter) GetTrafficHistory(ctx any, hiveID any, start any, end any) *MockDataJournal_GetTrafficHistory_Call {
+	return &MockDataJournal_GetTrafficHistory_Call{Call: _e.mock.On("GetTrafficHistory", ctx, hiveID, start, end)}
+}
+
+func (_c *MockDataJournal_GetTrafficHistory_Call) Run(run func(ctx context.Context, hiveID string, start time.Time, end time.Time)) *MockDataJournal_GetTrafficHistory_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 string
+		if args[1] != nil {
+			arg1 = args[1].(string)
+		}
+		var arg2 time.Time
+		if args[2] != nil {
+			arg2 = args[2].(time.Time)
+		}
+		var arg3 time.Time
+		if args[3] != nil {
+			arg3 = args[3].(time.Time)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+			arg3,
+		)
+	})
+	return _c
+}
+
+func (_c *MockDataJournal_GetTrafficHistory_Call) Return(trafficCounts []TrafficCount, err error) *MockDataJournal_GetTrafficHistory_Call {
+	_c.Call.Return(trafficCounts, err)
+	return _c
+}
+
+func (_c *MockDataJournal_GetTrafficHistory_Call) RunAndReturn(run func(ctx context.Context, hiveID string, start time.Time, end time.Time) ([]TrafficCount, error)) *MockDataJournal_GetTrafficHistory_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // SaveEnvironmentalReadings provides a mock function for the type MockDataJournal
 func (_mock *MockDataJournal) SaveEnvironmentalReadings(ctx context.Context, readings []EnvironmentalReading) error {
 	ret := _mock.Called(ctx, readings)
@@ -1213,6 +1427,120 @@ func (_c *MockDataJournal_SaveLocation_Call) Return(err error) *MockDataJournal_
 }
 
 func (_c *MockDataJournal_SaveLocation_Call) RunAndReturn(run func(ctx context.Context, loc SensorLocation) error) *MockDataJournal_SaveLocation_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// SaveScaleReading provides a mock function for the type MockDataJournal
+func (_mock *MockDataJournal) SaveScaleReading(ctx context.Context, readigns []ScaleReading) error {
+	ret := _mock.Called(ctx, readigns)
+
+	if len(ret) == 0 {
+		panic("no return value specified for SaveScaleReading")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, []ScaleReading) error); ok {
+		r0 = returnFunc(ctx, readigns)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// MockDataJournal_SaveScaleReading_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'SaveScaleReading'
+type MockDataJournal_SaveScaleReading_Call struct {
+	*mock.Call
+}
+
+// SaveScaleReading is a helper method to define mock.On call
+//   - ctx context.Context
+//   - readigns []ScaleReading
+func (_e *MockDataJournal_Expecter) SaveScaleReading(ctx any, readigns any) *MockDataJournal_SaveScaleReading_Call {
+	return &MockDataJournal_SaveScaleReading_Call{Call: _e.mock.On("SaveScaleReading", ctx, readigns)}
+}
+
+func (_c *MockDataJournal_SaveScaleReading_Call) Run(run func(ctx context.Context, readigns []ScaleReading)) *MockDataJournal_SaveScaleReading_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 []ScaleReading
+		if args[1] != nil {
+			arg1 = args[1].([]ScaleReading)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *MockDataJournal_SaveScaleReading_Call) Return(err error) *MockDataJournal_SaveScaleReading_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *MockDataJournal_SaveScaleReading_Call) RunAndReturn(run func(ctx context.Context, readigns []ScaleReading) error) *MockDataJournal_SaveScaleReading_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// SaveTrafficCount provides a mock function for the type MockDataJournal
+func (_mock *MockDataJournal) SaveTrafficCount(ctx context.Context, counts []TrafficCount) error {
+	ret := _mock.Called(ctx, counts)
+
+	if len(ret) == 0 {
+		panic("no return value specified for SaveTrafficCount")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, []TrafficCount) error); ok {
+		r0 = returnFunc(ctx, counts)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// MockDataJournal_SaveTrafficCount_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'SaveTrafficCount'
+type MockDataJournal_SaveTrafficCount_Call struct {
+	*mock.Call
+}
+
+// SaveTrafficCount is a helper method to define mock.On call
+//   - ctx context.Context
+//   - counts []TrafficCount
+func (_e *MockDataJournal_Expecter) SaveTrafficCount(ctx any, counts any) *MockDataJournal_SaveTrafficCount_Call {
+	return &MockDataJournal_SaveTrafficCount_Call{Call: _e.mock.On("SaveTrafficCount", ctx, counts)}
+}
+
+func (_c *MockDataJournal_SaveTrafficCount_Call) Run(run func(ctx context.Context, counts []TrafficCount)) *MockDataJournal_SaveTrafficCount_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 []TrafficCount
+		if args[1] != nil {
+			arg1 = args[1].([]TrafficCount)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *MockDataJournal_SaveTrafficCount_Call) Return(err error) *MockDataJournal_SaveTrafficCount_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *MockDataJournal_SaveTrafficCount_Call) RunAndReturn(run func(ctx context.Context, counts []TrafficCount) error) *MockDataJournal_SaveTrafficCount_Call {
 	_c.Call.Return(run)
 	return _c
 }

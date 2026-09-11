@@ -393,6 +393,22 @@ ORDER BY location_id ASC;
 
 }
 
+func (s *SQLiteStore) SaveScaleReading(ctx context.Context, readings []ScaleReading) error {
+	return fmt.Errorf("not yet implemented")
+}
+
+func (s *SQLiteStore) GetScaleHistory(ctx context.Context, hiveID string, start, end time.Time) ([]ScaleReading, error) {
+	return nil, fmt.Errorf("not yet implemented")
+}
+
+func (s *SQLiteStore) SaveTrafficCount(ctx context.Context, counts []TrafficCount) error {
+	return fmt.Errorf("not yet implemented")
+}
+
+func (s *SQLiteStore) GetTrafficHistory(ctx context.Context, hiveID string, start, end time.Time) ([]TrafficCount, error) {
+	return nil, fmt.Errorf("not yet implemented")
+}
+
 func (s *SQLiteStore) ensureSchema(ctx context.Context) (err error) {
 	pragmas := `
 PRAGMA journal_mode=WAL;

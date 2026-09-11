@@ -19,6 +19,26 @@ type EnvironmentalReading struct {
 	CO2_ppm          *uint
 }
 
+type TrafficCount struct {
+	HiveID            string
+	Start, ReceivedAt time.Time
+
+	Duration          time.Duration
+	Outgoing, Ingoing int
+}
+
+type ScaleReading struct {
+	HiveID            string
+	SensorID          string
+	Timestamp         time.Time
+	ReceivedAt        time.Time
+	Total_kg          *float64
+	CellFrontLeft_kg  *float64
+	CellFrontRight_kg *float64
+	CellBackLeft_kg   *float64
+	CellBackRight_kg  *float64
+}
+
 func (r *EnvironmentalReading) setData(data arisble.DataPoint) {
 	r.Timestamp = data.Timestamp.ToTime()
 	updateField := func(value float64, dest **float64) {
@@ -57,12 +77,16 @@ type DataJournalWriter interface {
 	Close() error
 
 	SaveEnvironmentalReadings(ctx context.Context, readings []EnvironmentalReading) error
+	SaveTrafficCount(ctx context.Context, counts []TrafficCount) error
+	SaveScaleReading(ctx context.Context, readigns []ScaleReading) error
 }
 
 type DataJournalReader interface {
 	Close() error
 
 	GetEnvironmentalHistory(ctx context.Context, locationID string, start, end time.Time) ([]EnvironmentalReading, error)
+	GetTrafficHistory(ctx context.Context, hiveID string, start, end time.Time) ([]TrafficCount, error)
+	GetScaleHistory(ctx context.Context, hiveID string, start, end time.Time) ([]ScaleReading, error)
 }
 
 type TopologyManager interface {
