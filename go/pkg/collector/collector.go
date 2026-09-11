@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"math"
 	"math/rand"
 	"sync"
 	"time"
@@ -120,18 +121,18 @@ func (c *Collector) updateDevice(ctx context.Context, dev *EnvironmentalDevice, 
 	locationID := BuildLocationID(adv.data.Location)
 
 	if locationID != dev.Location.LocationID &&
-		adv.data.CurrentPoint.Timestamp.ToTime().Sub(dev.assigned_since) < c.config.MinimumAssignementDuration {
+		adv.data.CurrentPoint.Timestamp.ToTime().Sub(dev.assignedSince) < c.config.MinimumAssignementDuration {
 		c.logger.Error("dropping update since device changed location too rapidly",
 			slog.String("address", dev.Address),
 			slog.String("current_location_id", dev.Location.LocationID),
 			slog.String("new_location_id", locationID),
-			slog.Time("assigned_since", dev.assigned_since),
+			slog.Time("assigned_since", dev.assignedSince),
 		)
 		return
 	}
 
 	if (dev.LastSeen != time.Time{}) {
-		dev.AdvertismentPeriod = adv.receivedAt.Sub(dev.LastSeen).Round(time.Millisecond)
+		dev.AdvertisementPeriod = adv.receivedAt.Sub(dev.LastSeen).Round(time.Millisecond)
 	}
 	dev.LastSeen = adv.receivedAt
 
@@ -284,7 +285,10 @@ func (c *Collector) janitorTasks(ctx context.Context, now time.Time) {
 			continue
 		}
 
-		memoryUsage := envDev.MemoryUsage
+		memoryUsage := math.NaN()
+		if envDev.MemoryUsage != nil {
+			memoryUsage = *envDev.MemoryUsage
+		}
 		locationID := envDev.Location.LocationID
 		targetAddress := addr
 		logger := c.logger.With(slog.String("address", targetAddress.String()))

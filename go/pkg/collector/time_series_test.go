@@ -2,7 +2,6 @@ package collector
 
 import (
 	"encoding/json"
-	"math"
 	"testing"
 	"time"
 
@@ -26,10 +25,10 @@ func (s *TimeSeriesSuite) TestJSONFormatting() {
 	data := EnvironmentalTimeSeries{
 		LocationID:       "foo",
 		Timestamp:        []time.Time{a, b, c},
-		Temperature_C:    []float64{22.0, 22.1, math.NaN()},
-		Humidity_percent: []float64{33, 34.1, 44},
-		Pressure_hPa:     []float64{1013.0, 1013.1, math.NaN()},
-		CO2_PPM:          []float64{456, 443, math.NaN()},
+		Temperature_C:    []*float64{newValue(22.0), newValue(22.1), nil},
+		Humidity_percent: []*float64{newValue(33.0), newValue(34.1), newValue(44.0)},
+		Pressure_hPa:     []*float64{newValue(1013.0), newValue(1013.1), nil},
+		CO2_PPM:          []*uint{newValue(uint(456)), newValue(uint(443)), nil},
 	}
 
 	asJSON, err := json.MarshalIndent(data, "", "  ")
@@ -42,23 +41,23 @@ func (s *TimeSeriesSuite) TestJSONFormatting() {
     121000
   ],
   "temperature_C": [
-    22.000,
-    22.100,
+    22,
+    22.1,
     null
   ],
   "humidity_percent": [
-    33.000,
-    34.100,
-    44.000
+    33,
+    34.1,
+    44
   ],
   "pressure_hPa": [
-    1013.000,
-    1013.100,
+    1013,
+    1013.1,
     null
   ],
   "co2_PPM": [
-    456.000,
-    443.000,
+    456,
+    443,
     null
   ]
 }`, string(asJSON))
