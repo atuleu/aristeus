@@ -112,11 +112,6 @@ func (c *Collector) onNewDevice(ctx context.Context, adv EnvironmentalAdvertisme
 }
 
 func (c *Collector) updateDevice(ctx context.Context, dev *EnvironmentalDevice, adv EnvironmentalAdvertisment) {
-
-	if adv.data.CurrentPoint.Timestamp.ToTime().After(dev.Current.Timestamp) == false {
-		return
-	}
-
 	locationID := BuildLocationID(adv.data.Location)
 
 	if locationID != dev.Location.LocationID &&
@@ -130,18 +125,19 @@ func (c *Collector) updateDevice(ctx context.Context, dev *EnvironmentalDevice, 
 		return
 	}
 
-	c.logger.Debug("new update",
-		slog.String("address", dev.Address),
-		slog.Time("timestamp", adv.data.CurrentPoint.Timestamp.ToTime()))
-
 	if (dev.LastSeen != time.Time{}) {
 		dev.AdvertisementPeriod = adv.receivedAt.Sub(dev.LastSeen).Round(time.Millisecond)
 	}
+
 	dev.LastSeen = adv.receivedAt
 
-	if dev.Current.Timestamp == adv.data.CurrentPoint.Timestamp.ToTime() {
+	if adv.data.CurrentPoint.Timestamp.ToTime().After(dev.Current.Timestamp) == false {
 		return
 	}
+
+	c.logger.Debug("new update",
+		slog.String("address", dev.Address),
+		slog.Time("timestamp", adv.data.CurrentPoint.Timestamp.ToTime()))
 
 	c.pushEnvironmentalUpdate(ctx, dev, adv)
 }
@@ -151,8 +147,10 @@ func (c *Collector) pushEnvironmentalUpdate(ctx context.Context, dev *Environmen
 
 	logger := c.logger.With(
 		slog.String("address", adv.address.String()),
+		slog.String("location_id", BuildLocationID(adv.data.Location)),
 		slog.Time("timestamp", adv.data.CurrentPoint.Timestamp.ToTime()),
 	)
+
 	if c.config.SynchronizeDevices == true && dev.TimeOffset.Abs() > c.config.MaximalTimeOffset {
 		logger.Warn("device out of sync",
 			slog.Duration("time_offset", dev.TimeOffset),
