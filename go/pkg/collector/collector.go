@@ -288,7 +288,37 @@ func (c *Collector) Collect(ctx context.Context) error {
 		c.cron.ScheduleLoop(ctx, c.config.JanitorTime, c.janitorTasks)
 	})
 
+	counts := make(chan TrafficCount, 16)
+
+	c.wg.Go(func() {
+		err := ListenTrafficCount(ctx, counts, ":3001")
+		if err != nil {
+			c.logger.Error("UDP TrafficCount listen error",
+				slog.String("error", err.Error()))
+		}
+	})
+
+	c.wg.Go(func() {
+		for cnt := range counts {
+			c.wg.Go(func() {
+				c.onNewCount(cnt)
+			})
+		}
+	})
+
 	return <-errs
+}
+
+func (c *Collector) onNewCount(cnt TrafficCount) {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	err := c.journal.SaveTrafficCount(ctx, []TrafficCount{cnt})
+	if err != nil {
+		c.logger.Error("could not save traffic count",
+			slog.String("location_id", cnt.LocationID),
+			slog.Time("time", cnt.Timestamp),
+			slog.String("error", err.Error()))
+	}
 }
 
 func (c *Collector) janitorTasks(ctx context.Context, now time.Time) {
