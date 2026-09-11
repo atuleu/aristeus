@@ -77,9 +77,9 @@ func (c *Collector) onNewDevice(ctx context.Context, adv EnvironmentalAdvertisme
 		return
 	}
 
-	checkCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	ctxCheck, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
-	assignments, err := c.journal.GetLocationAssignements(checkCtx, d.Location.LocationID)
+	assignments, err := c.journal.GetLocationAssignements(ctxCheck, d.Location.LocationID)
 	if err != nil {
 		c.logger.Error("could not retrieve assignments",
 			slog.String("location_id", d.Location.LocationID),
