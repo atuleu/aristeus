@@ -190,7 +190,7 @@ func (s *DataJournalSuite) TestScaleReadingsIO() {
 			LocationID: "hive_001_general",
 			SensorID:   "02:02:02:02:02:02",
 			Timestamp:  t.Add(1 * time.Minute),
-			ReceivedAt: t.Add(1 * time.Minute),
+			ReceivedAt: t.Add(1*time.Minute + 8*time.Millisecond),
 			Total_kg:   newValue(45.3),
 		},
 	})
@@ -201,7 +201,7 @@ func (s *DataJournalSuite) TestScaleReadingsIO() {
 			LocationID:        "hive_001_general",
 			SensorID:          "02:02:02:02:02:02",
 			Timestamp:         t,
-			ReceivedAt:        t,
+			ReceivedAt:        t.Add(12 * time.Millisecond),
 			Total_kg:          newValue(45.2),
 			Temperature_C:     newValue(23.0),
 			Humidity_percent:  newValue(43.0),
@@ -214,7 +214,7 @@ func (s *DataJournalSuite) TestScaleReadingsIO() {
 			LocationID:        "hive_001_general",
 			SensorID:          "02:02:02:02:02:02",
 			Timestamp:         t.Add(1 * time.Minute),
-			ReceivedAt:        t.Add(1 * time.Minute),
+			ReceivedAt:        t.Add(1*time.Minute + 10*time.Millisecond),
 			Total_kg:          newValue(45.3),
 			Temperature_C:     newValue(23.0),
 			Humidity_percent:  newValue(43.0),
@@ -226,6 +226,7 @@ func (s *DataJournalSuite) TestScaleReadingsIO() {
 	}
 
 	err = s.journal.SaveScaleReading(s.ctx, expected)
+	expected[1].ReceivedAt = t.Add(1*time.Minute + 8*time.Millisecond)
 	s.Require().NoError(err)
 
 	readings, err := s.journal.GetScaleHistory(s.ctx, "hive_001_general", t, t.Add(1*time.Minute))
@@ -235,7 +236,7 @@ func (s *DataJournalSuite) TestScaleReadingsIO() {
 	assignements, err := s.journal.GetActiveAssignments(s.ctx)
 	s.Require().NoError(err)
 	s.Assert().Equal([]SensorAssignement{
-		{SensorID: "02:02:02:02:02:02", LocationID: "hive_001_general", InstalledAt: t},
+		{SensorID: "02:02:02:02:02:02", LocationID: "hive_001_general", InstalledAt: t.Add(1 * time.Minute)},
 	}, assignements)
 
 }
@@ -248,7 +249,7 @@ func (s *DataJournalSuite) TestTrafficIO() {
 			LocationID: "hive_001_general",
 			Timestamp:  t.Add(1 * time.Minute),
 			Duration:   time.Minute,
-			ReceivedAt: t.Add(1 * time.Minute),
+			ReceivedAt: t.Add(1*time.Minute + 8*time.Millisecond),
 			Outgoing:   10,
 			Ingoing:    3,
 		},
@@ -260,7 +261,7 @@ func (s *DataJournalSuite) TestTrafficIO() {
 			LocationID: "hive_001_general",
 			Timestamp:  t,
 			Duration:   time.Minute,
-			ReceivedAt: t,
+			ReceivedAt: t.Add(10 * time.Millisecond),
 			Outgoing:   8,
 			Ingoing:    9,
 		},
@@ -268,18 +269,17 @@ func (s *DataJournalSuite) TestTrafficIO() {
 			LocationID: "hive_001_general",
 			Timestamp:  t.Add(1 * time.Minute),
 			Duration:   time.Minute,
-			ReceivedAt: t.Add(1 * time.Minute),
+			ReceivedAt: t.Add(1*time.Minute + 10*time.Millisecond),
 			Outgoing:   10,
 			Ingoing:    5,
 		},
 	}
 
 	err = s.journal.SaveTrafficCount(s.ctx, expected)
-	expected[1].Ingoing = 3
+	expected[1].ReceivedAt = t.Add(1*time.Minute + 8*time.Millisecond)
 	s.Require().NoError(err)
 
 	readings, err := s.journal.GetTrafficHistory(s.ctx, "hive_001_general", t, t.Add(1*time.Minute))
 	s.Require().NoError(err)
 	s.Assert().Equal(expected, readings)
-
 }

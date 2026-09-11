@@ -40,8 +40,22 @@ func (s *SQLiteStore) Close() error {
 	return s.db.Close()
 }
 
-func filterEnvironmentalReading(input []EnvironmentalReading) (locationsIDs []string, assignements []SensorAssignement, output []EnvironmentalReading, err error) {
-	output = make([]EnvironmentalReading, 0, len(input))
+type reading interface {
+	getTimestamp() time.Time
+	getLocationID() string
+	getSensorID() string
+	isEmpty() bool
+}
+
+func (r EnvironmentalReading) getLocationID() string   { return r.LocationID }
+func (r EnvironmentalReading) getSensorID() string     { return r.SensorID }
+func (r EnvironmentalReading) getTimestamp() time.Time { return r.Timestamp }
+func (r EnvironmentalReading) isEmpty() bool {
+	return r.Temperature_C == nil && r.Humidity_percent == nil && r.Pressure_hPa == nil && r.CO2_ppm == nil
+}
+
+func filterReadings[T reading](input []T) (locationsIDs []string, assignements []SensorAssignement, output []T, err error) {
+	output = make([]T, 0, len(input))
 	locationSet := make(map[string]bool)
 
 	type untimedAssignments struct {
@@ -49,39 +63,39 @@ func filterEnvironmentalReading(input []EnvironmentalReading) (locationsIDs []st
 	}
 	assignementsSet := make(map[untimedAssignments]bool)
 
-	slices.SortStableFunc(input, func(a, b EnvironmentalReading) int {
-		if n := cmp.Compare(a.LocationID, b.LocationID); n != 0 {
+	slices.SortStableFunc(input, func(a, b T) int {
+		if n := cmp.Compare(a.getLocationID(), b.getLocationID()); n != 0 {
 			return n
 		}
-		return a.Timestamp.Compare(b.Timestamp)
+		return a.getTimestamp().Compare(b.getTimestamp())
 	})
 
 	for _, r := range input {
-		if r.Temperature_C == nil && r.Humidity_percent == nil && r.Pressure_hPa == nil && r.CO2_ppm == nil {
+		if r.isEmpty() {
 			continue
 		}
 
-		if len(r.LocationID) == 0 {
+		if len(r.getLocationID()) == 0 {
 			return nil, nil, nil, errors.New("empty LocationID")
 		}
-		if len(r.SensorID) == 0 {
+		if len(r.getSensorID()) == 0 {
 			return nil, nil, nil, errors.New("empty SensorID")
 		}
 
 		output = append(output, r)
 
-		if locationSet[r.LocationID] == false {
-			locationSet[r.LocationID] = true
-			locationsIDs = append(locationsIDs, r.LocationID)
+		if locationSet[r.getLocationID()] == false {
+			locationSet[r.getLocationID()] = true
+			locationsIDs = append(locationsIDs, r.getLocationID())
 		}
 
-		a := untimedAssignments{SensorID: r.SensorID, LocationID: r.LocationID}
+		a := untimedAssignments{SensorID: r.getSensorID(), LocationID: r.getLocationID()}
 		if assignementsSet[a] == false {
 			assignementsSet[a] = true
 			assignements = append(assignements, SensorAssignement{
-				SensorID:    r.SensorID,
-				LocationID:  r.LocationID,
-				InstalledAt: r.Timestamp,
+				SensorID:    r.getSensorID(),
+				LocationID:  r.getLocationID(),
+				InstalledAt: r.getTimestamp(),
 			})
 		}
 	}
@@ -89,24 +103,8 @@ func filterEnvironmentalReading(input []EnvironmentalReading) (locationsIDs []st
 	return
 }
 
-func (s *SQLiteStore) SaveEnvironmentalReadings(ctx context.Context, readings []EnvironmentalReading) (err error) {
-	insertion_query := `INSERT OR IGNORE INTO environmental_readings (
-location_id,
-sensor_id,
-timestamp,
-received_at,
-temperature_c,
-humidity_percent,
-pressure_hpa,
-co2_ppm
-) VALUES (?,?,?,?,?,?,?,?);
-`
-	locations_query := `
-INSERT OR IGNORE INTO locations (location_id)
-VALUES (?);
-`
-
-	clear_previous_assignments_query := `
+func (s *SQLiteStore) includeTopologyUpdateToTx(ctx context.Context, tx *sql.Tx, locationIDs []string, assignements []SensorAssignement) error {
+	var clear_previous_assignments_query = `
 	UPDATE assignments
 	SET removed_at = :timestamp
 	WHERE removed_at IS NULL
@@ -116,8 +114,7 @@ VALUES (?);
 			(sensor_id != :sensor_id AND location_id = :location_id)
 			);
 `
-
-	add_missing_assginements_query := `
+	var add_missing_assginements_query = `
 	INSERT INTO assignments (sensor_id,location_id,installed_at,removed_at)
 SELECT :sensor_id,:location_id,:timestamp, NULL
 WHERE NOT EXISTS (
@@ -127,25 +124,10 @@ WHERE NOT EXISTS (
 		AND removed_at IS NULL
 );
 `
-	locationIDs, assignements, readings, err := filterEnvironmentalReading(readings)
-	if err != nil {
-		return fmt.Errorf("invalid EnvironmentalReading: %w", err)
-	}
-
-	if len(readings) == 0 {
-		return errors.New("no non-empty readings")
-	}
-
-	tx, err := s.db.BeginTx(ctx, nil)
-	if err != nil {
-		return fmt.Errorf("failed to begin transaction: %w", err)
-	}
-	defer func() {
-		if rbErr := tx.Rollback(); rbErr != nil && rbErr != sql.ErrTxDone {
-			err = errors.Join(err, rbErr)
-		}
-	}()
-
+	var locations_query = `
+INSERT OR IGNORE INTO locations (location_id)
+VALUES (?);
+`
 	for _, locationID := range locationIDs {
 		_, err := tx.ExecContext(ctx, locations_query, locationID)
 		if err != nil {
@@ -171,19 +153,74 @@ WHERE NOT EXISTS (
 		if err != nil {
 			return fmt.Errorf("could not add missing assignements: %w", err)
 		}
+	}
+	return nil
+}
 
+func (s *SQLiteStore) SaveEnvironmentalReadings(ctx context.Context, readings []EnvironmentalReading) (err error) {
+	insertion_query := `
+INSERT INTO environmental_readings (
+	location_id,
+	sensor_id,
+	timestamp,
+	received_at,
+	temperature_c,
+	humidity_percent,
+	pressure_hpa,
+	co2_ppm
+) VALUES (
+	:location_id,
+	:sensor_id,
+	:timestamp,
+	:received_at,
+	:temperature_c,
+	:humidity_percent,
+	:pressure_hpa,
+	:co2_ppm
+)
+ON CONFLICT (location_id,timestamp)
+DO UPDATE SET
+	temperature_c = COALESCE(EXCLUDED.temperature_c,environmental_readings.temperature_c),
+	humidity_percent = COALESCE(EXCLUDED.humidity_percent,environmental_readings.humidity_percent),
+	pressure_hpa = COALESCE(EXCLUDED.pressure_hpa,environmental_readings.pressure_hpa),
+	co2_ppm = COALESCE(EXCLUDED.co2_ppm,environmental_readings.co2_ppm);
+`
+
+	locationIDs, assignements, readings, err := filterReadings(readings)
+	if err != nil {
+		return fmt.Errorf("invalid EnvironmentalReading: %w", err)
+	}
+
+	if len(readings) == 0 {
+		return errors.New("no non-empty readings")
+	}
+
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("failed to begin transaction: %w", err)
+	}
+	defer func() {
+		if rbErr := tx.Rollback(); rbErr != nil && rbErr != sql.ErrTxDone {
+			err = errors.Join(err, rbErr)
+		}
+	}()
+
+	err = s.includeTopologyUpdateToTx(ctx, tx, locationIDs, assignements)
+	if err != nil {
+		return err
 	}
 
 	for _, r := range readings {
 		_, err := tx.ExecContext(ctx, insertion_query,
-			r.LocationID,
-			r.SensorID,
-			r.Timestamp.Unix(),
-			r.ReceivedAt.UnixMilli(),
-			r.Temperature_C,
-			r.Humidity_percent,
-			r.Pressure_hPa,
-			r.CO2_ppm)
+			sql.Named("location_id", r.LocationID),
+			sql.Named("sensor_id", r.SensorID),
+			sql.Named("timestamp", r.Timestamp.Unix()),
+			sql.Named("received_at", r.ReceivedAt.UnixMilli()),
+			sql.Named("temperature_c", r.Temperature_C),
+			sql.Named("humidity_percent", r.Humidity_percent),
+			sql.Named("pressure_hpa", r.Pressure_hPa),
+			sql.Named("co2_ppm", r.CO2_ppm),
+		)
 
 		if err != nil {
 			return fmt.Errorf("could not store reading (%s,%s): %w", r.LocationID, r.Timestamp, err)
@@ -393,20 +430,272 @@ ORDER BY location_id ASC;
 
 }
 
-func (s *SQLiteStore) SaveScaleReading(ctx context.Context, readings []ScaleReading) error {
-	return fmt.Errorf("not yet implemented")
+func (r ScaleReading) getLocationID() string   { return r.LocationID }
+func (r ScaleReading) getSensorID() string     { return r.SensorID }
+func (r ScaleReading) getTimestamp() time.Time { return r.Timestamp }
+func (r ScaleReading) isEmpty() bool {
+	return r.Temperature_C == nil &&
+		r.Humidity_percent == nil &&
+		r.Total_kg == nil &&
+		r.CellFrontLeft_kg == nil &&
+		r.CellFrontRight_kg == nil &&
+		r.CellBackLeft_kg == nil &&
+		r.CellBackRight_kg == nil
 }
 
-func (s *SQLiteStore) GetScaleHistory(ctx context.Context, hiveID string, start, end time.Time) ([]ScaleReading, error) {
-	return nil, fmt.Errorf("not yet implemented")
+func (s *SQLiteStore) SaveScaleReading(ctx context.Context, readings []ScaleReading) (err error) {
+	query := `
+INSERT OR IGNORE INTO scale_readings (
+	location_id,
+	sensor_id,
+	timestamp,
+	received_at,
+	temperature_c,
+	humidity_percent,
+	total_weight_kg,
+	cell_front_left_kg,
+	cell_front_right_kg,
+	cell_back_left_kg,
+	cell_back_right_kg
+) VALUES (
+	:location_id,
+	:sensor_id,
+	:timestamp,
+	:received_at,
+	:temperature_c,
+	:humidity_percent,
+	:total_kg,
+	:cell_front_left_kg,
+	:cell_front_right_kg,
+	:cell_back_left_kg,
+	:cell_back_right_kg
+)
+ON CONFLICT (location_id,timestamp)
+DO UPDATE SET
+	temperature_c = COALESCE(EXCLUDED.temperature_c,scale_readings.temperature_c),
+	humidity_percent = COALESCE(EXCLUDED.humidity_percent,scale_readings.humidity_percent),
+	total_weight_kg = COALESCE(EXCLUDED.total_weight_kg,scale_readings.total_weight_kg),
+	cell_front_left_kg = COALESCE(EXCLUDED.cell_front_left_kg,scale_readings.cell_front_left_kg),
+	cell_front_right_kg = COALESCE(EXCLUDED.cell_front_right_kg,scale_readings.cell_front_right_kg),
+	cell_back_left_kg = COALESCE(EXCLUDED.cell_back_left_kg,scale_readings.cell_back_left_kg),
+	cell_back_right_kg = COALESCE(EXCLUDED.cell_back_right_kg,scale_readings.cell_back_right_kg);
+`
+	locationIDs, assignements, readings, err := filterReadings(readings)
+	if err != nil {
+		return fmt.Errorf("invalid ScaleReadings: %w", err)
+	}
+	if len(readings) == 0 {
+		return errors.New("no non-empty readings")
+	}
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("failed to begin transaction: %w", err)
+	}
+	defer func() {
+		if rbErr := tx.Rollback(); rbErr != sql.ErrTxDone {
+			err = errors.Join(err, rbErr)
+		}
+	}()
+
+	err = s.includeTopologyUpdateToTx(ctx, tx, locationIDs, assignements)
+	if err != nil {
+		return err
+	}
+
+	for _, r := range readings {
+		_, err := tx.ExecContext(ctx, query,
+			sql.Named("location_id", r.LocationID),
+			sql.Named("sensor_id", r.SensorID),
+			sql.Named("timestamp", r.Timestamp.Unix()),
+			sql.Named("received_at", r.ReceivedAt.UnixMilli()),
+			sql.Named("temperature_c", r.Temperature_C),
+			sql.Named("humidity_percent", r.Humidity_percent),
+			sql.Named("total_kg", r.Total_kg),
+			sql.Named("cell_front_left_kg", r.CellFrontLeft_kg),
+			sql.Named("cell_front_right_kg", r.CellFrontRight_kg),
+			sql.Named("cell_back_left_kg", r.CellBackLeft_kg),
+			sql.Named("cell_back_right_kg", r.CellBackRight_kg),
+		)
+		if err != nil {
+			return fmt.Errorf("could no store reading (%s,%s): %w", r.LocationID, r.Timestamp, err)
+		}
+
+	}
+
+	err = tx.Commit()
+	if err != nil {
+		return fmt.Errorf("could not commit transaction: %w", err)
+	}
+	return nil
 }
 
-func (s *SQLiteStore) SaveTrafficCount(ctx context.Context, counts []TrafficCount) error {
-	return fmt.Errorf("not yet implemented")
+func (s *SQLiteStore) GetScaleHistory(ctx context.Context, locationID string, start, end time.Time) ([]ScaleReading, error) {
+	query := `
+SELECT
+	sensor_id,
+	timestamp,
+	received_at,
+	temperature_c,
+	humidity_percent,
+	total_weight_kg,
+	cell_front_left_kg,
+	cell_front_right_kg,
+	cell_back_left_kg,
+	cell_back_right_kg
+FROM scale_readings
+WHERE
+	location_id = ?
+	AND timestamp >= ?
+	AND timestamp <= ?
+ORDER BY timestamp ASC;
+`
+	rows, err := s.db.QueryContext(ctx, query, locationID, start.Unix(), end.Unix())
+	if err != nil {
+		return nil, fmt.Errorf("could not perform query: %w", err)
+	}
+	defer rows.Close()
+	res := make([]ScaleReading, 0)
+	for rows.Next() {
+		r := ScaleReading{LocationID: locationID}
+		var timestamp, receivedAt int64
+		if err := rows.Scan(
+			&r.SensorID,
+			&timestamp,
+			&receivedAt,
+			&r.Temperature_C,
+			&r.Humidity_percent,
+			&r.Total_kg,
+			&r.CellFrontLeft_kg,
+			&r.CellFrontRight_kg,
+			&r.CellBackLeft_kg,
+			&r.CellBackRight_kg,
+		); err != nil {
+			return res, fmt.Errorf("could not scan result row: %w", err)
+		}
+		r.Timestamp = time.Unix(timestamp, 0)
+		r.ReceivedAt = time.UnixMilli(receivedAt)
+		res = append(res, r)
+	}
+	err = rows.Err()
+	if err != nil {
+		err = fmt.Errorf("incomplete read: %w", err)
+	}
+	return res, err
 }
 
-func (s *SQLiteStore) GetTrafficHistory(ctx context.Context, hiveID string, start, end time.Time) ([]TrafficCount, error) {
-	return nil, fmt.Errorf("not yet implemented")
+func (s *SQLiteStore) SaveTrafficCount(ctx context.Context, counts []TrafficCount) (err error) {
+	query := `
+INSERT INTO traffic_count (
+	location_id,
+	timestamp,
+	received_at,
+	duration_ms,
+	outgoing,
+	ingoing
+) VALUES (
+	:location_id,
+	:timestamp,
+	:received_at,
+	:duration_ms,
+	:outgoing,
+	:ingoing
+)
+ON CONFLICT (location_id,timestamp)
+DO UPDATE SET
+	ingoing = EXCLUDED.ingoing,
+	outgoing = EXCLUDED.outgoing;
+`
+	var locationIDs []string
+	locationSet := make(map[string]bool)
+	for _, r := range counts {
+		if len(r.LocationID) == 0 {
+			return fmt.Errorf("empty location_id")
+		}
+		if locationSet[r.LocationID] == true {
+			continue
+		}
+		locationSet[r.LocationID] = true
+		locationIDs = append(locationIDs, r.LocationID)
+	}
+
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("could not start transaction: %w", err)
+	}
+	defer func() {
+		if rbErr := tx.Rollback(); rbErr != sql.ErrTxDone {
+			err = errors.Join(err, rbErr)
+		}
+	}()
+
+	for _, locationID := range locationIDs {
+		_, err = tx.ExecContext(ctx, "INSERT OR IGNORE INTO locations (location_id) VALUES (?);", locationID)
+		if err != nil {
+			return fmt.Errorf("could not update locations: %w", err)
+		}
+	}
+	for _, c := range counts {
+		_, err = tx.ExecContext(ctx, query,
+			sql.Named("location_id", c.LocationID),
+			sql.Named("timestamp", c.Timestamp.UnixMilli()),
+			sql.Named("received_at", c.ReceivedAt.UnixMilli()),
+			sql.Named("duration_ms", c.Duration.Milliseconds()),
+			sql.Named("outgoing", c.Outgoing),
+			sql.Named("ingoing", c.Ingoing),
+		)
+		if err != nil {
+			return fmt.Errorf("could not save count (%s,%s): %w", c.LocationID, c.Timestamp, err)
+		}
+	}
+
+	err = tx.Commit()
+	if err != nil {
+		return fmt.Errorf("could not commit transaction: %w", err)
+	}
+
+	return nil
+}
+
+func (s *SQLiteStore) GetTrafficHistory(ctx context.Context, locationID string, start, end time.Time) ([]TrafficCount, error) {
+	query := `
+SELECT
+	timestamp,
+	received_at,
+	duration_ms,
+	outgoing,
+	ingoing
+FROM traffic_count
+WHERE
+	location_id = ?
+	AND timestamp >= ?
+	AND timestamp <= ?
+ORDER BY timestamp ASC;
+`
+	rows, err := s.db.QueryContext(ctx, query, locationID, start.UnixMilli(), end.UnixMilli())
+	if err != nil {
+		return nil, fmt.Errorf("could not perform query: %w", err)
+	}
+	defer rows.Close()
+	res := make([]TrafficCount, 0)
+	for rows.Next() {
+		c := TrafficCount{LocationID: locationID}
+		var timestamp, receivedAt, duration_ms int64
+		err = rows.Scan(&timestamp, &receivedAt, &duration_ms, &c.Outgoing, &c.Ingoing)
+		if err != nil {
+			return res, fmt.Errorf("could not scan row: %w", err)
+		}
+		c.Timestamp = time.UnixMilli(timestamp)
+		c.ReceivedAt = time.UnixMilli(receivedAt)
+		c.Duration = time.Duration(duration_ms) * time.Millisecond
+		res = append(res, c)
+	}
+
+	err = rows.Err()
+	if err != nil {
+		return res, fmt.Errorf("incomplete read: %w", err)
+	}
+
+	return res, nil
 }
 
 func (s *SQLiteStore) ensureSchema(ctx context.Context) (err error) {
@@ -467,7 +756,7 @@ PRIMARY KEY (location_id,timestamp),
 FOREIGN KEY (location_id) REFERENCES locations(location_id)
 ) WITHOUT ROWID;
 
--- 4. Scake readings
+-- 4. Scale readings
 CREATE TABLE IF NOT EXISTS scale_readings (
 location_id TEXT NOT NULL,
 sensor_id TEXT NOT NULL,
@@ -476,14 +765,25 @@ received_at INTEGER NOT NULL,
 temperature_c REAL,
 humidity_percent REAL,
 total_weight_kg REAL,
-cell_0_kg REAL,
-cell_1_kg REAL,
-cell_2_kg REAL,
-cell_3_kg REAL,
+cell_front_left_kg REAL,
+cell_front_right_kg REAL,
+cell_back_left_kg REAL,
+cell_back_right_kg REAL,
 PRIMARY KEY (location_id,timestamp),
 FOREIGN KEY (location_id) REFERENCES locations(location_id)
 ) WITHOUT ROWID;
 
+-- 5. Traffic count
+CREATE TABLE IF NOT EXISTS traffic_count (
+	location_id TEXT    NOT NULL,
+	timestamp   INTEGER NOT NULL,
+	received_at INTEGER NOT NULL,
+	duration_ms INTEGER,
+	outgoing INTEGER,
+	ingoing INTEGER,
+	PRIMARY KEY (location_id,timestamp),
+	FOREIGN KEY (location_id) REFERENCES locations(location_id)
+) WITHOUT ROWID;
 `
 	if _, err := tx.ExecContext(ctx, schema); err != nil {
 		return fmt.Errorf("failed to execute schema: %w", err)
