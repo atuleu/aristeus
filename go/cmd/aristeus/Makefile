@@ -9,3 +9,5 @@ check: *.go
 
 clean:
 	rm aristeus
+
+.PHONY: aristeus

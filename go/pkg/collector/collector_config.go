@@ -53,7 +53,7 @@ func (c *collectorDependencies) doMissingInjection() error {
 }
 
 func (c *collectorDependencies) connectJournal() (DataJournal, error) {
-	dbPath, err := xdg.DataFile(path.Join("io.github.atuleu.aristeus", "dababase"))
+	dbPath, err := xdg.DataFile(path.Join("io.github.atuleu.aristeus", "readings.db"))
 	if err != nil {
 		return nil, fmt.Errorf("could not generate datapath: %w", err)
 	}

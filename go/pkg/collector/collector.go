@@ -24,7 +24,7 @@ type Collector struct {
 	config       CollectorConfig
 	wg           sync.WaitGroup
 	mx           sync.RWMutex
-	devices      map[ble.Addr]*EnvironmentalDevice
+	devices      map[string]*EnvironmentalDevice
 	envPublisher Publisher[EnvironmentalDevice]
 
 	hiveIDFilter map[uint8]bool
@@ -61,14 +61,13 @@ func (c *Collector) bleAdvFilter() ble.AdvFilter {
 func (c *Collector) onAdvertisment(ctx context.Context, adv EnvironmentalAdvertisment) {
 	c.mx.Lock()
 	defer c.mx.Unlock()
-	d, ok := c.devices[adv.address]
+
+	d, ok := c.devices[adv.address.String()]
 	if ok == false {
 		c.onNewDevice(ctx, adv)
 	} else {
 		c.updateDevice(ctx, d, adv)
-
 	}
-
 }
 
 func (c *Collector) onNewDevice(ctx context.Context, adv EnvironmentalAdvertisment) {
@@ -78,9 +77,9 @@ func (c *Collector) onNewDevice(ctx context.Context, adv EnvironmentalAdvertisme
 		return
 	}
 
-	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	checkCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
-	assignments, err := c.journal.GetLocationAssignements(ctx, d.Location.LocationID)
+	assignments, err := c.journal.GetLocationAssignements(checkCtx, d.Location.LocationID)
 	if err != nil {
 		c.logger.Error("could not retrieve assignments",
 			slog.String("location_id", d.Location.LocationID),
@@ -107,7 +106,7 @@ func (c *Collector) onNewDevice(ctx context.Context, adv EnvironmentalAdvertisme
 	c.logger.Info("new device found",
 		slog.String("address", d.Address))
 
-	c.devices[adv.address] = d
+	c.devices[adv.address.String()] = d
 
 	c.pushEnvironmentalUpdate(ctx, d, adv)
 }
@@ -131,6 +130,10 @@ func (c *Collector) updateDevice(ctx context.Context, dev *EnvironmentalDevice, 
 		return
 	}
 
+	c.logger.Debug("new update",
+		slog.String("address", dev.Address),
+		slog.Time("timestamp", adv.data.CurrentPoint.Timestamp.ToTime()))
+
 	if (dev.LastSeen != time.Time{}) {
 		dev.AdvertisementPeriod = adv.receivedAt.Sub(dev.LastSeen).Round(time.Millisecond)
 	}
@@ -146,7 +149,10 @@ func (c *Collector) updateDevice(ctx context.Context, dev *EnvironmentalDevice, 
 func (c *Collector) pushEnvironmentalUpdate(ctx context.Context, dev *EnvironmentalDevice, adv EnvironmentalAdvertisment) {
 	reading := dev.updateData(adv)
 
-	logger := c.logger.With(slog.String("address", adv.address.String()))
+	logger := c.logger.With(
+		slog.String("address", adv.address.String()),
+		slog.Time("timestamp", adv.data.CurrentPoint.Timestamp.ToTime()),
+	)
 	if c.config.SynchronizeDevices == true && dev.TimeOffset.Abs() > c.config.MaximalTimeOffset {
 		logger.Warn("device out of sync",
 			slog.Duration("time_offset", dev.TimeOffset),
@@ -167,15 +173,17 @@ func (c *Collector) pushEnvironmentalUpdate(ctx context.Context, dev *Environmen
 	}
 
 	c.wg.Go(func() {
+		logger.Debug("writing to journal")
 		txContext, txCancel := context.WithTimeout(ctx, 5*time.Second)
 		defer txCancel()
+
 		err := c.journal.SaveEnvironmentalReadings(txContext, []EnvironmentalReading{reading})
 		if err != nil {
-			c.logger.Error("failed to save new reading",
-				slog.String("address", adv.address.String()),
-				slog.Time("timestamp", adv.data.CurrentPoint.Timestamp.ToTime()),
+			logger.Error("failed to save new reading",
 				slog.String("error", err.Error()),
 			)
+		} else {
+			logger.Debug("saved")
 		}
 	})
 }
@@ -217,7 +225,7 @@ func (c *Collector) ConnectEnvironmentalDevice(addr ble.Addr, timeout time.Durat
 	c.mx.RLock()
 	defer c.mx.RUnlock()
 
-	_, ok := c.devices[addr]
+	_, ok := c.devices[addr.String()]
 	if ok == false {
 		return fmt.Errorf("device %s is not monitored", addr.String())
 	}
@@ -266,7 +274,13 @@ func (c *Collector) Collect(ctx context.Context) error {
 		}
 	})
 
-	c.wg.Go(func() { c.cron.ScheduleLoop(ctx, c.config.JanitorTime, c.janitorTasks) })
+	c.wg.Go(func() {
+		c.logger.Info("starting CRON Job",
+			slog.Int("hour", c.config.JanitorTime.Hour),
+			slog.Int("minute", c.config.JanitorTime.Minute),
+		)
+		c.cron.ScheduleLoop(ctx, c.config.JanitorTime, c.janitorTasks)
+	})
 
 	return <-errs
 }
@@ -290,7 +304,7 @@ func (c *Collector) janitorTasks(ctx context.Context, now time.Time) {
 			memoryUsage = *envDev.MemoryUsage
 		}
 		locationID := envDev.Location.LocationID
-		targetAddress := addr
+		targetAddress := ble.NewAddr(addr)
 		logger := c.logger.With(slog.String("address", targetAddress.String()))
 		c.wg.Go(func() {
 			delay := time.Duration(rand.Int63n(c.config.ConnectionJitter.Nanoseconds()))
@@ -428,7 +442,7 @@ func NewCollector(config CollectorConfig) (*Collector, error) {
 
 	res := &Collector{
 		config:       config,
-		devices:      make(map[ble.Addr]*EnvironmentalDevice),
+		devices:      make(map[string]*EnvironmentalDevice),
 		hiveIDFilter: make(map[uint8]bool),
 		logger:       slog.With(slog.String("module", "collector")),
 	}
@@ -468,7 +482,7 @@ func NewCollector(config CollectorConfig) (*Collector, error) {
 			)
 			continue
 		}
-		res.devices[ble.NewAddr(d.Address)] = d
+		res.devices[d.Address] = d
 	}
 
 	return res, nil

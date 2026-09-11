@@ -6,6 +6,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"log/slog"
 	"slices"
 	"time"
 
@@ -30,7 +31,8 @@ func NewSQLiteStore(ctx context.Context, path string) (DataJournal, error) {
 	if err != nil {
 		return nil, errors.Join(err, res.db.Close())
 	}
-
+	slog.Info("using database",
+		slog.String("path", path))
 	return res, nil
 }
 

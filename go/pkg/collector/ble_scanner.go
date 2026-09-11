@@ -114,7 +114,7 @@ func (s *bleScanner) scanLoop(ctx context.Context, filter ble.AdvFilter, adverti
 	}
 
 	cancelScan, scanErrors := startBLEScanning()
-
+	logger.Info("starting")
 	for {
 		select {
 		case <-ctx.Done():
