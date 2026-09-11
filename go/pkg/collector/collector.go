@@ -275,6 +275,10 @@ func (c *Collector) Collect(ctx context.Context) error {
 	})
 
 	c.wg.Go(func() {
+		serveCollector(ctx, c)
+	})
+
+	c.wg.Go(func() {
 		c.logger.Info("starting CRON Job",
 			slog.Int("hour", c.config.JanitorTime.Hour),
 			slog.Int("minute", c.config.JanitorTime.Minute),

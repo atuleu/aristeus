@@ -149,6 +149,7 @@ func serveCollector(ctx context.Context, c *Collector) {
 		logger:    slog.With(slog.String("module", "HTTPServer")),
 		ctx:       ctx,
 	}
+
 	mux.HandleFunc("GET /api/state", s.handleState)
 
 	mux.HandleFunc("GET /api/environmental/{location_id}/history",
@@ -182,6 +183,9 @@ func serveCollector(ctx context.Context, c *Collector) {
 		}
 	})
 	defer wg.Wait()
+
+	s.logger.Info("listening",
+		slog.String("address", server.Addr))
 
 	if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 		s.logger.Error("server error",
