@@ -139,7 +139,7 @@ VALUES (?);
 		_, err := tx.ExecContext(ctx, clear_previous_assignments_query,
 			sql.Named("sensor_id", assignement.SensorID),
 			sql.Named("location_id", assignement.LocationID),
-			sql.Named("timestamp", assignement.InstalledAt.Unix()),
+			sql.Named("timestamp", assignement.InstalledAt.UnixMilli()),
 		)
 		if err != nil {
 			return fmt.Errorf("could not removed outdated assignements: %w", err)
@@ -148,7 +148,7 @@ VALUES (?);
 		_, err = tx.ExecContext(ctx, add_missing_assginements_query,
 			sql.Named("sensor_id", assignement.SensorID),
 			sql.Named("location_id", assignement.LocationID),
-			sql.Named("timestamp", assignement.InstalledAt.Unix()),
+			sql.Named("timestamp", assignement.InstalledAt.UnixMilli()),
 		)
 		if err != nil {
 			return fmt.Errorf("could not add missing assignements: %w", err)
@@ -214,7 +214,7 @@ DO UPDATE SET
 		_, err := tx.ExecContext(ctx, insertion_query,
 			sql.Named("location_id", r.LocationID),
 			sql.Named("sensor_id", r.SensorID),
-			sql.Named("timestamp", r.Timestamp.Unix()),
+			sql.Named("timestamp", r.Timestamp.UnixMilli()),
 			sql.Named("received_at", r.ReceivedAt.UnixMilli()),
 			sql.Named("temperature_c", r.Temperature_C),
 			sql.Named("humidity_percent", r.Humidity_percent),
@@ -253,7 +253,7 @@ WHERE
 ORDER BY timestamp ASC;
 `
 
-	rows, err := s.db.QueryContext(ctx, query, locationID, start.Unix(), end.Unix())
+	rows, err := s.db.QueryContext(ctx, query, locationID, start.UnixMilli(), end.UnixMilli())
 	if err != nil {
 		return nil, fmt.Errorf("could not perform query: %w", err)
 	}
@@ -266,7 +266,7 @@ ORDER BY timestamp ASC;
 		if err := rows.Scan(&r.SensorID, &timestamp, &receivedAt, &r.Temperature_C, &r.Humidity_percent, &r.Pressure_hPa, &r.CO2_ppm); err != nil {
 			return res, fmt.Errorf("could not scan result row: %w", err)
 		}
-		r.Timestamp = time.Unix(timestamp, 0)
+		r.Timestamp = time.UnixMilli(timestamp)
 		r.ReceivedAt = time.UnixMilli(receivedAt)
 		res = append(res, r)
 	}
@@ -327,9 +327,9 @@ ORDER BY installed_at ASC;
 		if err := rows.Scan(&a.SensorID, &a.LocationID, &installedAt, &removedAt); err != nil {
 			return res, fmt.Errorf("could not scan assignment row: %w", err)
 		}
-		a.InstalledAt = time.Unix(installedAt, 0)
+		a.InstalledAt = time.UnixMilli(installedAt)
 		if removedAt != nil {
-			a.RemovedAt = newValue(time.Unix(*removedAt, 0))
+			a.RemovedAt = newValue(time.UnixMilli(*removedAt))
 		}
 		res = append(res, a)
 	}
@@ -377,9 +377,9 @@ ORDER BY installed_at ASC;
 		if err := rows.Scan(&a.SensorID, &a.LocationID, &installedAt, &removedAt); err != nil {
 			return res, fmt.Errorf("could not scan assignment row: %w", err)
 		}
-		a.InstalledAt = time.Unix(installedAt, 0)
+		a.InstalledAt = time.UnixMilli(installedAt)
 		if removedAt != nil {
-			a.RemovedAt = newValue[time.Time](time.Unix(*removedAt, 0))
+			a.RemovedAt = newValue[time.Time](time.UnixMilli(*removedAt))
 		}
 
 		res = append(res, a)
@@ -417,7 +417,7 @@ ORDER BY location_id ASC;
 		if err := rows.Scan(&a.SensorID, &a.LocationID, &installedAt); err != nil {
 			return res, fmt.Errorf("could not parse assignment row: %w", err)
 		}
-		a.InstalledAt = time.Unix(installedAt, 0)
+		a.InstalledAt = time.UnixMilli(installedAt)
 		res = append(res, a)
 	}
 
@@ -506,7 +506,7 @@ DO UPDATE SET
 		_, err := tx.ExecContext(ctx, query,
 			sql.Named("location_id", r.LocationID),
 			sql.Named("sensor_id", r.SensorID),
-			sql.Named("timestamp", r.Timestamp.Unix()),
+			sql.Named("timestamp", r.Timestamp.UnixMilli()),
 			sql.Named("received_at", r.ReceivedAt.UnixMilli()),
 			sql.Named("temperature_c", r.Temperature_C),
 			sql.Named("humidity_percent", r.Humidity_percent),
@@ -549,7 +549,7 @@ WHERE
 	AND timestamp <= ?
 ORDER BY timestamp ASC;
 `
-	rows, err := s.db.QueryContext(ctx, query, locationID, start.Unix(), end.Unix())
+	rows, err := s.db.QueryContext(ctx, query, locationID, start.UnixMilli(), end.UnixMilli())
 	if err != nil {
 		return nil, fmt.Errorf("could not perform query: %w", err)
 	}
@@ -572,7 +572,7 @@ ORDER BY timestamp ASC;
 		); err != nil {
 			return res, fmt.Errorf("could not scan result row: %w", err)
 		}
-		r.Timestamp = time.Unix(timestamp, 0)
+		r.Timestamp = time.UnixMilli(timestamp)
 		r.ReceivedAt = time.UnixMilli(receivedAt)
 		res = append(res, r)
 	}
