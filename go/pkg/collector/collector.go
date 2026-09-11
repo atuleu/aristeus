@@ -186,14 +186,14 @@ func (c *Collector) Subscribe(capacity int) (ch <-chan EnvironmentalDevice) {
 	}()
 
 	c.mx.RLock()
+	defer c.mx.RUnlock()
+
 	devices := make([]EnvironmentalDevice, 0, len(c.devices))
 	for _, d := range c.devices {
 		devices = append(devices, d.clone())
 	}
-	c.mx.RUnlock()
 
-	ch = c.envPublisher.Subscribe(devices, capacity)
-	return
+	return c.envPublisher.Subscribe(devices, capacity)
 }
 
 func (c *Collector) Unsubscribe(ch <-chan EnvironmentalDevice) error {
