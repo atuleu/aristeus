@@ -89,6 +89,40 @@ func (s *SQLiteStoreTestSuite) TestSaveOutOfOrder() {
 	}
 }
 
+func (s *SQLiteStoreTestSuite) TestIgnoresDuplicates() {
+	t := time.Now()
+	var err error
+	err = s.journal.SaveEnvironmentalReadings(s.ctx, []EnvironmentalReading{
+		EnvironmentalReading{
+			LocationID:       "foo",
+			SensorID:         "02:02:02:02:02:02",
+			Timestamp:        t.Round(time.Second),
+			ReceivedAt:       t,
+			Temperature_C:    newValue(22.2),
+			Humidity_percent: newValue(44.4),
+			Pressure_hPa:     newValue(1013.4),
+			CO2_ppm:          newValue[uint](444),
+		},
+	})
+	s.Assert().NoError(err)
+	err = s.journal.SaveEnvironmentalReadings(s.ctx, []EnvironmentalReading{
+		EnvironmentalReading{
+			LocationID:       "foo",
+			SensorID:         "02:02:02:02:02:02",
+			Timestamp:        t.Round(time.Second),
+			ReceivedAt:       t.Add(1 * time.Second),
+			Temperature_C:    newValue(22.2),
+			Humidity_percent: newValue(44.4),
+			Pressure_hPa:     newValue(1013.4),
+			CO2_ppm:          newValue[uint](444),
+		},
+	})
+	s.Assert().NoError(err)
+	values, err := s.journal.GetEnvironmentalHistory(s.ctx, "foo", time.Time{}, t.Add(10*time.Second))
+	s.Assert().NoError(err)
+	s.Assert().Len(values, 1)
+}
+
 func (s *SQLiteStoreTestSuite) TestAssignmentConsistency() {
 	a := time.Now().Round(time.Second)
 	b := a.Add(10 * time.Second)
