@@ -1,4 +1,4 @@
-DIRS:= pkg/arisble pkg/collector cmd/aristeus
+DIRS:= pkg/arisble pkg/collector pkg/sse cmd/aristeus
 
 TARGETS := all check clean install
 

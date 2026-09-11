@@ -14,3 +14,13 @@ packages:
       pkgname: "blemock"
     interfaces:
       Advertisement:
+  github.com/atuleu/aristeus/go/pkg/sse:
+    interfaces:
+      SSEWriter:
+  net/http:
+    config:
+      dir: "pkg/sse"
+      pkgname: "sse"
+      filename: "mock_http_response_writer_test.go"
+    interfaces:
+      ResponseWriter:

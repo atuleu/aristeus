@@ -18,19 +18,10 @@ func NewMockBLEDevice(t interface {
 	mock.TestingT
 	Cleanup(func())
 }) *MockBLEDevice {
-	if helper, ok := t.(interface{ Helper() }); ok {
-		helper.Helper()
-	}
-
 	mock := &MockBLEDevice{}
 	mock.Mock.Test(t)
 
-	t.Cleanup(func() {
-		if helper, ok := t.(interface{ Helper() }); ok {
-			helper.Helper()
-		}
-		mock.AssertExpectations(t)
-	})
+	t.Cleanup(func() { mock.AssertExpectations(t) })
 
 	return mock
 }
@@ -185,19 +176,10 @@ func NewMockBLEScanner(t interface {
 	mock.TestingT
 	Cleanup(func())
 }) *MockBLEScanner {
-	if helper, ok := t.(interface{ Helper() }); ok {
-		helper.Helper()
-	}
-
 	mock := &MockBLEScanner{}
 	mock.Mock.Test(t)
 
-	t.Cleanup(func() {
-		if helper, ok := t.(interface{ Helper() }); ok {
-			helper.Helper()
-		}
-		mock.AssertExpectations(t)
-	})
+	t.Cleanup(func() { mock.AssertExpectations(t) })
 
 	return mock
 }
@@ -348,19 +330,10 @@ func newMockenvironmentalOperator(t interface {
 	mock.TestingT
 	Cleanup(func())
 }) *mockenvironmentalOperator {
-	if helper, ok := t.(interface{ Helper() }); ok {
-		helper.Helper()
-	}
-
 	mock := &mockenvironmentalOperator{}
 	mock.Mock.Test(t)
 
-	t.Cleanup(func() {
-		if helper, ok := t.(interface{ Helper() }); ok {
-			helper.Helper()
-		}
-		mock.AssertExpectations(t)
-	})
+	t.Cleanup(func() { mock.AssertExpectations(t) })
 
 	return mock
 }
@@ -522,19 +495,10 @@ func NewMockClock(t interface {
 	mock.TestingT
 	Cleanup(func())
 }) *MockClock {
-	if helper, ok := t.(interface{ Helper() }); ok {
-		helper.Helper()
-	}
-
 	mock := &MockClock{}
 	mock.Mock.Test(t)
 
-	t.Cleanup(func() {
-		if helper, ok := t.(interface{ Helper() }); ok {
-			helper.Helper()
-		}
-		mock.AssertExpectations(t)
-	})
+	t.Cleanup(func() { mock.AssertExpectations(t) })
 
 	return mock
 }
@@ -655,19 +619,10 @@ func NewMockCronScheduler(t interface {
 	mock.TestingT
 	Cleanup(func())
 }) *MockCronScheduler {
-	if helper, ok := t.(interface{ Helper() }); ok {
-		helper.Helper()
-	}
-
 	mock := &MockCronScheduler{}
 	mock.Mock.Test(t)
 
-	t.Cleanup(func() {
-		if helper, ok := t.(interface{ Helper() }); ok {
-			helper.Helper()
-		}
-		mock.AssertExpectations(t)
-	})
+	t.Cleanup(func() { mock.AssertExpectations(t) })
 
 	return mock
 }
@@ -743,19 +698,10 @@ func NewMockDataJournal(t interface {
 	mock.TestingT
 	Cleanup(func())
 }) *MockDataJournal {
-	if helper, ok := t.(interface{ Helper() }); ok {
-		helper.Helper()
-	}
-
 	mock := &MockDataJournal{}
 	mock.Mock.Test(t)
 
-	t.Cleanup(func() {
-		if helper, ok := t.(interface{ Helper() }); ok {
-			helper.Helper()
-		}
-		mock.AssertExpectations(t)
-	})
+	t.Cleanup(func() { mock.AssertExpectations(t) })
 
 	return mock
 }
