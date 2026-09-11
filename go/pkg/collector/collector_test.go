@@ -230,7 +230,6 @@ func (s *CollectorSuite) TestSynchronizeDevice() {
 	s.Assert().Equal(adv.address.String(), received.Address)
 	s.Assert().Equal(t, received.Current.Timestamp)
 	s.Assert().Equal(receivedAt, received.LastSeen)
-
 }
 
 func (s *CollectorSuite) TestJanitor() {

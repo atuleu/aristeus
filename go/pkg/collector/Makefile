@@ -4,6 +4,5 @@ collector: *.go
 	go build
 
 check: *.go
-	go test -race -coverprofile=./cover.out -covermode=atomic
-	go-test-coverage --config=./testcoverage.yml
+	gotestsum --format dots -- -race -coverprofile=./cover.out -covermode=atomic
 	go vet

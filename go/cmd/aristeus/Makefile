@@ -4,7 +4,7 @@ aristeus: *.go
 	go build
 
 check: *.go
-	go test
+	gotestsum --format dots
 	go vet
 
 clean:
