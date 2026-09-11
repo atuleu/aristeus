@@ -5,12 +5,12 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"log/slog"
 	"net/http"
-	"strings"
 	"sync"
 	"time"
+
+	"github.com/atuleu/aristeus/go/pkg/sse"
 )
 
 type collectorHttpServer struct {
@@ -26,64 +26,40 @@ func (s collectorHttpServer) handleState(w http.ResponseWriter, r *http.Request)
 		slog.String("remote", r.RemoteAddr),
 	)
 
-	flusher, ok := w.(http.Flusher)
-	if ok == false {
-		http.Error(w, "streaming not supported", http.StatusInternalServerError)
+	events := make(chan sse.ServerSideEvent, 16)
+
+	subscription := s.collector.Subscribe(1)
+	go func() {
+		defer close(events)
+		for {
+			select {
+			case <-s.ctx.Done():
+				logger.Info("parent cancellation", slog.String("error", s.ctx.Err().Error()))
+				return
+			case d, ok := <-subscription:
+				if ok == false {
+					return
+				}
+				events <- sse.ServerSideEvent{Name: "environmental_device_update", Data: d}
+			}
+		}
+	}()
+	defer func() {
+		s.collector.Unsubscribe(subscription)
+		for range events {
+			// drain all remaining events so subscription closing will be seen
+			// by glue routine. It also waits for the glue routine to close!
+		}
+	}()
+
+	err := sse.HandleSSE(w, r, events, time.Minute)
+	if err != nil && err != sse.EOS && err != context.Canceled {
+		logger.Warn("done",
+			slog.String("error", err.Error()))
 		return
 	}
 
-	w.Header().Set("Content-Type", "text/event-stream")
-	w.Header().Set("Cache-Control", "no-cache")
-	w.Header().Set("Connection", "keep-alive")
-
-	subscription := s.collector.Subscribe(1)
-	defer s.collector.Unsubscribe(subscription)
-	requestContext := r.Context()
-
-	writeError := func(err string) {
-		fmt.Fprintf(w, "event: error\ndata: %s\n\n",
-			strings.Replace(err, "\n", "\ndata: ", -1))
-		flusher.Flush()
-	}
-
-	writeUpdate := func(d EnvironmentalDevice) {
-		payload, err := json.Marshal(d)
-		if err != nil {
-			writeError(err.Error())
-			return
-		}
-		fmt.Fprintf(w, "event: state\ndata: %s\n\n",
-			strings.Replace(string(payload), "\n", "\ndata: ", -1))
-		flusher.Flush()
-	}
-
-	ticker := time.NewTicker(time.Minute)
-	defer ticker.Stop()
-
-	for {
-		select {
-		case <-ticker.C:
-			fmt.Fprintf(w, ": keepalive\n\n")
-			flusher.Flush()
-		case <-s.ctx.Done():
-			logger.Info("done",
-				slog.String("error", s.ctx.Err().Error()))
-			writeError("EOS")
-			return
-		case <-requestContext.Done():
-			logger.Info("disconnected",
-				slog.String("error", requestContext.Err().Error()))
-			return
-		case d, ok := <-subscription:
-			if ok == false {
-				logger.Error("subscription early termination")
-				writeError("internal error")
-				return
-			}
-			writeUpdate(d)
-			ticker.Reset(1 * time.Minute)
-		}
-	}
+	logger.Info("done")
 }
 
 func extractLocationID(r *http.Request) (string, error) {
