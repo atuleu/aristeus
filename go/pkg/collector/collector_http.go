@@ -5,8 +5,10 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"log/slog"
 	"net/http"
+	"strconv"
 	"sync"
 	"time"
 
@@ -69,10 +71,22 @@ func extractLocationID(r *http.Request) (string, error) {
 
 }
 
+func isNumericBytes(s string) bool {
+	if len(s) == 0 {
+		return false
+	}
+	for i := 0; i < len(s); i++ {
+		if s[i] < '0' || s[i] > '9' {
+			return false
+		}
+	}
+	return true
+}
+
 func (s collectorHttpServer) handleEnvironmentalHistory(w http.ResponseWriter, r *http.Request) {
 	logger := s.logger.With(
 		slog.String("method", r.Method),
-		slog.String("URI", r.RequestURI),
+		slog.String("Path", r.URL.EscapedPath()),
 		slog.String("remote", r.RemoteAddr),
 	)
 
@@ -88,10 +102,41 @@ func (s collectorHttpServer) handleEnvironmentalHistory(w http.ResponseWriter, r
 	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
 	defer cancel()
 
-	readings, err := s.collector.journal.GetEnvironmentalHistory(ctx,
-		locationID,
-		time.Date(time.Now().Year(), 1, 1, 0, 0, 0, 0, time.Local), time.Now(),
-	)
+	parseTimestamp := func(def time.Time, key string) (time.Time, error) {
+		raw := r.URL.Query().Get(key)
+		if raw == "" {
+			return def, nil
+		}
+		if isNumericBytes(raw) == false {
+			http.Error(w, "invalid "+key, http.StatusBadRequest)
+			return def, fmt.Errorf("invalid %s", key)
+		}
+		ms, err := strconv.ParseInt(raw, 10, 64)
+		if err != nil {
+			http.Error(w, "invalid "+key+"="+raw, http.StatusBadRequest)
+			return def, fmt.Errorf("invalid %s=%s: %w", key, raw, err)
+		}
+		return time.UnixMilli(ms), nil
+	}
+	now := time.Now()
+	start, err := parseTimestamp(time.Date(now.Year(), 1, 1, 0, 0, 0, 0, time.Local), "since")
+	if err != nil {
+		logger.Error("could not parse 'since' query parameter",
+			slog.String("error", err.Error()))
+		return
+	} else {
+		logger = logger.With("since", r.URL.Query().Get("since"))
+	}
+	end, err := parseTimestamp(now, "until")
+	if err != nil {
+		logger.Error("could not parse 'until' query parameter",
+			slog.String("error", err.Error()))
+		return
+	} else {
+		logger = logger.With("until", r.URL.Query().Get("until"))
+	}
+
+	readings, err := s.collector.journal.GetEnvironmentalHistory(ctx, locationID, start, end)
 
 	if err != nil && errors.Is(err, sql.ErrNoRows) == false {
 		logger.Error("database error",

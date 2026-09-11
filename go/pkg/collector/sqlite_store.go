@@ -215,6 +215,7 @@ WHERE
 	AND timestamp <= ?
 ORDER BY timestamp ASC;
 `
+
 	rows, err := s.db.QueryContext(ctx, query, locationID, start.Unix(), end.Unix())
 	if err != nil {
 		return nil, fmt.Errorf("could not perform query: %w", err)
