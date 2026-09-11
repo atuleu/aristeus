@@ -14,7 +14,7 @@ type CollectCommand struct {
 	DisableSynchronization bool    `long:"disable-synchronization" description:"disable device synchronization"`
 }
 
-func (c *CollectCommand) Execute(args []string) error {
+func (c *CollectCommand) Execute(args []string) (err error) {
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer stop()
@@ -25,6 +25,7 @@ func (c *CollectCommand) Execute(args []string) error {
 			collector.WithSynchronizeDevice(!c.DisableSynchronization),
 		),
 	)
+	defer func() { err = errors.Join(err, collector.Close()) }()
 	if err != nil {
 		return err
 	}

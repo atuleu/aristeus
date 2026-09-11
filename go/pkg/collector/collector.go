@@ -37,6 +37,10 @@ type Collector struct {
 	environmentalOperator environmentalOperator
 }
 
+func (c *Collector) Close() error {
+	return errors.Join(c.journal.Close())
+}
+
 func (c *Collector) bleAdvFilter() ble.AdvFilter {
 	hiveIDFilter := make(map[uint8]bool)
 	for ID, ok := range c.hiveIDFilter {
