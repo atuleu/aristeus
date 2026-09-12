@@ -9,6 +9,7 @@ import (
 	"log/slog"
 	"net/http"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -21,16 +22,39 @@ type collectorHttpServer struct {
 	ctx       context.Context
 }
 
+func parseLastEventID(r *http.Request) (*time.Time, error) {
+	lastEventID := strings.TrimSpace(r.Header.Get("Last-Event-ID"))
+	if len(lastEventID) == 0 {
+		return nil, nil
+	}
+	if isNumericBytes(lastEventID) == false {
+		return nil, fmt.Errorf("non-numeric only characters in Last-Event-ID header")
+	}
+	timeMs, err := strconv.ParseInt(lastEventID, 10, 64)
+	if err != nil {
+		return nil, fmt.Errorf("could not parse 'Last-Event-ID: %s': %w", lastEventID, err)
+	}
+	res := time.UnixMilli(timeMs)
+	return &res, nil
+}
+
 func (s collectorHttpServer) handleState(w http.ResponseWriter, r *http.Request) {
 	logger := s.logger.With(
 		slog.String("method", r.Method),
-		slog.String("URI", r.RequestURI),
+		slog.String("URI", r.URL.EscapedPath()),
 		slog.String("remote", r.RemoteAddr),
 	)
 
 	events := make(chan sse.ServerSideEvent, 16)
 
-	subscription := s.collector.Subscribe(1)
+	lastEventTime, err := parseLastEventID(r)
+	if err != nil {
+		http.Error(w, "invalid Last-Event-ID", http.StatusBadRequest)
+		logger.Error("request Header error", slog.String("error", err.Error()))
+		return
+	}
+
+	subscription := s.collector.Subscribe(1, lastEventTime)
 	go func() {
 		defer close(events)
 		for {
@@ -42,7 +66,18 @@ func (s collectorHttpServer) handleState(w http.ResponseWriter, r *http.Request)
 				if ok == false {
 					return
 				}
-				events <- sse.ServerSideEvent{Name: "environmental_device_update", Data: d}
+				if d.EnvironmentalDevice != nil {
+					events <- sse.ServerSideEvent{Name: "environmental_device_update", Data: d.EnvironmentalDevice}
+				}
+				if d.EnvironmentalReading != nil {
+					events <- sse.ServerSideEvent{Name: "environmental_readings_update", Data: d.EnvironmentalReading}
+				}
+				if d.ScaleReading != nil {
+					events <- sse.ServerSideEvent{Name: "scale_readings_update", Data: d.ScaleReading}
+				}
+				if d.TrafficCount != nil {
+					events <- sse.ServerSideEvent{Name: "traffic_count_update", Data: d.TrafficCount}
+				}
 			}
 		}
 	}()
@@ -54,7 +89,7 @@ func (s collectorHttpServer) handleState(w http.ResponseWriter, r *http.Request)
 		}
 	}()
 
-	err := sse.HandleSSE(w, r, events, time.Minute)
+	err = sse.HandleSSE(w, r, events, time.Minute)
 	if err != nil && err != sse.EOS && err != context.Canceled {
 		logger.Warn("done",
 			slog.String("error", err.Error()))

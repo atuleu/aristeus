@@ -11,6 +11,11 @@ type Publisher[T any] struct {
 	subscriptions map[<-chan T]chan T
 }
 
+var (
+	ErrSubscriptionNotManaged = errors.New("subscription is not managed")
+	ErrSubscriptionWouldBlock = errors.New("subscription would block")
+)
+
 func (p *Publisher[T]) Subscribe(initialValues []T, capacity int) <-chan T {
 	res := make(chan T, max(len(initialValues), capacity))
 	p.mx.Lock()
@@ -33,12 +38,34 @@ func (p *Publisher[T]) Unsubscribe(ch <-chan T) error {
 
 	actual, ok := p.subscriptions[ch]
 	if ok == false {
-		return fmt.Errorf("object is not managed")
+		return ErrSubscriptionNotManaged
 	}
 
 	delete(p.subscriptions, ch)
 	close(actual)
 	return nil
+}
+
+func (p *Publisher[T]) PushToSingleSubscription(ch <-chan T, value T, blocking bool) error {
+	p.mx.RLock()
+	defer p.mx.RUnlock()
+
+	actual, ok := p.subscriptions[ch]
+	if ok == false {
+		return ErrSubscriptionNotManaged
+	}
+
+	if blocking == true {
+		actual <- value
+		return nil
+	}
+
+	select {
+	case actual <- value:
+		return nil
+	default:
+		return ErrSubscriptionWouldBlock
+	}
 }
 
 func (p *Publisher[T]) Update(value T) error {
@@ -50,7 +77,7 @@ func (p *Publisher[T]) Update(value T) error {
 		case ch <- value:
 			//OK, do nothing.
 		default:
-			errs = append(errs, fmt.Errorf("subscription %p would block", id))
+			errs = append(errs, fmt.Errorf("subscription %p: %w", id, ErrSubscriptionWouldBlock))
 		}
 	}
 	return errors.Join(errs...)

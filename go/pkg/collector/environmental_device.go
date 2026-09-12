@@ -198,6 +198,7 @@ func (d *EnvironmentalDevice) updateData(adv EnvironmentalAdvertisment) Environm
 	return reading
 }
 
-func (d *EnvironmentalDevice) clone() EnvironmentalDevice {
-	return *d
+func (d *EnvironmentalDevice) clone() *EnvironmentalDevice {
+	res := *d
+	return &res
 }

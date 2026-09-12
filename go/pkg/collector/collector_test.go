@@ -172,7 +172,7 @@ func (s *CollectorSuite) TestDuplicates() {
 
 	s.journal.EXPECT().GetLocationAssignements(mock.Anything, "hive_001_general").Return(nil, nil).Once()
 	s.journal.EXPECT().SaveEnvironmentalReadings(mock.Anything, mock.Anything).Return(nil).Once()
-	subscription := s.collector.Subscribe(2)
+	subscription := s.collector.Subscribe(2, nil)
 	s.Require().NotNil(subscription)
 	var wg sync.WaitGroup
 	wg.Go(func() {
@@ -183,9 +183,9 @@ func (s *CollectorSuite) TestDuplicates() {
 	received, ok := <-subscription
 
 	s.Require().True(ok)
-	s.Assert().Equal(adv.address.String(), received.Address)
-	s.Assert().Equal(t, received.Current.Timestamp)
-	s.Assert().Equal(t, received.LastSeen)
+	s.Assert().Equal(adv.address.String(), received.EnvironmentalDevice.Address)
+	s.Assert().Equal(t, received.EnvironmentalDevice.Current.Timestamp)
+	s.Assert().Equal(t, received.EnvironmentalDevice.LastSeen)
 
 	wg.Wait()
 
@@ -217,7 +217,7 @@ func (s *CollectorSuite) TestSynchronizeDevice() {
 	})
 	s.environmentalOperator.EXPECT().SynchronizeDevice(mock.Anything, nil, adv.address).Return(nil).Once()
 
-	subscription := s.collector.Subscribe(1)
+	subscription := s.collector.Subscribe(1, nil)
 
 	var wg sync.WaitGroup
 	wg.Go(func() {
@@ -227,9 +227,9 @@ func (s *CollectorSuite) TestSynchronizeDevice() {
 
 	received, ok := <-subscription
 	s.Require().True(ok)
-	s.Assert().Equal(adv.address.String(), received.Address)
-	s.Assert().Equal(t, received.Current.Timestamp)
-	s.Assert().Equal(receivedAt, received.LastSeen)
+	s.Assert().Equal(adv.address.String(), received.EnvironmentalDevice.Address)
+	s.Assert().Equal(t, received.EnvironmentalDevice.Current.Timestamp)
+	s.Assert().Equal(receivedAt, received.EnvironmentalDevice.LastSeen)
 }
 
 func (s *CollectorSuite) TestJanitor() {
@@ -276,7 +276,7 @@ func (s *CollectorSuite) TestJanitor() {
 	s.journal.EXPECT().GetLocationAssignements(mock.Anything, "hive_003_general").Return(nil, nil)
 	s.journal.EXPECT().SaveEnvironmentalReadings(mock.Anything, mock.Anything).Return(nil)
 
-	subscription := s.collector.Subscribe(len(advs))
+	subscription := s.collector.Subscribe(len(advs), nil)
 
 	var wg sync.WaitGroup
 	wg.Go(func() {
@@ -288,9 +288,9 @@ func (s *CollectorSuite) TestJanitor() {
 	for _, adv := range advs {
 		received, ok := <-subscription
 		s.Require().True(ok)
-		s.Assert().Equal(adv.address.String(), received.Address)
-		s.Assert().Equal(adv.data.CurrentPoint.Timestamp.ToTime(), received.Current.Timestamp)
-		s.Assert().Equal(adv.receivedAt, received.LastSeen)
+		s.Assert().Equal(adv.address.String(), received.EnvironmentalDevice.Address)
+		s.Assert().Equal(adv.data.CurrentPoint.Timestamp.ToTime(), received.EnvironmentalDevice.Current.Timestamp)
+		s.Assert().Equal(adv.receivedAt, received.EnvironmentalDevice.LastSeen)
 	}
 
 	s.scanner.EXPECT().Schedule(mock.Anything).RunAndReturn(func(task BLETask) error {

@@ -2,6 +2,7 @@ package collector
 
 import (
 	"context"
+	"database/sql"
 	"encoding/binary"
 	"errors"
 	"fmt"
@@ -20,12 +21,19 @@ type environmentalOperator interface {
 	ReadJournalAndEraseDevice(ctx context.Context, dev BLEDevice, address ble.Addr, locationID string, journal DataJournal) error
 }
 
+type DataUpdate struct {
+	EnvironmentalDevice  *EnvironmentalDevice
+	EnvironmentalReading *EnvironmentalReading
+	ScaleReading         *ScaleReading
+	TrafficCount         *TrafficCount
+}
+
 type Collector struct {
 	config       CollectorConfig
 	wg           sync.WaitGroup
 	mx           sync.RWMutex
 	devices      map[string]*EnvironmentalDevice
-	envPublisher Publisher[EnvironmentalDevice]
+	envPublisher Publisher[DataUpdate]
 
 	hiveIDFilter map[uint8]bool
 
@@ -165,8 +173,12 @@ func (c *Collector) pushEnvironmentalUpdate(ctx context.Context, dev *Environmen
 			)
 		}
 	}
+	update := DataUpdate{
+		EnvironmentalDevice:  dev.clone(),
+		EnvironmentalReading: &reading,
+	}
 
-	if err := c.envPublisher.Update(dev.clone()); err != nil {
+	if err := c.envPublisher.Update(update); err != nil {
 		c.logger.Warn("could not push update",
 			slog.String("error", err.Error()))
 	} else {
@@ -190,7 +202,7 @@ func (c *Collector) pushEnvironmentalUpdate(ctx context.Context, dev *Environmen
 	})
 }
 
-func (c *Collector) Subscribe(capacity int) (ch <-chan EnvironmentalDevice) {
+func (c *Collector) Subscribe(capacity int, lastUpdate *time.Time) (ch <-chan DataUpdate) {
 	defer func() {
 		c.logger.Info("subscribed", slog.Any("channel", ch))
 	}()
@@ -198,15 +210,70 @@ func (c *Collector) Subscribe(capacity int) (ch <-chan EnvironmentalDevice) {
 	c.mx.RLock()
 	defer c.mx.RUnlock()
 
-	devices := make([]EnvironmentalDevice, 0, len(c.devices))
+	devices := make([]DataUpdate, 0, len(c.devices))
 	for _, d := range c.devices {
-		devices = append(devices, d.clone())
+		devices = append(devices, DataUpdate{
+			EnvironmentalDevice: d.clone(),
+		})
 	}
+
+	defer func() {
+		if lastUpdate != nil {
+			c.wg.Go(func() { c.pushReadingHistory(ch, *lastUpdate) })
+		}
+	}()
 
 	return c.envPublisher.Subscribe(devices, capacity)
 }
 
-func (c *Collector) Unsubscribe(ch <-chan EnvironmentalDevice) error {
+func (c *Collector) pushReadingHistory(ch <-chan DataUpdate, lastUpdate time.Time) {
+	logger := c.logger.With(slog.Any("subscription", ch))
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	locations, err := c.journal.GetSensorLocations(ctx)
+	if err != nil {
+		logger.Error("could not retrieve all locations",
+			slog.String("error", err.Error()))
+		return
+	}
+
+	var updates []DataUpdate
+
+	for _, l := range locations {
+		logger := logger.With(slog.String("location_id", l.LocationID))
+		environmentals, err := c.journal.GetEnvironmentalHistory(ctx, l.LocationID, lastUpdate, time.Now())
+		if err != nil && err != sql.ErrNoRows {
+			logger.Error("could not read environmental history",
+				slog.String("error", err.Error()))
+		}
+		for _, r := range environmentals {
+			updates = append(updates, DataUpdate{EnvironmentalReading: &r})
+		}
+		scales, err := c.journal.GetScaleHistory(ctx, l.LocationID, lastUpdate, time.Now())
+		if err != nil && err != sql.ErrNoRows {
+			logger.Error("could not read scale history",
+				slog.String("error", err.Error()))
+		}
+		for _, r := range scales {
+			updates = append(updates, DataUpdate{ScaleReading: &r})
+		}
+
+		traffic, err := c.journal.GetTrafficHistory(ctx, l.LocationID, lastUpdate, time.Now())
+		if err != nil && err != sql.ErrNoRows {
+			logger.Error("could not read traffic history",
+				slog.String("error", err.Error()))
+		}
+		for _, r := range traffic {
+			updates = append(updates, DataUpdate{TrafficCount: &r})
+		}
+	}
+
+	for _, u := range updates {
+		c.envPublisher.PushToSingleSubscription(ch, u, true)
+	}
+}
+
+func (c *Collector) Unsubscribe(ch <-chan DataUpdate) error {
 	defer c.logger.Info("unsubscribed", slog.Any("channel", ch))
 	return c.envPublisher.Unsubscribe(ch)
 }
@@ -217,7 +284,7 @@ func (c *Collector) GetEnvironmentalDevices() []EnvironmentalDevice {
 	defer c.mx.RUnlock()
 	res := make([]EnvironmentalDevice, 0, len(c.devices))
 	for _, d := range c.devices {
-		res = append(res, d.clone())
+		res = append(res, *d.clone())
 	}
 	return res
 }
