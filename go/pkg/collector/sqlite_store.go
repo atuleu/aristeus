@@ -591,19 +591,22 @@ INSERT INTO traffic_count (
 	received_at,
 	duration_ms,
 	outgoing,
-	ingoing
+	ingoing,
+	detected
 ) VALUES (
 	:location_id,
 	:timestamp,
 	:received_at,
 	:duration_ms,
 	:outgoing,
-	:ingoing
+	:ingoing,
+	:detected
 )
 ON CONFLICT (location_id,timestamp)
 DO UPDATE SET
-	ingoing = EXCLUDED.ingoing,
-	outgoing = EXCLUDED.outgoing;
+	ingoing = COALESCE(EXCLUDED.ingoing,traffic_count.ingoing),
+	outgoing = COALESCE(EXCLUDED.outgoing,traffic_count.outgoing),
+	detected = COALESCE(EXCLUDED.detected,traffic_count.detected);
 `
 	var locationIDs []string
 	locationSet := make(map[string]bool)
@@ -642,6 +645,7 @@ DO UPDATE SET
 			sql.Named("duration_ms", c.Duration.Milliseconds()),
 			sql.Named("outgoing", c.Outgoing),
 			sql.Named("ingoing", c.Ingoing),
+			sql.Named("detected", c.Detected),
 		)
 		if err != nil {
 			return fmt.Errorf("could not save count (%s,%s): %w", c.LocationID, c.Timestamp, err)
@@ -663,7 +667,8 @@ SELECT
 	received_at,
 	duration_ms,
 	outgoing,
-	ingoing
+	ingoing,
+	detected
 FROM traffic_count
 WHERE
 	location_id = ?
@@ -680,7 +685,7 @@ ORDER BY timestamp ASC;
 	for rows.Next() {
 		c := TrafficCount{LocationID: locationID}
 		var timestamp, receivedAt, duration_ms int64
-		err = rows.Scan(&timestamp, &receivedAt, &duration_ms, &c.Outgoing, &c.Ingoing)
+		err = rows.Scan(&timestamp, &receivedAt, &duration_ms, &c.Outgoing, &c.Ingoing, &c.Detected)
 		if err != nil {
 			return res, fmt.Errorf("could not scan row: %w", err)
 		}
@@ -781,6 +786,7 @@ CREATE TABLE IF NOT EXISTS traffic_count (
 	duration_ms INTEGER,
 	outgoing INTEGER,
 	ingoing INTEGER,
+	detected INTEGER,
 	PRIMARY KEY (location_id,timestamp),
 	FOREIGN KEY (location_id) REFERENCES locations(location_id)
 ) WITHOUT ROWID;

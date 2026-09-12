@@ -23,8 +23,8 @@ type TrafficCount struct {
 	LocationID            string
 	Timestamp, ReceivedAt time.Time
 
-	Duration          time.Duration
-	Outgoing, Ingoing int
+	Duration                    time.Duration
+	Outgoing, Ingoing, Detected *int64
 }
 
 type ScaleReading struct {

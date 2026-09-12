@@ -250,8 +250,8 @@ func (s *DataJournalSuite) TestTrafficIO() {
 			Timestamp:  t.Add(1 * time.Minute),
 			Duration:   time.Minute,
 			ReceivedAt: t.Add(1*time.Minute + 8*time.Millisecond),
-			Outgoing:   10,
-			Ingoing:    3,
+			Outgoing:   newValue(int64(10)),
+			Ingoing:    newValue(int64(3)),
 		},
 	})
 	s.Require().NoError(err)
@@ -262,16 +262,18 @@ func (s *DataJournalSuite) TestTrafficIO() {
 			Timestamp:  t,
 			Duration:   time.Minute,
 			ReceivedAt: t.Add(10 * time.Millisecond),
-			Outgoing:   8,
-			Ingoing:    9,
+			Outgoing:   newValue(int64(8)),
+			Detected:   newValue(int64(20)),
+			Ingoing:    newValue(int64(9)),
 		},
 		TrafficCount{
 			LocationID: "hive_001_general",
 			Timestamp:  t.Add(1 * time.Minute),
 			Duration:   time.Minute,
 			ReceivedAt: t.Add(1*time.Minute + 10*time.Millisecond),
-			Outgoing:   10,
-			Ingoing:    5,
+			Outgoing:   newValue(int64(10)),
+			Detected:   newValue(int64(22)),
+			Ingoing:    newValue(int64(5)),
 		},
 	}
 

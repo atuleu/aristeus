@@ -14,8 +14,20 @@ type trafficCount struct {
 	Timestamp   time.Time `json:"timestamp"`
 	HiveID      uint      `json:"hive_id"`
 	Duration_ms int64     `json:"duration_ms"`
-	Outgoing    int64     `json:"outgoing"`
-	Ingoing     int64     `json:"ingoing"`
+	Outgoing    *int64    `json:"outgoing"`
+	Ingoing     *int64    `json:"ingoing"`
+	Detected    *int64    `json:"detected"`
+}
+
+func (c trafficCount) normalize(receivedAt time.Time) (cnt TrafficCount) {
+	cnt.Timestamp = c.Timestamp
+	cnt.ReceivedAt = receivedAt
+	cnt.LocationID = BuildLocationID(arisble.Location{HiveID: uint8(c.HiveID), Placement: arisble.PlacementGeneral})
+	cnt.Duration = time.Duration(c.Duration_ms) * time.Millisecond
+	cnt.Outgoing = c.Outgoing
+	cnt.Ingoing = c.Ingoing
+	cnt.Detected = c.Detected
+	return cnt
 }
 
 func ListenTrafficCount(ctx context.Context, ch chan<- TrafficCount, addr string) error {
@@ -43,6 +55,7 @@ func ListenTrafficCount(ctx context.Context, ch chan<- TrafficCount, addr string
 	buf := make([]byte, 4096)
 	for {
 		n, _, err := conn.ReadFromUDP(buf)
+		receivedAt := time.Now()
 		if err != nil {
 			select {
 			case <-ctx.Done():
@@ -55,21 +68,12 @@ func ListenTrafficCount(ctx context.Context, ch chan<- TrafficCount, addr string
 		var c trafficCount
 		err = json.Unmarshal(buf[0:n], &c)
 		if err != nil {
-			logger.Error("could not unmarshal packet",
+			logger.Error("could not unserialize object",
 				slog.String("error", err.Error()))
 			continue
 
 		}
-		newCount := TrafficCount{
-			LocationID: BuildLocationID(arisble.Location{HiveID: uint8(c.HiveID),
-				Placement: arisble.PlacementGeneral,
-			}),
-			Timestamp:  c.Timestamp,
-			ReceivedAt: time.Now(),
-			Duration:   time.Duration(c.Duration_ms) * time.Millisecond,
-			Ingoing:    int(c.Ingoing),
-			Outgoing:   int(c.Outgoing),
-		}
+		newCount := c.normalize(receivedAt)
 		select {
 		case ch <- newCount:
 		default:
