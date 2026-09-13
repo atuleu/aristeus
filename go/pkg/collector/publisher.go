@@ -28,7 +28,7 @@ type subscription[T any] struct {
 	backlog       []T
 }
 
-func newSubscription[T any](backlog []T, timeout time.Duration) *subscription[T] {
+func newSubscription[T any](backlog []T, timeout time.Duration, parent *Publisher[T]) *subscription[T] {
 	res := &subscription[T]{
 		ch:      make(chan T, 64),
 		backlog: backlog,
@@ -37,43 +37,51 @@ func newSubscription[T any](backlog []T, timeout time.Duration) *subscription[T]
 		return res
 	}
 
-	res.missed = make(chan T, 128)
+	res.missed = make(chan T, 16)
 	res.incoming = &res.missed
 	res.backlogCtx, res.cancelBacklog = context.WithTimeout(context.Background(), timeout)
 	res.backlogDone = make(chan struct{})
-	go res.pushBacklog()
+	go res.pushBacklog(parent)
 
 	return res
 }
 
-func (s *subscription[T]) pushBacklog() {
-	defer s.cancelBacklog()
-	defer close(s.backlogDone)
+func (s *subscription[T]) pushBacklog(parent *Publisher[T]) (successful bool) {
+	defer func() {
+		s.cancelBacklog()
+		close(s.backlogDone)
+		if successful == false {
+			go parent.Unsubscribe(s.ch)
+		}
+	}()
 
+	var missedBuffer []T
 	for _, v := range s.backlog {
 		select {
 		case <-s.backlogCtx.Done():
-			return
+			return false
 		case s.ch <- v:
+		case m := <-s.missed:
+			missedBuffer = append(missedBuffer, m)
 		}
 	}
+	s.backlog = nil
 
-	blocked := false
-	// best effort drain most missed value to avoid out-of-order
-	for !blocked {
+	for i := 0; i < len(missedBuffer); {
 		select {
-		case v := <-s.missed:
-			select {
-			case s.ch <- v:
-			case <-s.backlogCtx.Done():
-				return
-			}
-		default:
-			blocked = true
+		case <-s.backlogCtx.Done():
+			return false
+		case s.ch <- missedBuffer[i]:
+			i++
+		case m := <-s.missed:
+			missedBuffer = append(missedBuffer, m)
 		}
 	}
+	missedBuffer = nil // release the miss buffer
+
 	// small delay to avoid switching to a filled up queue.
 	time.Sleep(50 * time.Millisecond)
+
 	// switches an closes atomically, We avoid any send to a closed channel
 	s.mx.Lock()
 	s.incoming = &s.ch
@@ -86,9 +94,10 @@ func (s *subscription[T]) pushBacklog() {
 		select {
 		case s.ch <- v:
 		case <-s.backlogCtx.Done():
-			return
+			return false
 		}
 	}
+	return true
 }
 
 func (s *subscription[T]) Close() {
@@ -138,7 +147,7 @@ type Publisher[T any] struct {
 func (p *Publisher[T]) Subscribe(backlog []T, backlogTimeout time.Duration) <-chan T {
 	p.mx.Lock()
 	defer p.mx.Unlock()
-	res := newSubscription[T](backlog, backlogTimeout)
+	res := newSubscription[T](backlog, backlogTimeout, p)
 
 	if p.subscriptions == nil {
 		p.subscriptions = make(map[<-chan T]*subscription[T])
@@ -181,7 +190,23 @@ func (p *Publisher[T]) Update(value T) error {
 	var errs []error
 	for id, s := range p.subscriptions {
 		if err := s.push(value); err != nil {
-			go p.Unsubscribe(id)
+			go func() {
+				timer := time.NewTimer(500 * time.Millisecond)
+				defer func() {
+					timer.Stop()
+					// we may send to a closed channel due to concurrent Unsubscribe.
+					// we ignore that at this point. No sense to deliver something.
+					recover()
+				}()
+
+				select {
+				case s.ch <- value:
+					return
+				case <-timer.C:
+					p.Unsubscribe(id)
+				}
+			}()
+
 			errs = append(errs, fmt.Errorf("subscription %p: %w", id, err))
 		}
 	}
