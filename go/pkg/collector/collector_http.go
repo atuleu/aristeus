@@ -54,7 +54,7 @@ func (s collectorHttpServer) handleState(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	subscription := s.collector.Subscribe(1, lastEventTime)
+	subscription := s.collector.Subscribe(lastEventTime)
 	go func() {
 		defer close(events)
 		for {

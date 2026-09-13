@@ -202,57 +202,51 @@ func (c *Collector) pushEnvironmentalUpdate(ctx context.Context, dev *Environmen
 	})
 }
 
-func (c *Collector) Subscribe(capacity int, lastUpdate *time.Time) (ch <-chan DataUpdate) {
-	defer func() {
-		c.logger.Info("subscribed", slog.Any("channel", ch))
-	}()
+func (c *Collector) Subscribe(lastUpdate *time.Time) <-chan DataUpdate {
+	var updates []DataUpdate
+	var errs error
 
+	if lastUpdate != nil {
+		updates, errs = c.getReadingHistory(*lastUpdate)
+		if joined, ok := errs.(interface{ Unwrap() []error }); ok == true {
+			for _, err := range joined.Unwrap() {
+				c.logger.Error("could not read full history",
+					slog.Time("since", *lastUpdate),
+					slog.String("error", err.Error()))
+			}
+		}
+	}
 	c.mx.RLock()
 	defer c.mx.RUnlock()
 
-	devices := make([]DataUpdate, 0, len(c.devices))
 	for _, d := range c.devices {
-		devices = append(devices, DataUpdate{
-			EnvironmentalDevice: d.clone(),
-		})
+		updates = append(updates, DataUpdate{EnvironmentalDevice: d.clone()})
 	}
 
-	defer func() {
-		if lastUpdate != nil {
-			c.wg.Go(func() { c.pushReadingHistory(ch, *lastUpdate) })
-		}
-	}()
-
-	return c.envPublisher.Subscribe(devices, capacity)
+	return c.envPublisher.Subscribe(updates, 10*time.Second)
 }
 
-func (c *Collector) pushReadingHistory(ch <-chan DataUpdate, lastUpdate time.Time) {
-	logger := c.logger.With(slog.Any("subscription", ch))
+func (c *Collector) getReadingHistory(lastUpdate time.Time) ([]DataUpdate, error) {
+	var errs []error
+
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	locations, err := c.journal.GetSensorLocations(ctx)
 	if err != nil {
-		logger.Error("could not retrieve all locations",
-			slog.String("error", err.Error()))
-		return
+		return nil, err
 	}
-
 	var updates []DataUpdate
-
 	for _, l := range locations {
-		logger := logger.With(slog.String("location_id", l.LocationID))
 		environmentals, err := c.journal.GetEnvironmentalHistory(ctx, l.LocationID, lastUpdate, time.Now())
 		if err != nil && err != sql.ErrNoRows {
-			logger.Error("could not read environmental history",
-				slog.String("error", err.Error()))
+			errs = append(errs, fmt.Errorf("could not get environmental history for location_id=%s: %w", l.LocationID, err))
 		}
 		for _, r := range environmentals {
 			updates = append(updates, DataUpdate{EnvironmentalReading: &r})
 		}
 		scales, err := c.journal.GetScaleHistory(ctx, l.LocationID, lastUpdate, time.Now())
 		if err != nil && err != sql.ErrNoRows {
-			logger.Error("could not read scale history",
-				slog.String("error", err.Error()))
+			errs = append(errs, fmt.Errorf("could not get scale history for location_id=%s: %w", l.LocationID, err))
 		}
 		for _, r := range scales {
 			updates = append(updates, DataUpdate{ScaleReading: &r})
@@ -260,21 +254,19 @@ func (c *Collector) pushReadingHistory(ch <-chan DataUpdate, lastUpdate time.Tim
 
 		traffic, err := c.journal.GetTrafficHistory(ctx, l.LocationID, lastUpdate, time.Now())
 		if err != nil && err != sql.ErrNoRows {
-			logger.Error("could not read traffic history",
-				slog.String("error", err.Error()))
+			errs = append(errs, fmt.Errorf("could not get scale traffic history for location_id=%s: %w", l.LocationID, err))
 		}
 		for _, r := range traffic {
 			updates = append(updates, DataUpdate{TrafficCount: &r})
 		}
 	}
 
-	for _, u := range updates {
-		c.envPublisher.PushToSingleSubscription(ch, u, true)
-	}
+	return updates, errors.Join(errs...)
 }
 
 func (c *Collector) Unsubscribe(ch <-chan DataUpdate) error {
 	defer c.logger.Info("unsubscribed", slog.Any("channel", ch))
+
 	return c.envPublisher.Unsubscribe(ch)
 }
 

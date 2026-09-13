@@ -2,6 +2,7 @@ package collector
 
 import (
 	"context"
+	"database/sql"
 	"log/slog"
 	"sync"
 	"testing"
@@ -172,8 +173,9 @@ func (s *CollectorSuite) TestDuplicates() {
 
 	s.journal.EXPECT().GetLocationAssignements(mock.Anything, "hive_001_general").Return(nil, nil).Once()
 	s.journal.EXPECT().SaveEnvironmentalReadings(mock.Anything, mock.Anything).Return(nil).Once()
-	subscription := s.collector.Subscribe(2, nil)
+	subscription := s.collector.Subscribe(nil)
 	s.Require().NotNil(subscription)
+
 	var wg sync.WaitGroup
 	wg.Go(func() {
 		s.sendEnvironmentalAdvertisment(t, adv)
@@ -193,6 +195,74 @@ func (s *CollectorSuite) TestDuplicates() {
 
 	_, ok = <-subscription
 	s.Assert().False(ok)
+
+}
+
+func (s *CollectorSuite) TestSubscriptionBacklog() {
+	t := time.Now().Round(time.Second)
+	adv := EnvironmentalAdvertisment{
+		address: ble.NewAddr("02:02:02:02:02:02"),
+		data: arisble.AdvertisementData{
+			Location: arisble.Location{HiveID: 1, Placement: arisble.PlacementGeneral},
+			CurrentPoint: arisble.DataPoint{
+				Timestamp:   arisble.Timestamp(t.Unix()),
+				Temperature: 2210,
+			},
+		},
+	}
+
+	expectedReading := EnvironmentalReading{
+		SensorID:         adv.address.String(),
+		LocationID:       "hive_001_general",
+		Timestamp:        t,
+		ReceivedAt:       t,
+		Temperature_C:    newValue(22.10),
+		Humidity_percent: newValue(0.0),
+		Pressure_hPa:     newValue(0.0),
+		CO2_ppm:          newValue(uint(0)),
+	}
+
+	s.journal.EXPECT().GetLocationAssignements(mock.Anything, "hive_001_general").Return(nil, nil).Once()
+	s.journal.EXPECT().SaveEnvironmentalReadings(mock.Anything, mock.Anything).Return(nil).Once()
+	var wg sync.WaitGroup
+	wg.Go(func() {
+		s.sendEnvironmentalAdvertisment(t, adv)
+		s.sendEnvironmentalAdvertisment(t.Add(100*time.Millisecond), adv)
+	})
+	wg.Wait()
+
+	s.journal.EXPECT().GetSensorLocations(mock.Anything).Return([]SensorLocation{
+		{LocationID: "hive_001_general"},
+	}, nil)
+
+	s.journal.EXPECT().GetEnvironmentalHistory(mock.Anything, "hive_001_general", t, mock.Anything).
+		Return([]EnvironmentalReading{expectedReading}, nil)
+	s.journal.EXPECT().GetScaleHistory(mock.Anything, "hive_001_general", t, mock.Anything).
+		Return(nil, sql.ErrNoRows)
+	s.journal.EXPECT().GetTrafficHistory(mock.Anything, "hive_001_general", t, mock.Anything).
+		Return(nil, sql.ErrNoRows)
+
+	subscription := s.collector.Subscribe(&t)
+	s.Require().NotNil(subscription)
+	updates := make([]DataUpdate, 2)
+
+	for i, _ := range updates {
+		received, ok := <-subscription
+
+		s.Require().True(ok)
+		updates[i] = received
+	}
+
+	s.collector.Unsubscribe(subscription)
+
+	_, ok := <-subscription
+	s.Assert().False(ok)
+	s.Assert().Equal(DataUpdate{EnvironmentalReading: &expectedReading}, updates[0])
+	if s.Assert().NotNil(updates[1].EnvironmentalDevice) == true {
+		s.Assert().Equal(adv.address.String(), updates[1].EnvironmentalDevice.Address)
+		s.Assert().Equal(t, updates[1].EnvironmentalDevice.Current.Timestamp)
+		s.Assert().Equal(t.Add(100*time.Millisecond), updates[1].EnvironmentalDevice.LastSeen)
+	}
 
 }
 
@@ -217,7 +287,7 @@ func (s *CollectorSuite) TestSynchronizeDevice() {
 	})
 	s.environmentalOperator.EXPECT().SynchronizeDevice(mock.Anything, nil, adv.address).Return(nil).Once()
 
-	subscription := s.collector.Subscribe(1, nil)
+	subscription := s.collector.Subscribe(nil)
 
 	var wg sync.WaitGroup
 	wg.Go(func() {
@@ -276,7 +346,7 @@ func (s *CollectorSuite) TestJanitor() {
 	s.journal.EXPECT().GetLocationAssignements(mock.Anything, "hive_003_general").Return(nil, nil)
 	s.journal.EXPECT().SaveEnvironmentalReadings(mock.Anything, mock.Anything).Return(nil)
 
-	subscription := s.collector.Subscribe(len(advs), nil)
+	subscription := s.collector.Subscribe(nil)
 
 	var wg sync.WaitGroup
 	wg.Go(func() {
