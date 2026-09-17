@@ -51,6 +51,8 @@ func emc2101Loop(ctx context.Context, reg *prometheus.Registry) error {
 
 	timer := time.NewTimer(opts.ScanPeriod)
 	defer timer.Stop()
+	logger.Info("started",
+		slog.Duration("period", opts.ScanPeriod))
 
 	for {
 		select {

@@ -11,8 +11,10 @@ import (
 	"time"
 
 	"github.com/jessevdk/go-flags"
+	"github.com/lmittmann/tint"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"golang.org/x/term"
 )
 
 func main() {
@@ -57,6 +59,50 @@ func servePrometheus(ctx context.Context, reg *prometheus.Registry, address stri
 	return nil
 }
 
+func setupLogger() {
+	isTerminal := term.IsTerminal(int(os.Stderr.Fd()))
+	var level slog.Level
+	switch len(opts.Verbose) {
+	case 0:
+		level = slog.LevelWarn
+	case 1:
+		level = slog.LevelInfo
+	case 2:
+		level = slog.LevelDebug
+	}
+	options := &tint.Options{
+		NoColor: !isTerminal,
+		Level:   level,
+		ReplaceAttr: func(groups []string, a slog.Attr) slog.Attr {
+			switch a.Value.Kind() {
+			case slog.KindAny:
+				if _, ok := a.Value.Any().(error); ok {
+					return tint.Attr(9, a)
+				}
+				return a
+
+			case slog.KindString:
+				switch a.Key {
+				case "error":
+					return tint.Attr(9, a)
+				case "module":
+					return tint.Attr(4, a)
+				default:
+					return a
+				}
+			default:
+				return a
+			}
+		},
+	}
+
+	handler := tint.NewTextHandler(os.Stderr, options)
+	logger := slog.New(handler)
+	slog.SetDefault(logger)
+	slog.SetLogLoggerLevel(slog.LevelInfo)
+
+}
+
 func execute() error {
 
 	if _, err := parser.Parse(); err != nil {
@@ -65,6 +111,8 @@ func execute() error {
 		}
 		return err
 	}
+
+	setupLogger()
 
 	reg := prometheus.NewRegistry()
 
