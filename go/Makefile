@@ -1,4 +1,4 @@
-DIRS:= pkg/arisble pkg/collector pkg/sse cmd/aristeus
+DIRS:= pkg/arisble pkg/collector pkg/sse pkg/emc2101 cmd/aristeus cmd/aristeus-node-monitor
 
 TARGETS := all check clean install
 
