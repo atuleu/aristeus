@@ -1,3 +1,6 @@
-- host: monitor
+- hosts: monitor
+  roles:
 
-- host: collector
+- hosts: collector
+  roles:
+    - aristeus-monitor-service

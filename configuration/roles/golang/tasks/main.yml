@@ -1,0 +1,70 @@
+---
+- name: sets golang version
+  set_fact:
+    aristeus_golang_version: 1.26.8
+  when: aristeus_golang_version is not defined
+
+- name: sets the architecture
+  set_fact:
+    aristeus_golang_arch: "{{ arch_map[ansible_facts.architecture] | default(ansible_facts.architecture)}}"
+  vars:
+    arch_map:
+      x86_64: "amd64"
+      aarch64: "arm64"
+
+- name: sets the architecture
+  set_fact:
+    aristeus_golang_tarname: "go{{aristeus_golang_version}}.linux-{{aristeus_golang_arch}}.tar.gz"
+
+
+- name: create facts directory
+  file:
+    path: /etc/ansible/facts.d
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+
+- name: installs golang fact
+  copy:
+    src: golang-version.fact
+    dest: /etc/ansible/facts.d/aristeus_golang_version.fact
+    mode: '0755'
+    owner: root
+    group: root
+  register: fact_installed
+
+- name: reload facts
+  setup:
+  when: fact_installed.changed == True
+
+
+- name: installs desired go version
+  block:
+  - name: removes any go installation
+    file:
+      name: /usr/local/go
+      state: absent
+
+  - name: downloads go
+    get_url:
+      url: "https://go.dev/dl/{{aristeus_golang_tarname}}"
+      dest: "/tmp/{{aristeus_golang_tarname}}"
+
+  - name: unpacks golang binaries
+    unarchive:
+      src: "/tmp/{{aristeus_golang_tarname}}"
+      remote_src: true
+      dest: /usr/local
+
+
+
+  when: ansible_local['aristeus_golang_version']['golang_version'] != aristeus_golang_version
+
+- name: makes golang available to all user
+  copy:
+    src: 99-golang.sh
+    dest: /etc/profile.d/99-golang.sh
+    owner: root
+    group: root
+    mode: '0755'

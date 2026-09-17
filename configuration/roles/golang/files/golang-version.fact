@@ -1,0 +1,12 @@
+#!/bin/bash
+
+GOEXE=/usr/local/go/bin/go
+
+if [ -x $GOEXE ]
+then
+	GO_VERSION=$($GOEXE version | grep -Eo '([0-9]+\.)+[0-9]+')
+else
+	GO_VERSION=''
+fi
+
+echo "{\"golang_version\":\"$GO_VERSION\"}"
