@@ -49,7 +49,7 @@ func emc2101Loop(ctx context.Context, reg *prometheus.Registry) error {
 		Help: "speed of the vision enclosure fan",
 	})
 
-	timer := time.NewTimer(opts.ScanPeriod)
+	timer := time.NewTicker(opts.ScanPeriod)
 	defer timer.Stop()
 	logger.Info("started",
 		slog.Duration("period", opts.ScanPeriod))
