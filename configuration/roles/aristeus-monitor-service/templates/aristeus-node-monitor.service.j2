@@ -1,0 +1,17 @@
+[Unit]
+Description: Monitors the node and publish data to prometheus
+After= network-online.target
+
+[Service]
+RestartSec=2s
+{% if platform_type == 'rpi' %}
+ExecStart=/root/go/bin/aristeus-node-monitor
+{% elif platform_type == 'jetson' %}
+ExecStart=/root/go/bin/aristeus-node-monitor --i2c-bus=/dev/i2c-7
+{% else %}
+{{ ('Invalid platform_type: "' ~ platform_type ~ '". Must be "rpi" or "jetson".') | raise_error }}
+{% endif %}
+Restart=always
+
+[Install]
+WantedBy=multi-user.target

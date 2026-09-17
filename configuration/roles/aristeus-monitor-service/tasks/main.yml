@@ -1,1 +1,21 @@
 ---
+- name: sets aristeus-node-monitor desired version
+  set_fact:
+    aristeus_node_monitor_version: v0.0.0-20260917160304-4e5907f57e71
+  when: aristeus_node_monitor_version is not defined
+
+
+- name: installs aristeus-node-monitor
+  community.general.golang_package:
+    name: "github.com/atuleu/aristeus/go/cmd/aristeus-node-monitor@{{aristeus_node_monitor_version}}"
+    state: present
+    executable: /usr/local/go/bin/go
+  environment:
+    GOBIN: /root/go/bin
+
+- name: installs service file
+  template:
+    src: aristeus-node-monitor.service.j2
+    dest: /etc/systemd/system/aristeus-node-monitor.service
+  notify:
+    - enable aristeus-node-monitor.service
