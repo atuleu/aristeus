@@ -40,4 +40,5 @@ require (
 	modernc.org/mathutil v1.7.1 // indirect
 	modernc.org/memory v1.11.0 // indirect
 	periph.io/x/conn/v3 v3.7.3 // indirect
+	periph.io/x/host/v3 v3.8.5 // indirect
 )

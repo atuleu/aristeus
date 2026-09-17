@@ -236,7 +236,7 @@ type LUTPoint struct {
 	PWM         float64
 }
 
-func (d *Device) SetLUTTable(table []LUTPoint) error {
+func (d *Device) SetLUT(table []LUTPoint) error {
 	if len(table) == 0 {
 		return errors.New("empty table")
 	}

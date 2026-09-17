@@ -119,3 +119,5 @@ modernc.org/token v1.1.0 h1:Xl7Ap9dKaEs5kLoOQeQmPWevfnk/DM5qcLcYlA8ys6Y=
 modernc.org/token v1.1.0/go.mod h1:UGzOrNV1mAFSEB63lOFHIpNRUVMvYTc6yu1SMY/XTDM=
 periph.io/x/conn/v3 v3.7.3 h1:+8UblkC4omTB1M+jZTvTj3qoxQOTJy0ZRQm8DLUuVzc=
 periph.io/x/conn/v3 v3.7.3/go.mod h1:tyV9YaYquOJ2Q2yAL0B5zk9ZvHGsbW56M6y92wjyPDQ=
+periph.io/x/host/v3 v3.8.5 h1:g4g5xE1XZtDiGl1UAJaUur1aT7uNiFLMkyMEiZ7IHII=
+periph.io/x/host/v3 v3.8.5/go.mod h1:hPq8dISZIc+UNfWoRj+bPH3XEBQqJPdFdx218W92mdc=

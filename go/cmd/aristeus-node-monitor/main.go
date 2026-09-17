@@ -2,25 +2,18 @@ package main
 
 import (
 	"context"
+	"errors"
 	"log/slog"
 	"net/http"
 	"os"
 	"os/signal"
+	"sync"
 	"time"
 
 	"github.com/jessevdk/go-flags"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
-
-type Options struct {
-	I2CBus            string `long:"i2c-bus" description:"i2c-bus to use" default:"/dev/i2c-0"`
-	PrometheusAddress string `long:"prometheus-address" description:"prometheus address to serve" default:":2112"`
-}
-
-var opts = Options{}
-
-var parser = flags.NewParser(&opts, flags.Default)
 
 func main() {
 
@@ -30,11 +23,7 @@ func main() {
 	}
 }
 
-func emc2101Loop(ctx context.Context, i2cbus string) {
-
-}
-
-func serverPrometheus(ctx context.Context, reg *prometheus.Registry, address string) error {
+func servePrometheus(ctx context.Context, reg *prometheus.Registry, address string) error {
 	mux := http.NewServeMux()
 
 	mux.Handle("/metrics", promhttp.HandlerFor(reg, promhttp.HandlerOpts{}))
@@ -58,7 +47,6 @@ func serverPrometheus(ctx context.Context, reg *prometheus.Registry, address str
 			return
 		}
 		logger.Info("graceful shutdown")
-
 	}()
 
 	logger.Info("listening")
@@ -83,5 +71,33 @@ func execute() error {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer stop()
 
-	return serverPrometheus(ctx, reg, opts.PrometheusAddress)
+	var wg sync.WaitGroup
+	errs := make(chan error)
+	addTask := func(fn func() error) {
+		wg.Go(func() {
+			err := fn()
+			if err != nil {
+				errs <- err
+			}
+		})
+	}
+	addTask(func() error { return servePrometheus(ctx, reg, opts.PrometheusAddress) })
+	addTask(func() error { return emc2101Loop(ctx, reg) })
+
+	var allErrs []error
+	select {
+	case err := <-errs:
+		allErrs = append(allErrs, err)
+		stop()
+	case <-ctx.Done():
+		break
+	}
+
+	wg.Wait()
+	close(errs)
+	for err := range errs {
+		allErrs = append(allErrs, err)
+	}
+
+	return errors.Join(allErrs...)
 }
