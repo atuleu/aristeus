@@ -19,7 +19,7 @@ func emc2101Loop(ctx context.Context, reg *prometheus.Registry) error {
 	if err != nil {
 		return fmt.Errorf("could not initialize periph.io: %w", err)
 	}
-	logger.Info("Loaded drivers", slog.Any("drivers", state))
+	logger.Debug("Loaded drivers", slog.Any("drivers", state))
 	bus, err := i2creg.Open(opts.I2CBus)
 	if err != nil {
 		return fmt.Errorf("could not open the I2C bus '%s': %w", opts.I2CBus, err)
