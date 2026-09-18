@@ -53,6 +53,8 @@ type Options struct {
 	ScanPeriod        time.Duration `long:"period" description:"period for update" default:"5s"`
 	LUTPoint          []LUTPoint    `long:"curve" short:"c" description:"curve to control the temperature" default:"-128=15.0" default:"15=15.0" default:"55=100.0"`
 	Verbose           []bool        `long:"verbose" short:"v" description:"verbose output"`
+	JetsonUsage       bool          `long:"jetson-usage" description:"enable reports of jetson usage"`
+	RPIUsage          bool          `long:"rpi-usage" description:"enable reports of raspberry pi usage"`
 }
 
 var opts = Options{}

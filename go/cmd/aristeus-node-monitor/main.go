@@ -139,6 +139,13 @@ func execute() error {
 	addTask(func() error { return servePrometheus(ctx, reg, opts.PrometheusAddress) })
 	addTask(func() error { return emc2101Loop(ctx, reg) })
 
+	if opts.JetsonUsage {
+		addTask(func() error { return jestonUsageLoop(ctx, reg) })
+	}
+	if opts.RPIUsage {
+		addTask(func() error { return rpiUsageLoop(ctx, reg) })
+	}
+
 	var allErrs []error
 	select {
 	case err := <-errs:
