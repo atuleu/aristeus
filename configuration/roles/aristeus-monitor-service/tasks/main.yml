@@ -12,10 +12,12 @@
     executable: /usr/local/go/bin/go
   environment:
     GOBIN: /root/go/bin
+  notify:
+    - enable and restart aristeus-node-monitor.service
 
 - name: installs service file
   template:
     src: aristeus-node-monitor.service.j2
     dest: /etc/systemd/system/aristeus-node-monitor.service
   notify:
-    - enable aristeus-node-monitor.service
+    - enable and restart aristeus-node-monitor.service

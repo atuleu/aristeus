@@ -1,5 +1,5 @@
 ---
-- name: enable aristeus-node-monitor.service
+- name: enable and restart aristeus-node-monitor.service
   systemd:
     name: aristeus-node-monitor
     enabled: yes
