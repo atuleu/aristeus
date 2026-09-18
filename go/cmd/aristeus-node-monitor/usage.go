@@ -117,15 +117,17 @@ func pollCPUUsage(logger *slog.Logger) error {
 	if cpu.Total != 0 {
 		cpuUsage.Set(cpu.Usage_percent())
 	}
+	perCore := map[string]float64{}
 	for label, stat := range cores {
 		if stat.Total != 0 {
 			cpuCoreUsage.WithLabelValues(label).Set(stat.Usage_percent())
 		}
+		perCore[label] = stat.Usage_percent()
 	}
 
 	logger.Debug("polled /proc/stat",
-		slog.Any("cpu", cpu),
-		slog.Any("cores", cores))
+		slog.Float64("cpu", cpu.Usage_percent()),
+		slog.Any("cores", perCore))
 
 	return nil
 }
@@ -190,7 +192,7 @@ func pollMemoryUsage(logger *slog.Logger) error {
 		swapUsed.Set(float64(stats.SwapTotalBytes - stats.SwapFreeBytes))
 	}
 	logger.Debug("polled /proc/meminfo",
-		slog.Any("memory_stats", stats))
+		slog.Any("stats", stats))
 	return nil
 }
 
