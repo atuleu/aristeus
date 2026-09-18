@@ -31,7 +31,7 @@ var (
 )
 
 func jestonUsageLoop(ctx context.Context, reg *prometheus.Registry) error {
-	logger := slog.With(slog.String("module", "jetson"))
+	logger := slog.With(slog.String("module", "jetson_usage"))
 
 	collectors := []prometheus.Collector{
 		cpuCoreUsage,
@@ -40,6 +40,7 @@ func jestonUsageLoop(ctx context.Context, reg *prometheus.Registry) error {
 		memoryUsed,
 		swapUsed,
 		jetsonGPUUsage,
+		jetsonGPUFrequency,
 		jetsonGPUTemp,
 	}
 
@@ -124,6 +125,7 @@ func jetsonPollUsage(logger *slog.Logger) error {
 	if err != nil {
 		return err
 	}
+	cpuTemperature.Set(tempCPU)
 
 	tempGPU, err := readDeviceTemperature("thermal_zone1", "gpu-thermal")
 	if err != nil {
