@@ -36,8 +36,8 @@ var (
 	})
 
 	swapUsed = prometheus.NewGauge(prometheus.GaugeOpts{
-		Name: "memory_swap_total_bytes",
-		Help: "total swap memory in bytes",
+		Name: "memory_swap_used_bytes",
+		Help: "total swap used in bytes",
 	})
 
 	socTemperature = prometheus.NewGauge(prometheus.GaugeOpts{
