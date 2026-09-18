@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"os"
@@ -13,6 +14,7 @@ import (
 	"github.com/jessevdk/go-flags"
 	"github.com/lmittmann/tint"
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/collectors"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"golang.org/x/term"
 )
@@ -115,6 +117,11 @@ func execute() error {
 	setupLogger()
 
 	reg := prometheus.NewRegistry()
+
+	err := reg.Register(collectors.NewBuildInfoCollector())
+	if err != nil {
+		return fmt.Errorf("could not register default collectors: %w", err)
+	}
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer stop()
