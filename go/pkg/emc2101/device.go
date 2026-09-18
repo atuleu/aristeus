@@ -4,6 +4,7 @@ import (
 	"cmp"
 	"errors"
 	"fmt"
+	"log/slog"
 	"math"
 	"slices"
 
@@ -66,7 +67,7 @@ const (
 )
 
 const (
-	StatusTachBM byte = 1 << 0
+	StatusTachBM byte = 1 << iota
 	StatusTCritBM
 	StatusFaultBM
 	StatusExtLowBM
@@ -77,7 +78,7 @@ const (
 )
 
 const (
-	ConfigurationQueueBM byte = 1 << 0
+	ConfigurationQueueBM byte = 1 << iota
 	ConfigurationTCritOVRDBM
 	ConfigurationAltTachBM
 	ConfigurationDisTOBM
@@ -95,16 +96,16 @@ const ExternalIdealityFactorBM byte = 0x3f
 
 const (
 	BetaCompensationBM      byte = 0x07
-	BetCompensationEnableBM byte = 1 << 3
+	BetCompensationEnableBM byte = 1 << (iota + 2)
 )
 
 const (
-	FanConfigurationTachMBM    byte = 0x03
-	FanConfigurationClckOvrBM  byte = 1 << 2
-	FanConfigurationClckSelBM  byte = 1 << 3
-	FanConfigurationPolarityBM byte = 1 << 4
-	FanConfigurationProgBM     byte = 1 << 5
-	FanConfigurationForceBM    byte = 1 << 6
+	FanConfigurationTachMBM   byte = 0x03
+	FanConfigurationClckOvrBM byte = 1 << (iota + 1)
+	FanConfigurationClckSelBM
+	FanConfigurationPolarityBM
+	FanConfigurationProgBM
+	FanConfigurationForceBM
 )
 
 const (
@@ -112,8 +113,6 @@ const (
 	FanSpinUpSpinDriveBM byte = 0x03 << 3
 	FanSpinUpFastTachBM  byte = 1 << 5
 )
-
-var errNYI = errors.New("not implemented error")
 
 type FanConfiguration struct {
 	FanPolarityInverted bool
@@ -186,10 +185,18 @@ type Config struct {
 type Device struct {
 	dev    i2c.Dev
 	config Config
+	logger *slog.Logger
 }
 
 func NewDevice(bus i2c.Bus, config Config) (*Device, error) {
-	res := &Device{dev: i2c.Dev{Bus: bus, Addr: 0x4c}, config: config}
+	res := &Device{
+		dev:    i2c.Dev{Bus: bus, Addr: 0x4c},
+		config: config,
+		logger: slog.With(
+			slog.String("module", "emc2101"),
+			slog.String("bus", bus.String()),
+		),
+	}
 
 	productID, err := res.ReadRegister(ProductIDRegister)
 	if err != nil {
@@ -224,6 +231,11 @@ func (d *Device) ReadRegister(address RegisterAddress) (byte, error) {
 }
 
 func (d *Device) WriteRegister(address RegisterAddress, value byte) error {
+	d.logger.Debug("wrote byte",
+		slog.String("register", address.String()),
+		slog.String("value", fmt.Sprintf("0x%02X", value)),
+	)
+
 	err := d.dev.Tx([]byte{byte(address), value}, nil)
 	if err != nil {
 		return fmt.Errorf("could not write emc2101.%s: %w", address, err)
