@@ -5,4 +5,4 @@
   roles:
     - role: aristeus-monitor-service
       vars:
-        aristeus_node_monitor_version: v0.0.1
+        aristeus_node_monitor_version: v0.0.3

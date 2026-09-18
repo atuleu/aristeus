@@ -5,9 +5,9 @@ After= network-online.target
 [Service]
 RestartSec=2s
 {% if platform_type == 'rpi' %}
-ExecStart=/root/go/bin/aristeus-node-monitor
+ExecStart=/root/go/bin/aristeus-node-monitor --rpi-usage
 {% elif platform_type == 'jetson' %}
-ExecStart=/root/go/bin/aristeus-node-monitor --i2c-bus=/dev/i2c-7
+ExecStart=/root/go/bin/aristeus-node-monitor --i2c-bus=/dev/i2c-7 --jetson-usage
 {% else %}
 {{ ('Invalid platform_type: "' ~ platform_type ~ '". Must be "rpi" or "jetson".') | raise_error }}
 {% endif %}

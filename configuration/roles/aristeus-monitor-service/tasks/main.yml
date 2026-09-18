@@ -12,6 +12,7 @@
     executable: /usr/local/go/bin/go
   environment:
     GOBIN: /root/go/bin
+    GOPROXY: direct
   notify:
     - enable and restart aristeus-node-monitor.service
 
