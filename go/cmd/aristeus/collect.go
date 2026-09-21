@@ -13,8 +13,9 @@ import (
 )
 
 type CollectCommand struct {
-	HiveIDs                []uint8 `short:"i" long:"hive-id" description:"hive id to filter, none accepts all"`
-	DisableSynchronization bool    `long:"disable-synchronization" description:"disable device synchronization"`
+	HiveIDs                []uint8          `short:"i" long:"hive-id" description:"hive id to filter, none accepts all"`
+	Scales                 map[string]uint8 `long:"scale" description:"maps a scale address to an id"`
+	DisableSynchronization bool             `long:"disable-synchronization" description:"disable device synchronization"`
 }
 
 func (c *CollectCommand) Execute(args []string) (err error) {
@@ -40,6 +41,9 @@ func (c *CollectCommand) Execute(args []string) (err error) {
 	}
 	if c.DisableSynchronization {
 		config.SynchronizeDevices = false
+	}
+	if len(c.Scales) > 0 {
+		config.ApplyOptions(collector.WithScaleMapping(c.Scales))
 	}
 
 	collector, err := collector.NewCollector(config)

@@ -170,6 +170,15 @@ func WithHiveIDFilter(IDs ...uint8) CollectorConfigOption {
 	}
 }
 
+func WithScaleMapping(maps map[string]uint8) CollectorConfigOption {
+	return func(config *CollectorConfig) {
+		config.ScaleAddresses = ScaleAddressMap{}
+		for addr, id := range maps {
+			config.ScaleAddresses[addr] = HiveID(id)
+		}
+	}
+}
+
 func WithMinimumAssignementDuration(duration time.Duration) CollectorConfigOption {
 	return func(config *CollectorConfig) {
 		config.MinimumAssignementDuration = duration
