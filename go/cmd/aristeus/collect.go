@@ -3,9 +3,12 @@ package main
 import (
 	"context"
 	"errors"
+	"log/slog"
 	"os"
 	"os/signal"
+	"path/filepath"
 
+	"github.com/adrg/xdg"
 	"github.com/atuleu/aristeus/go/pkg/collector"
 )
 
@@ -19,16 +22,31 @@ func (c *CollectCommand) Execute(args []string) (err error) {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer stop()
 
-	collector, err := collector.NewCollector(
-		collector.NewCollectorConfig(
-			collector.WithHiveIDFilter(c.HiveIDs...),
-			collector.WithSynchronizeDevice(!c.DisableSynchronization),
-		),
-	)
-	defer func() { err = errors.Join(err, collector.Close()) }()
+	subpath := "io.github.atuleu.aristeus/config.yml"
+	paths := make([]string, 0, len(xdg.ConfigDirs)+1)
+	for _, d := range xdg.ConfigDirs {
+		paths = append(paths, filepath.Join(d, subpath))
+	}
+	paths = append(paths, filepath.Join(xdg.ConfigHome, subpath))
+	slog.Debug("using config path",
+		slog.Any("paths", paths))
+
+	config, err := collector.NewCollectorConfigFromFiles(paths...)
 	if err != nil {
 		return err
 	}
+	if len(c.HiveIDs) > 0 {
+		config.ApplyOptions(collector.WithHiveIDFilter(c.HiveIDs...))
+	}
+	if c.DisableSynchronization {
+		config.SynchronizeDevices = false
+	}
+
+	collector, err := collector.NewCollector(config)
+	if err != nil {
+		return err
+	}
+	defer func() { err = errors.Join(err, collector.Close()) }()
 
 	err = collector.Collect(ctx)
 

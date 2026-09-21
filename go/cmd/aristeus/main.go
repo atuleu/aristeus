@@ -10,7 +10,7 @@ import (
 )
 
 type Options struct {
-	Verbose []bool `short:"V" long:"verbose" description:"more verbose output"`
+	Verbose []bool `short:"v" long:"verbose" description:"more verbose output"`
 }
 
 var opts = &Options{}
