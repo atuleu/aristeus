@@ -362,11 +362,17 @@ func (c *Collector) Collect(ctx context.Context) error {
 
 				c.onEnvironmentalAdvertisment(ctx, eAdv)
 			case 0x028d:
-				c.onScaleAdvertisment(ctx, ScaleAdvertisment{
+				sAdv := ScaleAdvertisment{
 					address:    adv.Adv.Addr(),
 					receivedAt: adv.ReceivedAt,
-					data:       mdata,
-				})
+				}
+
+				if err := sAdv.data.UnmarshalBinary(mdata); err != nil {
+					logger.Error("could not parse scale advertisement",
+						slog.String("error", err.Error()))
+				}
+
+				c.onScaleAdvertisment(ctx, sAdv)
 			default:
 				logger.Warn("wrong manufacturer ID",
 					slog.String("ID", fmt.Sprintf("0x%04X", manufacturerID)))

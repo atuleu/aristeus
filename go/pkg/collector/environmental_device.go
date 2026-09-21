@@ -19,12 +19,6 @@ type EnvironmentalAdvertisment struct {
 	receivedAt time.Time
 }
 
-type ScaleAdvertisment struct {
-	address    ble.Addr
-	data       []byte
-	receivedAt time.Time
-}
-
 type EnvironmentalState struct {
 	Timestamp        time.Time `json:"timestamp"`
 	Temperature_C    *float64  `json:"temperature_C"`
