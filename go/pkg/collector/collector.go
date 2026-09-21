@@ -104,7 +104,7 @@ func (c *Collector) onScaleAdvertisment(ctx context.Context, adv ScaleAdvertisme
 	logger := c.logger.With(slog.String("address", adv.address.String()))
 
 	logger.Info("got new scale advertisment",
-		slog.Any("data", adv.data))
+		slog.String("data", fmt.Sprintf("%+v", adv.data)))
 }
 
 func (c *Collector) onNewDevice(ctx context.Context, adv EnvironmentalAdvertisment) {

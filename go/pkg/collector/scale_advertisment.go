@@ -28,6 +28,7 @@ func (d *ScaleData) UnmarshalBinary(data []byte) error {
 	d.Model = data[2]
 	d.Version = fmt.Sprintf("%d.%d", data[4], data[3])
 	d.Battery = data[6]
+
 	return nil
 }
 
