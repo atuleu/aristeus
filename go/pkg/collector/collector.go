@@ -59,7 +59,12 @@ func (c *Collector) bleAdvFilter() ble.AdvFilter {
 		if len(mdata) < 2 {
 			return false
 		}
+
 		manufacturerID := binary.LittleEndian.Uint16(mdata[0:2])
+		if manufacturerID == 0x028d {
+			return true
+		}
+
 		if len(mdata) == 20 && manufacturerID == 0xFFFF {
 			if len(hiveIDFilter) > 0 {
 				return hiveIDFilter[mdata[3]]
@@ -320,18 +325,29 @@ func (c *Collector) Collect(ctx context.Context) error {
 	c.wg.Go(func() {
 		for adv := range advs {
 			logger := c.logger.With(slog.String("address", adv.Adv.Addr().String()))
-			eAdv := EnvironmentalAdvertisment{
-				address:    adv.Adv.Addr(),
-				receivedAt: adv.ReceivedAt,
-			}
+			mdata := adv.Adv.ManufacturerData()
+			manufacturerID := binary.LittleEndian.Uint16(mdata[0:2])
+			switch manufacturerID {
+			case 0xFFFF:
+				eAdv := EnvironmentalAdvertisment{
+					address:    adv.Adv.Addr(),
+					receivedAt: adv.ReceivedAt,
+				}
 
-			if err := eAdv.data.UnmarshalBinary(adv.Adv.ManufacturerData()[2:]); err != nil {
-				logger.Error("could not parse advertisement data",
-					slog.String("error", err.Error()),
-				)
-			}
+				if err := eAdv.data.UnmarshalBinary(mdata[2:]); err != nil {
+					logger.Error("could not parse advertisement data",
+						slog.String("error", err.Error()),
+					)
+				}
 
-			c.onAdvertisment(ctx, eAdv)
+				c.onAdvertisment(ctx, eAdv)
+			case 0x028d:
+				logger.Info("received new advertisment",
+					slog.Any("data", mdata))
+			default:
+				logger.Warn("wrong manufacturer ID",
+					slog.String("ID", fmt.Sprintf("0x%04X", manufacturerID)))
+			}
 		}
 	})
 
