@@ -1,0 +1,11 @@
+[Unit]
+Description=Permanently increase USBFS memory limit
+After=sysinit.target local-fs.target
+
+[Service]
+Type=oneshot
+ExecStart=/bin/sh -c 'echo 1000 > /sys/module/usbcore/parameters/usbfs_memory_mb'
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target

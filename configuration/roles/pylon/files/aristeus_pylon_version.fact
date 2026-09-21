@@ -1,0 +1,11 @@
+#!/bin/sh
+
+PYLON_ROOT=/opt/pylon
+PYLON_VERSION_INFO=$PYLON_ROOT/share/pylon/VersionInfo.txt
+if [ -e $PYLON_VERSION_INFO ]
+then
+	PYLON_VERSION=$(cat $PYLON_VERSION_INFO | cut -d "." -f 1-3)
+	echo "{\"version\":\"$PYLON_VERSION\"}"
+else
+	echo "{\"version\":\"\"}"
+fi

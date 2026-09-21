@@ -1,0 +1,103 @@
+---
+- name: sets pylon version
+  set_fact:
+    aristeus_pylon_version: 26.08.1
+  when: aristeus_pylon_version is not defined
+
+- name: sets the architecture
+  set_fact:
+    aristeus_pylon_arch: "{{ arch_map[ansible_facts.architecture] | default(ansible_facts.architecture) }}"
+  vars:
+    arch_map:
+      aarch64: "aarch64"
+
+- name: sets the target installer file
+  set_fact:
+    aristeus_pylon_setup_file: "pylon-{{aristeus_pylon_version}}_linux-{{aristeus_pylon_arch}}_setup.tar.gz"
+    aristeus_pylon_source_file: "pylon-{{aristeus_pylon_version}}_linux-{{aristeus_pylon_arch}}.tar.gz"
+
+
+- name: installs cutsom fact
+  copy:
+    src: aristeus_pylon_version.fact
+    dest: /etc/ansible/facts.d/aristeus_pylon_version.fact
+    owner: root
+    group: root
+    mode: '0755'
+  register: custom_fact_installed
+
+- name: reloads facts
+  setup:
+  when: custom_fact_installed.changed == True
+
+- name: installs specified pylon version
+  when: ansible_local.aristeus_pylon_version.version != aristeus_pylon_version
+  block:
+    - name: verifies presence of non-bundled file in configuration directory
+      delegate_to: localhost
+      stat:
+        path: "{{ role_path }}/files/{{aristeus_pylon_setup_file}}"
+      register: aristeus_pylon_file_stat
+
+
+    - name: fails if pylon installer is missing
+      fail:
+        msg: |
+          The Basler pylon installer could not be found at {{ role_path
+          }}/files/{{ aristeus_pylon_setup_file}}. Please download the
+          appropriate installer from Basler's website and place it in {{
+          role_path}}/files.
+      when: not aristeus_pylon_file_stat.stat.exists
+
+    - name: extracts pylon setup file to tmp
+      unarchive:
+        src: "{{aristeus_pylon_setup_file}}"
+        dest: /tmp
+
+    - name: removes any older pylon installation
+      file:
+        path: /opt/pylon
+        state: absent
+
+    - name: ensures destination directory
+      file:
+        path: /opt/pylon
+        state: directory
+
+    - name: extracts sources to /opt/pylon
+      unarchive:
+        src: /tmp/pylon-{{aristeus_pylon_version}}_linux-{{aristeus_pylon_arch}}.tar.gz
+        dest: /opt/pylon
+        remote_src: true
+
+- name: installs missing pylon runtime dependencies
+  apt:
+    name:
+      - libxcb-cursor0
+    state: present
+
+- name: increase the number of open file limit for all users
+  copy:
+    src: 99-pylon-nofile.conf
+    dest: /etc/security/limits.d/99-pylon-nofile.conf
+    owner: root
+    group: root
+    mode: '0644'
+
+- name: installs udev rules
+  copy:
+    src: 69-basler-cameras.rules
+    dest: /etc/udev/rules.d/69-basler-cameras.rules
+    owner: root
+    group: root
+    mode: '0644'
+  notify: reloads udev rules
+
+- name: installs permament usbfs memory service
+  copy:
+    src: usbfs-memory-increase.service
+    dest: /etc/systemd/system/usbfs-memory-increase.service
+    owner: root
+    group: root
+    mode: '0644'
+  notify: applies usbfs-memory-increase service

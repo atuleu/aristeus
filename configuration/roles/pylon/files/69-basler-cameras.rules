@@ -1,0 +1,2 @@
+# unsafe enable for everyone
+SUBSYSTEM=="usb", ATTRS{idVendor}=="2676", MODE:="0666", TAG+="uaccess", TAG+="udev-acl"
