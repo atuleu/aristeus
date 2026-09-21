@@ -548,7 +548,7 @@ func NewCollector(config CollectorConfig) (*Collector, error) {
 	}
 
 	for hiveID, collect := range config.HiveIDFilter {
-		res.hiveIDFilter[hiveID] = collect
+		res.hiveIDFilter[uint8(hiveID)] = collect
 	}
 
 	res.journal = res.config.deps.journal

@@ -6,8 +6,8 @@ import (
 )
 
 type HourOfDay struct {
-	Hour   int
-	Minute int
+	Hour   int `yaml:"hour"`
+	Minute int `yaml:"minute"`
 }
 
 type Clock interface {

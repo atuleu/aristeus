@@ -2,6 +2,7 @@ package collector
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"path"
@@ -10,6 +11,7 @@ import (
 
 	"github.com/adrg/xdg"
 	"github.com/atuleu/aristeus/go/pkg/arisble"
+	"go.yaml.in/yaml/v4"
 )
 
 type collectorDependencies struct {
@@ -71,16 +73,71 @@ func (c *collectorDependencies) connectJournal() (DataJournal, error) {
 	return journal, nil
 }
 
+type HiveID uint8
+type HiveIDSet map[HiveID]bool
+
+func (s *HiveIDSet) UnmarshalYAML(value *yaml.Node) error {
+	var rawSlice []uint8
+	if err := value.Decode(&rawSlice); err != nil {
+		return err
+	}
+
+	if len(rawSlice) == 0 {
+		*s = nil
+		return nil
+	}
+
+	*s = make(HiveIDSet)
+	for _, id := range rawSlice {
+		(*s)[HiveID(id)] = true
+	}
+	return nil
+}
+
+type ScaleAddressMap map[string]HiveID
+
+func (s *ScaleAddressMap) UnmarshalYAML(value *yaml.Node) error {
+	type ScaleMapping struct {
+		Address string `yaml:"address"`
+		HiveID  uint8  `yaml:"hive-id"`
+	}
+	var rawMapping []ScaleMapping
+	if err := value.Decode(&rawMapping); err != nil {
+		return err
+	}
+
+	if len(rawMapping) == 0 {
+		*s = nil
+		return nil
+	}
+	res := make(ScaleAddressMap)
+	ids := make(map[uint8]bool)
+	for _, m := range rawMapping {
+		if _, ok := res[m.Address]; ok == true {
+			return fmt.Errorf("address `%s` is mapped multiple times", m.Address)
+		}
+		if ids[m.HiveID] != false {
+			return fmt.Errorf("Hive ID %d is mapped multiple times", m.HiveID)
+		}
+
+		res[m.Address] = HiveID(m.HiveID)
+		ids[m.HiveID] = true
+	}
+	*s = res
+	return nil
+}
+
 type CollectorConfig struct {
 	deps *collectorDependencies
 
-	HiveIDFilter               map[uint8]bool
-	MinimumAssignementDuration time.Duration
-	MaximalTimeOffset          time.Duration
-	ActiveThresholdDuration    time.Duration
-	ConnectionJitter           time.Duration
-	JanitorTime                HourOfDay
-	SynchronizeDevices         bool
+	HiveIDFilter               HiveIDSet       `yaml:"hive-ids"`
+	MinimumAssignementDuration time.Duration   `yaml:"minimum-assignment-duration"`
+	MaximalTimeOffset          time.Duration   `yaml:"maximal-time-offset"`
+	ActiveThresholdDuration    time.Duration   `yaml:"active-threshold-duration"`
+	ConnectionJitter           time.Duration   `yaml:"connection-jitter"`
+	JanitorTime                HourOfDay       `yaml:"janitor-schedule"`
+	SynchronizeDevices         bool            `yaml:"synchronize-device"`
+	ScaleAddresses             ScaleAddressMap `yaml:"scales"`
 }
 
 type CollectorConfigOption func(*CollectorConfig)
@@ -106,9 +163,9 @@ func WithSynchronizeDevice(enabled bool) CollectorConfigOption {
 
 func WithHiveIDFilter(IDs ...uint8) CollectorConfigOption {
 	return func(config *CollectorConfig) {
-		config.HiveIDFilter = make(map[uint8]bool)
+		config.HiveIDFilter = make(HiveIDSet)
 		for _, ID := range IDs {
-			config.HiveIDFilter[ID] = true
+			config.HiveIDFilter[HiveID(ID)] = true
 		}
 	}
 }
@@ -173,10 +230,40 @@ func withEnvironmentalOperator(eo environmentalOperator) CollectorConfigOption {
 	}
 }
 
+func (c *CollectorConfig) ApplyOptions(opts ...CollectorConfigOption) {
+	for _, opt := range opts {
+		opt(c)
+	}
+}
+
+func (c *CollectorConfig) LoadFromYAML(path string) error {
+	file, err := os.Open(path)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+
+	loader, err := yaml.NewLoader(file, yaml.WithV4Defaults())
+	if err != nil {
+		return err
+	}
+	return loader.Load(c)
+}
+
+func NewCollectorConfigFromFiles(paths ...string) (CollectorConfig, error) {
+	cfg := defaultCollectorConfig()
+	for _, p := range paths {
+		err := cfg.LoadFromYAML(p)
+		if err != nil && errors.Is(err, os.ErrNotExist) == false {
+			return CollectorConfig{}, fmt.Errorf("could not read '%s': %w", p, err)
+		}
+	}
+
+	return cfg, nil
+}
+
 func NewCollectorConfig(opts ...CollectorConfigOption) CollectorConfig {
 	cfg := defaultCollectorConfig()
-	for _, opt := range opts {
-		opt(&cfg)
-	}
+	cfg.ApplyOptions(opts...)
 	return cfg
 }
