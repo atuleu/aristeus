@@ -9,6 +9,7 @@ import (
 	"log/slog"
 	"math"
 	"math/rand"
+	"strings"
 	"sync"
 	"time"
 
@@ -35,8 +36,6 @@ type Collector struct {
 	devices      map[string]*EnvironmentalDevice
 	envPublisher Publisher[DataUpdate]
 
-	hiveIDFilter map[uint8]bool
-
 	logger *slog.Logger
 
 	journal               DataJournal
@@ -51,9 +50,15 @@ func (c *Collector) Close() error {
 
 func (c *Collector) bleAdvFilter() ble.AdvFilter {
 	hiveIDFilter := make(map[uint8]bool)
-	for ID, ok := range c.hiveIDFilter {
-		hiveIDFilter[ID] = ok
+	for ID, ok := range c.config.HiveIDFilter {
+		hiveIDFilter[uint8(ID)] = ok
 	}
+
+	scaleFilter := make([]string, 0, len(c.config.ScaleAddresses))
+	for addr, _ := range c.config.ScaleAddresses {
+		scaleFilter = append(scaleFilter, addr)
+	}
+
 	return func(adv ble.Advertisement) bool {
 		mdata := adv.ManufacturerData()
 		if len(mdata) < 2 {
@@ -62,6 +67,14 @@ func (c *Collector) bleAdvFilter() ble.AdvFilter {
 
 		manufacturerID := binary.LittleEndian.Uint16(mdata[0:2])
 		if manufacturerID == 0x028d {
+			if len(scaleFilter) > 0 {
+				for _, suffix := range scaleFilter {
+					if strings.HasSuffix(adv.Addr().String(), suffix) {
+						return true
+					}
+				}
+				return false
+			}
 			return true
 		}
 
@@ -75,7 +88,7 @@ func (c *Collector) bleAdvFilter() ble.AdvFilter {
 	}
 }
 
-func (c *Collector) onAdvertisment(ctx context.Context, adv EnvironmentalAdvertisment) {
+func (c *Collector) onEnvironmentalAdvertisment(ctx context.Context, adv EnvironmentalAdvertisment) {
 	c.mx.Lock()
 	defer c.mx.Unlock()
 
@@ -85,6 +98,13 @@ func (c *Collector) onAdvertisment(ctx context.Context, adv EnvironmentalAdverti
 	} else {
 		c.updateDevice(ctx, d, adv)
 	}
+}
+
+func (c *Collector) onScaleAdvertisment(ctx context.Context, adv ScaleAdvertisment) {
+	logger := c.logger.With(slog.String("address", adv.address.String()))
+
+	logger.Info("got new scale advertisment",
+		slog.Any("data", adv.data))
 }
 
 func (c *Collector) onNewDevice(ctx context.Context, adv EnvironmentalAdvertisment) {
@@ -340,10 +360,13 @@ func (c *Collector) Collect(ctx context.Context) error {
 					)
 				}
 
-				c.onAdvertisment(ctx, eAdv)
+				c.onEnvironmentalAdvertisment(ctx, eAdv)
 			case 0x028d:
-				logger.Info("received new advertisment",
-					slog.Any("data", mdata))
+				c.onScaleAdvertisment(ctx, ScaleAdvertisment{
+					address:    adv.Adv.Addr(),
+					receivedAt: adv.ReceivedAt,
+					data:       mdata,
+				})
 			default:
 				logger.Warn("wrong manufacturer ID",
 					slog.String("ID", fmt.Sprintf("0x%04X", manufacturerID)))
@@ -552,19 +575,14 @@ func (eoi environmentalOperatorImpl) SynchronizeDevice(ctx context.Context, dev 
 func NewCollector(config CollectorConfig) (*Collector, error) {
 
 	res := &Collector{
-		config:       config,
-		devices:      make(map[string]*EnvironmentalDevice),
-		hiveIDFilter: make(map[uint8]bool),
-		logger:       slog.With(slog.String("module", "collector")),
+		config:  config,
+		devices: make(map[string]*EnvironmentalDevice),
+		logger:  slog.With(slog.String("module", "collector")),
 	}
 
 	err := res.config.deps.doMissingInjection()
 	if err != nil {
 		return nil, err
-	}
-
-	for hiveID, collect := range config.HiveIDFilter {
-		res.hiveIDFilter[uint8(hiveID)] = collect
 	}
 
 	res.journal = res.config.deps.journal
