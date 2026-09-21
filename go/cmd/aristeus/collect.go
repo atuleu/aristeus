@@ -3,14 +3,37 @@ package main
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log/slog"
 	"os"
 	"os/signal"
 	"path/filepath"
+	"strconv"
+	"strings"
 
 	"github.com/adrg/xdg"
 	"github.com/atuleu/aristeus/go/pkg/collector"
 )
+
+type AddressMapping map[string]uint8
+
+func (m *AddressMapping) UnmarshalFlag(value string) error {
+	parts := strings.SplitN(value, "=", 2)
+	if len(parts) != 2 {
+		return fmt.Errorf("invalid format, expected address=id, got '%s'", value)
+	}
+
+	address := parts[0]
+	id, err := strconv.ParseInt(parts[1], 10, 8)
+	if err != nil {
+		return fmt.Errorf("invalid ID in '%s': %w", value, err)
+	}
+	if *m == nil {
+		*m = make(AddressMapping)
+	}
+	(*m)[address] = uint8(id)
+	return nil
+}
 
 type CollectCommand struct {
 	HiveIDs                []uint8          `short:"i" long:"hive-id" description:"hive id to filter, none accepts all"`
