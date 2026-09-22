@@ -29,12 +29,20 @@ type DataUpdate struct {
 	TrafficCount         *TrafficCount
 }
 
+type scalingDevice struct {
+	LastSeen         time.Time
+	CurrentTimestamp time.Time
+	CurrentData      ScaleData
+}
+
 type Collector struct {
 	config       CollectorConfig
 	wg           sync.WaitGroup
 	mx           sync.RWMutex
 	devices      map[string]*EnvironmentalDevice
 	envPublisher Publisher[DataUpdate]
+
+	scales map[HiveID]*scalingDevice
 
 	logger *slog.Logger
 
@@ -100,11 +108,85 @@ func (c *Collector) onEnvironmentalAdvertisment(ctx context.Context, adv Environ
 	}
 }
 
+func (c *Collector) mapScaleDevice(addr ble.Addr) (HiveID, error) {
+	for address, hiveID := range c.config.ScaleAddresses {
+		if strings.HasSuffix(addr.String(), address) == true {
+			return hiveID, nil
+		}
+	}
+	return 0, fmt.Errorf("could not map device '%s'", addr)
+
+}
+
 func (c *Collector) onScaleAdvertisment(ctx context.Context, adv ScaleAdvertisment) {
 	logger := c.logger.With(slog.String("address", adv.address.String()))
 
-	logger.Info("got new scale advertisment",
-		slog.String("data", fmt.Sprintf("%+v", adv.data)))
+	hiveID, err := c.mapScaleDevice(adv.address)
+	if err != nil {
+		logger.Error("could not map hive id for this device")
+	}
+	logger = logger.With(slog.Int("hive_id", int(hiveID)))
+	c.mx.Lock()
+	defer c.mx.Unlock()
+
+	d, ok := c.scales[hiveID]
+	if ok == false {
+		logger.Info("new scaling device found")
+		c.scales[hiveID] = &scalingDevice{
+			LastSeen:         adv.receivedAt,
+			CurrentTimestamp: adv.receivedAt,
+			CurrentData:      adv.data,
+		}
+	} else {
+		d.LastSeen = adv.receivedAt
+		if d.CurrentData.ReadoutID == adv.data.ReadoutID {
+			return
+		}
+		d.CurrentTimestamp = adv.receivedAt
+		d.CurrentData = adv.data
+		logger.Debug("new scale readout",
+			slog.Time("timestamp", adv.receivedAt),
+			slog.Int("readout_id", int(adv.data.ReadoutID)),
+		)
+	}
+
+	reading := &ScaleReading{
+		LocationID:        BuildLocationID(arisble.Location{HiveID: uint8(hiveID), Placement: arisble.PlacementGeneral}),
+		SensorID:          adv.address.String(),
+		Timestamp:         d.CurrentTimestamp,
+		ReceivedAt:        adv.receivedAt,
+		Total_kg:          newValue(d.CurrentData.Weight[0] + d.CurrentData.Weight[1] + d.CurrentData.Weight[2] + d.CurrentData.Weight[3]),
+		Temperature_C:     newValue(d.CurrentData.Temperature),
+		CellFrontLeft_kg:  newValue(d.CurrentData.Weight[0]),
+		CellFrontRight_kg: newValue(d.CurrentData.Weight[1]),
+		CellBackLeft_kg:   newValue(d.CurrentData.Weight[2]),
+		CellBackRight_kg:  newValue(d.CurrentData.Weight[3]),
+	}
+
+	logger = logger.With(slog.String("location_id", reading.LocationID))
+
+	if err := c.envPublisher.Update(DataUpdate{ScaleReading: reading}); err != nil {
+		logger.Warn("could not push update",
+			slog.String("error", err.Error()))
+	} else {
+		logger.Debug("pushing update")
+	}
+
+	c.wg.Go(func() {
+		logger.Debug("writing to journal")
+		txContext, txCancel := context.WithTimeout(ctx, 5*time.Second)
+		defer txCancel()
+
+		err := c.journal.SaveScaleReading(txContext, []ScaleReading{*reading})
+		if err != nil {
+			logger.Error("failed to save new reading",
+				slog.String("error", err.Error()),
+			)
+		} else {
+			logger.Debug("saved")
+		}
+	})
+
 }
 
 func (c *Collector) onNewDevice(ctx context.Context, adv EnvironmentalAdvertisment) {
@@ -583,6 +665,7 @@ func NewCollector(config CollectorConfig) (*Collector, error) {
 	res := &Collector{
 		config:  config,
 		devices: make(map[string]*EnvironmentalDevice),
+		scales:  make(map[HiveID]*scalingDevice),
 		logger:  slog.With(slog.String("module", "collector")),
 	}
 
