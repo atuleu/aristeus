@@ -36,9 +36,9 @@ func (m *AddressMapping) UnmarshalFlag(value string) error {
 }
 
 type CollectCommand struct {
-	HiveIDs                []uint8          `short:"i" long:"hive-id" description:"hive id to filter, none accepts all"`
-	Scales                 map[string]uint8 `long:"scale" description:"maps a scale address to an id"`
-	DisableSynchronization bool             `long:"disable-synchronization" description:"disable device synchronization"`
+	HiveIDs                []uint8        `short:"i" long:"hive-id" description:"hive id to filter, none accepts all"`
+	Scales                 AddressMapping `long:"scale" description:"maps a scale address to an id"`
+	DisableSynchronization bool           `long:"disable-synchronization" description:"disable device synchronization"`
 }
 
 func (c *CollectCommand) Execute(args []string) (err error) {
