@@ -11,13 +11,13 @@ func TestParseStats(t *testing.T) {
 	assert := assert.New(t)
 
 	reader := bytes.NewBuffer([]byte(procStatExample))
-	cpu, cores, err := parseProcStats(reader)
+	cores, err := parseProcStats(reader)
 	assert.NoError(err)
-	assert.Equal(CpuStats{
-		Total: 6457554 + 18803880 + 15216709 + 3960896998 + 103958559 + 293411,
-		Idle:  3960896998 + 103958559,
-	}, cpu)
 	assert.Equal(map[string]CpuStats{
+		"total": CpuStats{
+			Total: 6457554 + 18803880 + 15216709 + 3960896998 + 103958559 + 293411,
+			Idle:  3960896998 + 103958559,
+		},
 		"core0": CpuStats{Total: 190199 + 304011 + 489899 + 126524478 + 161626 + 117712, Idle: 126524478 + 161626},
 		"core1": CpuStats{Total: 54863 + 114481 + 191771 + 128021912 + 37597 + 15791, Idle: 128021912 + 37597},
 		"core2": CpuStats{Total: 92105 + 162102 + 286404 + 127753998 + 51896 + 15824, Idle: 127753998 + 51896},

@@ -74,7 +74,7 @@ func parseProcLine(line string) (label string, stats CpuStats, err error) {
 	return fields[0], stats, nil
 }
 
-func parseProcStats(r io.Reader) (total CpuStats, cores map[string]CpuStats, err error) {
+func parseProcStats(r io.Reader) (cores map[string]CpuStats, err error) {
 	scanner := bufio.NewScanner(r)
 	cores = make(map[string]CpuStats)
 	for scanner.Scan() {
@@ -82,54 +82,62 @@ func parseProcStats(r io.Reader) (total CpuStats, cores map[string]CpuStats, err
 		line := scanner.Text()
 
 		if strings.HasPrefix(line, "cpu") == false {
-			return total, cores, nil
+			return cores, nil
 		}
 		label, stats, err := parseProcLine(line)
 		if err != nil {
-			return CpuStats{}, nil, err
+			return nil, err
 		}
 
 		if label == "cpu" {
-			total = stats
+			cores["total"] = stats
 		} else {
 			cores["core"+strings.TrimPrefix(label, "cpu")] = stats
 		}
 	}
-	return total, cores, scanner.Err()
+	return cores, scanner.Err()
 }
 
-func readProcStats() (CpuStats, map[string]CpuStats, error) {
+func readProcStats() (map[string]CpuStats, error) {
 	file, err := os.Open("/proc/stat")
 	if err != nil {
-		return CpuStats{}, nil, err
+		return nil, err
 	}
 	defer file.Close()
 
 	return parseProcStats(file)
 }
 
+var previous = map[string]CpuStats{}
+
 func pollCPUUsage(logger *slog.Logger) error {
-	cpu, cores, err := readProcStats()
+	cores, err := readProcStats()
 	if err != nil {
 		return fmt.Errorf("could not read '/proc/stat': %w", err)
 	}
 
-	if cpu.Total != 0 {
-		cpuUsage.Set(cpu.Usage_percent())
-	}
-	perCore := map[string]float64{}
-	for label, stat := range cores {
-		if stat.Total != 0 {
-			cpuCoreUsage.WithLabelValues(label).Set(stat.Usage_percent())
+	for id, value := range cores {
+		if prevStats, ok := previous[id]; ok == true {
+			current := CpuStats{Idle: value.Idle - prevStats.Idle, Total: value.Total - prevStats.Total}
+			setCPUMetrics(id, current)
 		}
-		perCore[label] = stat.Usage_percent()
+		previous[id] = value
 	}
-
-	logger.Debug("polled /proc/stat",
-		slog.Float64("cpu", cpu.Usage_percent()),
-		slog.Any("cores", perCore))
 
 	return nil
+}
+
+func setCPUMetrics(id string, stats CpuStats) {
+	if stats.Total == 0 {
+		return
+	}
+
+	if id == "total" {
+		cpuUsage.Set(stats.Usage_percent())
+	} else {
+		cpuCoreUsage.WithLabelValues(id).Set(stats.Usage_percent())
+	}
+
 }
 
 type MemoryStats struct {
