@@ -5,5 +5,5 @@
   roles:
     - role: aristeus-monitor-service
       vars:
-        aristeus_node_monitor_version: v0.0.3
+        aristeus_node_monitor_version: v0.0.4
     - role: pylon
