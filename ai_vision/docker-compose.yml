@@ -1,0 +1,13 @@
+services:
+  vision_env:
+    build: .
+    container_name: ai_vision_workspace
+    runtime: nvidia
+    environment:
+      - NVIDIA_VISIBLE_DEVICES=all
+      - NVIDIA_DRVIER_CAPABILITIES=compute,utility
+    volumes:
+      - ~/.kaggle/kaggle.json:/root/.kaggle/kaggle.json:ro
+      - ./datasets:/workspace/datasets
+    stdin_open: true
+    tty: true
