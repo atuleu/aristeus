@@ -2,6 +2,7 @@ services:
   vision_env:
     build: .
     container_name: ai_vision_workspace
+    shm_size: '64gb'
     runtime: nvidia
     environment:
       - NVIDIA_VISIBLE_DEVICES=all
@@ -9,5 +10,9 @@ services:
     volumes:
       - ~/.kaggle/kaggle.json:/root/.kaggle/kaggle.json:ro
       - ./datasets:/workspace/datasets
+      - ./scripts:/workspace/scripts
+      - ./runs:/workspace/runs
     stdin_open: true
+    ports:
+      - 5151:5151
     tty: true
