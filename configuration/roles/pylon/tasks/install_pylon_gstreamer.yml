@@ -1,0 +1,48 @@
+---
+- name: installs required gstreamer dependencies
+  apt:
+    name:
+      - meson
+      - ninja-build
+      - libgstreamer1.0-dev
+      - libgstreamer-plugins-base1.0-dev
+      - cmake
+      - gstreamer1.0-python3-plugin-loader
+      - python3-dev
+      - python3-gi
+      - gir1.2-gstreamer-1.0
+      - gstreamer1.0-tools
+      - pkg-config
+    state: present
+
+- name: installs jetson specific dependencies
+  when: platform_type == 'jetson'
+  block:
+    - name: installs jetpack and deepstream
+      apt:
+        name:
+          - nvidia-jetpack
+          - deepstream-9.1
+        state: present
+
+    - name: adds deepstream libraries to path
+      lineinfile:
+        path: /etc/ld.so.conf.d/deepstream.conf
+        line: /opt/nvidia/deepstream/deepstream/lib
+      register: ldconfig_modified
+
+    - name: reloads ldconfig
+      command: ldconfig
+      when: ldconfig_modified.changed
+
+
+- name: sets pylon gstreamer version
+  set_fact:
+    aristeus_pylon_gstreamer_version: v1.0.0
+  when: aristeus_pylon_gstreamer_version is not defined
+
+- name: gets pylon gstreamer sources
+  git:
+    repo: https://github.com/basler/gst-plugin-pylon
+    dest: /usr/local/src/gst-plugin-pylon
+    version: "{{ aristeus_pylon_gstreamer_version }}"
