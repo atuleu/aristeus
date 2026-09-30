@@ -12,7 +12,11 @@ services:
       - ./datasets:/workspace/datasets
       - ./scripts:/workspace/scripts
       - ./runs:/workspace/runs
+      - fiftyone_data:/root/.fiftyone
     stdin_open: true
     ports:
       - 5151:5151
     tty: true
+
+volumes:
+  fiftyone_data:

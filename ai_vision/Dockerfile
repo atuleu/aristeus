@@ -15,13 +15,14 @@ RUN python3 -m pip install --no-cache-dir --upgrade pip
 
 RUN pip3 install --no-cache-dir torch torchvision --index-url https://download.pytorch.org/whl/cu129
 
-RUN pip3 install --no-cache-dir ultralytics fiftyone kaggle
-
 RUN apt-get update && apt-get install -y \
 	libxcb-cursor0 \
 	libgl1 \
 	libglib2.0-0 \
 	libcurl4-openssl-dev
+
+RUN pip3 install --no-cache-dir ultralytics ultralytics-thop fiftyone kaggle umap-learn rich 'graphql-core<3.3.0'
+
 
 
 WORKDIR /workspace

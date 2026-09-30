@@ -236,45 +236,6 @@ def merge_MLData(this: KaggleDatasetDescription, master: fo.Dataset):
     master.merge_samples(ds)
 
 
-def create_from_existing(ds: fo.Dataset, path: str):
-    print(f"recreating {dataset_name} from {path}")
-    train = fo.Dataset.from_dir(
-        dataset_dir=path, split="train", dataset_type=fo.types.YOLOv5Dataset
-    )
-    train.tag_samples("split_train")
-    validation = fo.Dataset.from_dir(
-        dataset_dir=path, split="val", dataset_type=fo.types.YOLOv5Dataset
-    )
-    validation.tag_samples("split_validation")
-    test = fo.Dataset.from_dir(
-        dataset_dir=path, split="test", dataset_type=fo.types.YOLOv5Dataset
-    )
-    test.tag_samples("split_test")
-    ds.merge_samples(train)
-    ds.merge_samples(test)
-    ds.merge_samples(validation)
-
-    for sample in tqdm.tqdm(ds):
-        target = Path(os.readlink(sample.filepath))
-        try:
-            idx = target.parts.index("kaggle")
-            origin = str(Path(*target.parts[idx : idx + 3]))
-            sample.tags.append(origin)
-            sample.save()
-        except ValueError:
-            print(f"No kaggle found in '{sample.filepath}'")
-
-    total = len(ds)
-    train_size = len(ds.match_tags("split_train"))
-    val_size = len(ds.match_tags("split_validation"))
-    test_size = len(ds.match_tags("split_test"))
-    print(
-        f"loaded {total} , train: {train_size} ({100.0*(train_size/total):.2f}%)"
-        f" validation: {val_size} ({100.0*(val_size/total):.2f}%)"
-        f" test: {test_size} ({100.0*(test_size/total):.2f}%)"
-    )
-
-
 def main():
     parser = argparse.ArgumentParser(
         prog="ProgramName",
@@ -295,7 +256,7 @@ def main():
     export_dir = os.path.join(dataset_path, dataset_name)
 
     if os.path.exists(export_dir):
-        create_from_existing(master, export_dir)
+        aristeus.create_from_existing(master, export_dir)
         return
 
     datasets = [
