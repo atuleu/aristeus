@@ -2,10 +2,12 @@
 
 PYLON_ROOT=/opt/pylon
 PYLON_VERSION_INFO=$PYLON_ROOT/share/pylon/VersionInfo.txt
+PYLON_GST_VERSION=$(gst-inspect-1.0 pylonsrc 2>/dev/null | grep Version | head -n 1 | awk '{print $2}' || true)
 if [ -e $PYLON_VERSION_INFO ]
 then
 	PYLON_VERSION=$(cat $PYLON_VERSION_INFO | cut -d "." -f 1-3)
-	echo "{\"version\":\"$PYLON_VERSION\"}"
 else
-	echo "{\"version\":\"\"}"
+	PYLON_VERSION=""
 fi
+
+echo  "{\"version\":\"$PYLON_VERSION\",\"gst_version\":\"$PYLON_GST_VERSION\"}"

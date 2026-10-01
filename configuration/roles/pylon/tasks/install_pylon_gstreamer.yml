@@ -38,11 +38,27 @@
 
 - name: sets pylon gstreamer version
   set_fact:
-    aristeus_pylon_gstreamer_version: v1.0.0
+    aristeus_pylon_gstreamer_version: 1.0.0
   when: aristeus_pylon_gstreamer_version is not defined
 
-- name: gets pylon gstreamer sources
-  git:
-    repo: https://github.com/basler/gst-plugin-pylon
-    dest: /usr/local/src/gst-plugin-pylon
-    version: "{{ aristeus_pylon_gstreamer_version }}"
+- name: build and installs gstreamer plugin
+  when: ansible_local.aristeus_pylon_version.gst_version != aristeus_pylon_gstreamer_version
+  block:
+    - name: gets pylon gstreamer sources
+      git:
+        repo: https://github.com/basler/gst-plugin-pylon
+        dest: /usr/local/src/gst-plugin-pylon
+        version: "v{{ aristeus_pylon_gstreamer_version }}"
+
+    - name: build and installs plugin
+      shell: |
+        set -e
+
+        cd /usr/local/src/gst-plugin-pylon
+        rm -Rf builddir
+
+        export PYLON_ROOT=/opt/pylon
+        meson setup builddir --prefix /usr/ -Dpython-bindings=enabled
+        ninja -C builddir
+        ninja -C builddir test
+        ninja -C builddir install
