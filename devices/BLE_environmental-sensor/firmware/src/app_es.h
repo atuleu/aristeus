@@ -92,6 +92,8 @@ void _app_es_on_sht4x_readout(
     sl_status_t   status,
     temperature_t temperature,
     humidity_t    humidity,
+    uint16_t      raw_temperature,
+    uint16_t      raw_humidity,
     void         *user_data
 );
 

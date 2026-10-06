@@ -31,7 +31,9 @@ typedef struct app_es_handle {
 	stcc4_handle_t               stcc4_sensor;
 
 	volatile data_point_t new_data_point;
+	volatile uint16_t     new_raw_temperature, new_raw_humidity;
 	data_point_t          current_data_point;
+	uint16_t              current_raw_temperature, current_raw_humidity;
 	volatile sl_status_t  sht4x_readout_status;
 	volatile sl_status_t  lps22hh_readout_status;
 	volatile sl_status_t  stcc4_readout_status;
@@ -91,12 +93,16 @@ void _app_es_on_sht4x_readout(
     sl_status_t   status,
     temperature_t temperature,
     humidity_t    humidity,
+    uint16_t      raw_temperature,
+    uint16_t      raw_humidity,
     void         *user_data
 ) {
 	(void)user_data;
 	CORE_ATOMIC_SECTION({
 		self.new_data_point.temperature = temperature;
 		self.new_data_point.humidity    = humidity;
+		self.new_raw_temperature        = raw_temperature;
+		self.new_raw_humidity           = raw_humidity;
 		self.sht4x_readout_status       = status;
 	});
 }
@@ -173,6 +179,10 @@ sl_status_t app_es_init(const app_es_config_t *config) {
 	self.compute_default_pressure_offset = false;
 	self.FRC_count                       = FRC_PROCEDURE_NB_READOUT;
 	self.FRC_target                      = GATT_CO2_NAN;
+	self.new_raw_humidity                = SHT4X_INVALID_READ;
+	self.new_raw_temperature             = SHT4X_INVALID_READ;
+	self.current_raw_humidity            = SHT4X_INVALID_READ;
+	self.current_raw_temperature         = SHT4X_INVALID_READ;
 
 	sl_status_t status;
 	status = sht4x_init(&self.sht4x_sensor, config->i2c_bus, SHT4X_BASE_ADDR);
@@ -443,8 +453,8 @@ sl_status_t _app_es_start_co2_readout() {
 
 	sl_status_t status = stcc4_start_read_sequence(
 	    &self.stcc4_sensor,
-	    self.current_data_point.temperature,
-	    self.current_data_point.humidity,
+	    self.current_raw_temperature,
+	    self.current_raw_humidity,
 	    self.current_data_point.pressure,
 	    &_app_es_on_stcc4_readout,
 	    NULL,
@@ -516,6 +526,7 @@ void app_es_process_action(void) {
 void _app_es_process_sht4x(sl_status_t status) {
 	self.current_data_point.date = self.new_data_point.date;
 	self.sht4x_done              = true;
+
 	if (status != SL_STATUS_OK) {
 		app_log_error(
 		    "[app_es] SHT4x measurement error: %s." APP_LOG_NL,
@@ -523,8 +534,11 @@ void _app_es_process_sht4x(sl_status_t status) {
 		);
 		return;
 	}
+
 	self.current_data_point.temperature = self.new_data_point.temperature;
 	self.current_data_point.humidity    = self.new_data_point.humidity;
+	self.current_raw_humidity           = self.new_raw_humidity;
+	self.current_raw_temperature        = self.new_raw_temperature;
 
 	app_log_debug(
 	    "[app_es] temperature: %d.%02d°C humidity: %d.%d%%." APP_LOG_NL,

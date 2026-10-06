@@ -97,8 +97,14 @@ void _sht4x_error_cmd(sht4x_handle_t *self, sl_status_t status) {
 		callback.soft_reset(status, user_data);
 		break;
 	default:
-		callback
-		    .data(status, GATT_TEMPERATURE_NAN, GATT_HUMIDITY_NAN, user_data);
+		callback.data(
+		    status,
+		    GATT_TEMPERATURE_NAN,
+		    GATT_HUMIDITY_NAN,
+		    SHT4X_INVALID_READ,
+		    SHT4X_INVALID_READ,
+		    user_data
+		);
 	}
 }
 
@@ -135,6 +141,8 @@ void _sht4x_complete_cmd(sht4x_handle_t *self, sht4x_blocking_result_t *res) {
 		    res->status,
 		    res->data.th_readout.temperature,
 		    res->data.th_readout.humidity,
+		    res->data.th_readout.raw_temperature,
+		    res->data.th_readout.raw_humidity,
 		    user_data
 		);
 	}
@@ -180,20 +188,25 @@ void _sht4x_parse_data(sht4x_handle_t *self, sht4x_blocking_result_t *res) {
 		break;
 	default:
 		if (dataAOk) {
-			res->data.th_readout.temperature = _sht4x_convert_temperature(
+			res->data.th_readout.raw_temperature =
 			    ((uint16_t)self->read_buffer[0] << 8) |
-			    ((uint16_t)self->read_buffer[1])
-			);
+			    ((uint16_t)self->read_buffer[1]);
+			res->data.th_readout.temperature =
+			    _sht4x_convert_temperature(res->data.th_readout.raw_temperature
+			    );
 		} else {
-			res->data.th_readout.temperature = GATT_TEMPERATURE_NAN;
+			res->data.th_readout.raw_temperature = SHT4X_INVALID_READ;
+			res->data.th_readout.temperature     = GATT_TEMPERATURE_NAN;
 		}
 		if (dataBOk) {
-			res->data.th_readout.humidity = _sht4x_convert_humidity(
+			res->data.th_readout.raw_humidity =
 			    ((uint16_t)self->read_buffer[3] << 8) |
-			    ((uint16_t)self->read_buffer[4])
-			);
+			    ((uint16_t)self->read_buffer[4]);
+			res->data.th_readout.humidity =
+			    _sht4x_convert_humidity(res->data.th_readout.raw_humidity);
 		} else {
-			res->data.th_readout.humidity = GATT_HUMIDITY_NAN;
+			res->data.th_readout.raw_humidity = SHT4X_INVALID_READ;
+			res->data.th_readout.humidity     = GATT_HUMIDITY_NAN;
 		}
 	}
 }

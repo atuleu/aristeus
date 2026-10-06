@@ -58,8 +58,8 @@ typedef void (*stcc4_operation_callback_t)(
  * sequence is complete.
  *
  * @param self Pointer to the STCC4 handle.
- * @param temperature The current temperature in 0.01°C.
- * @param humidity The current relative humidity in 0.1%.
+ * @param raw_temperature The current raw temperature value from SHT4X chip.
+ * @param raw_humidity The current raw relative humidity from SHT4X chip.
  * @param pressure The current atmospheric pressure in dPa.
  * @param callback The callback to call when the read sequence is complete.
  * @param user_data The user data to pass to the callback.
@@ -69,8 +69,8 @@ typedef void (*stcc4_operation_callback_t)(
  */
 sl_status_t stcc4_start_read_sequence(
     stcc4_handle_t            *self,
-    temperature_t              temperature,
-    humidity_t                 humidity,
+    uint16_t                   raw_temperature,
+    uint16_t                   raw_humidity,
     pressure_t                 pressure,
     stcc4_operation_callback_t callback,
     void                      *user_data,
@@ -149,8 +149,8 @@ struct stcc4_handle {
 	volatile stcc4_operation_callback_t op_callback;
 	volatile void                      *user_data;
 	volatile bool                       sleep_after_op;
-	temperature_t                       temperature;
-	humidity_t                          humidity;
+	uint16_t                            raw_temperature;
+	uint16_t                            raw_humidity;
 	pressure_t                          pressure;
 	co2_concentration_t                 frc_pressure;
 	co2_concentration_t                 pending_result;

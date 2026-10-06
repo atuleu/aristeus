@@ -71,10 +71,14 @@ sl_status_t sht4x_read_serial_number(
  * @param status Status of the read operation. SL_STATUS_OK if the read
  *        operation was successful, and both CRC checks passed. Otherwise, an
  *        error code indicating the failure reason.
- * @param temperature Temperature read from the sensor. is 0x8000 if read or CRC
- *        check failed.
- * @param humidity Humidity read from the sensor. is 0xFFFF if read or CRC check
- *        failed.
+ * @param temperature Temperature read from the sensor. Is GATT_TEMPERATURE_NAN
+ *        if read or CRC check failed.
+ * @param humidity Humidity read from the sensor. Is GATT_HUMIDITY_NAN if read
+ *        or CRC check failed.
+ * @param raw_temperature the raw temperature read from the sensor. Is
+ *        SHT4X_INVALID_READ if read or CRC check failed.
+ * @param raw_humidity the raw humidity read from the sensor. Is
+ *        SHT4X_INVALID_READ if read or CRC check failed.
  *
  *
  */
@@ -82,6 +86,8 @@ typedef void (*sht4x_read_data_callback_t)(
     sl_status_t   status,
     temperature_t temperature,
     humidity_t    humidity,
+    uint16_t      raw_temperature,
+    uint16_t      raw_humidity,
     void         *user_data
 );
 
@@ -164,6 +170,8 @@ typedef struct {
 		struct __attribute__((packed)) {
 			temperature_t temperature;
 			humidity_t    humidity;
+			uint16_t      raw_temperature;
+			uint16_t      raw_humidity;
 		} th_readout;
 
 	} data;

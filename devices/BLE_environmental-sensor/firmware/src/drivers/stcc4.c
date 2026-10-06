@@ -241,13 +241,15 @@ sl_status_t stcc4_init(stcc4_handle_t *self, stcc4_init_args_t *args) {
 		return SL_STATUS_NULL_POINTER;
 	}
 
-	self->i2c_bus        = args->i2c_bus;
-	self->tx_callback    = NULL;
-	self->op_callback    = NULL;
-	self->sleeping       = false;
-	self->sleep_after_op = true;
-	self->pending_result = GATT_CO2_NAN;
-	self->pending_status = SL_STATUS_NO_STATUS;
+	self->i2c_bus         = args->i2c_bus;
+	self->tx_callback     = NULL;
+	self->op_callback     = NULL;
+	self->sleeping        = false;
+	self->sleep_after_op  = true;
+	self->pending_result  = GATT_CO2_NAN;
+	self->pending_status  = SL_STATUS_NO_STATUS;
+	self->raw_humidity    = SHT4X_INVALID_READ;
+	self->raw_temperature = SHT4X_INVALID_READ;
 	if (args->address_pin_set == true) {
 		self->address = 0x65;
 	} else {
@@ -468,8 +470,8 @@ _stcc4_start_cmd(stcc4_handle_t *self, i2c_tx_callback_t on_wakeup) {
 
 sl_status_t stcc4_start_read_sequence(
     stcc4_handle_t            *self,
-    temperature_t              temperature,
-    humidity_t                 humidity,
+    uint16_t                   raw_temperature,
+    uint16_t                   raw_humidity,
     pressure_t                 pressure,
     stcc4_operation_callback_t callback,
     void                      *user_data,
@@ -479,8 +481,8 @@ sl_status_t stcc4_start_read_sequence(
 		return SL_STATUS_NULL_POINTER;
 	}
 
-	if (temperature == GATT_TEMPERATURE_NAN || humidity == GATT_HUMIDITY_NAN ||
-	    pressure == GATT_PRESSURE_NAN) {
+	if (raw_temperature == SHT4X_INVALID_READ ||
+	    raw_humidity == SHT4X_INVALID_READ || pressure == GATT_PRESSURE_NAN) {
 		return SL_STATUS_INVALID_PARAMETER;
 	}
 	sl_status_t status =
@@ -489,9 +491,9 @@ sl_status_t stcc4_start_read_sequence(
 		return status;
 	}
 
-	self->temperature = temperature;
-	self->humidity    = humidity;
-	self->pressure    = pressure;
+	self->raw_temperature = raw_temperature;
+	self->raw_humidity    = raw_humidity;
+	self->pressure        = pressure;
 
 	return _stcc4_start_cmd(self, _stcc4_start_readout_sequence);
 }
@@ -507,19 +509,15 @@ void _stcc4_start_readout_sequence(i2c_tx_status_t status, void *user_data) {
 		return;
 	}
 
-	uint16_t temperature =
-	    ((float)(self->temperature + 4500)) * 65535.0f / 17500.0f;
-
-	uint16_t humidity = ((float)self->humidity + 60.0f) / 1250.0f * 65535.0f;
 #ifndef PRODUCTION_BUILD
 	app_log_debug(
 	    "[STCC4] sending compensation temp=%d humidity=%d." APP_LOG_NL,
-	    temperature,
-	    humidity
+	    self->raw_temperature,
+	    self->raw_humidity
 	);
 #endif // PRODUCTION_BUILD
-	_stcc4_write_word(&self->buffer[2], temperature);
-	_stcc4_write_word(&self->buffer[5], humidity);
+	_stcc4_write_word(&self->buffer[2], self->raw_temperature);
+	_stcc4_write_word(&self->buffer[5], self->raw_humidity);
 
 	sl_status_t command_status = _stcc4_send_command(
 	    self,

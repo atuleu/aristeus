@@ -25,6 +25,8 @@ typedef uint16_t co2_concentration_t;
 #define GATT_CO2_NAN ((co2_concentration_t)0xFFFF)
 #define GATT_CO2_MAX ((co2_concentration_t)0xFFFE)
 
+#define SHT4X_INVALID_READ ((uint16_t)0xFFFF)
+
 typedef uint8_t battery_level_t;
 #define BATTERY_NAN 0xff
 
