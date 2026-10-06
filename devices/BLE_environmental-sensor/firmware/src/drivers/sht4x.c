@@ -154,7 +154,7 @@ temperature_t _sht4x_convert_temperature(uint16_t raw) {
 }
 
 humidity_t _sht4x_convert_humidity(uint16_t raw) {
-	return (humidity_t)((((float)raw) * 1000.0f) / 65535.0f);
+	return (humidity_t)((((float)raw) * 1250.0f) / 65535.0f - 60.0f);
 }
 
 void _sht4x_parse_data(sht4x_handle_t *self, sht4x_blocking_result_t *res) {
