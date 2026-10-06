@@ -6,6 +6,22 @@ import os
 import math
 
 from pathlib import Path
+import random
+
+
+def split_samples(ds: fo.Dataset):
+    random.seed(4224)
+    sample_ids = ds.values("id")
+    random.shuffle(sample_ids)
+    total = len(sample_ids)
+    train_end = int(0.7 * total)
+    valid_end = train_end + int(0.2 * total)
+
+    ds.select(sample_ids[:train_end]).tag_samples("split_train")
+    ds.select(sample_ids[train_end:valid_end]).tag_samples("split_validation")
+    ds.select(sample_ids[valid_end:]).tag_samples("split_test")
+
+    ds.save()
 
 
 def make_symlinks_relative(export_dir):

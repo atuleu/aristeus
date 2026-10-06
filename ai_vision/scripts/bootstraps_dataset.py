@@ -121,21 +121,6 @@ def merge_lara311(this: KaggleDatasetDescription, master: fo.Dataset):
     master.merge_samples(test)
 
 
-def split_samples(ds: fo.Dataset):
-    random.seed(4224)
-    sample_ids = ds.values("id")
-    random.shuffle(sample_ids)
-    total = len(sample_ids)
-    train_end = int(0.7 * total)
-    valid_end = train_end + int(0.2 * total)
-
-    ds.select(sample_ids[:train_end]).tag_samples("split_train")
-    ds.select(sample_ids[train_end:valid_end]).tag_samples("split_validation")
-    ds.select(sample_ids[valid_end:]).tag_samples("split_test")
-
-    ds.save()
-
-
 def merge_VUT1(this: KaggleDatasetDescription, master: fo.Dataset):
     name = os.path.join("kaggle", this.Handle)
 
@@ -150,7 +135,7 @@ def merge_VUT1(this: KaggleDatasetDescription, master: fo.Dataset):
             progress=True,
             persistent=True,
         )
-        split_samples(ds)
+        aristeus.split_samples(ds)
 
     for sample in ds:
         modified = False
@@ -231,7 +216,7 @@ def merge_MLData(this: KaggleDatasetDescription, master: fo.Dataset):
 
     ds.add_samples(samples)
     rename_samples(ds)
-    split_samples(ds)
+    aristeus.split_samples(ds)
 
     master.merge_samples(ds)
 

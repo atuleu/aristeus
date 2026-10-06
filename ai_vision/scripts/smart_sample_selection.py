@@ -7,6 +7,8 @@ from ultralytics import YOLO
 
 import re
 
+import aristeus
+
 
 def zcore_score(
     embeddings, n_sample=10000, sample_dim=2, redund_nn=100, redund_exp=4, seed=42
@@ -111,7 +113,9 @@ def main():
     add_zcore(dataset)
 
     top_k_view = (
-        dataset.sort_by("zcore", reverse=True).skip(args.index).limit(args.size)
+        dataset.sort_by("zcore", reverse=True)
+        .skip(int(args.index))
+        .limit(int(args.size))
     )
 
     if dataset.has_field("pre_annotation") is False or args.force_annotation is True:
@@ -141,12 +145,16 @@ def main():
         if m:
             new_name = m.group(1) + str(int(m.group(2)) + 1)
             print(f"clonning dataset {merge_ds_name} to {new_name}")
+            if fo.dataset_exists(new_name):
+                fo.delete_dataset(new_name)
             master = master.clone(new_name)
             master.persistent = True
 
         top_k_view.tag_samples(
-            str(dataset.name) + f"/top_{args.index}_{args.size+args.index}"
+            str(dataset.name)
+            + f"/top_{int(args.index)}_{int(args.size)+int(args.index)}"
         )
+        aristeus.split_samples(top_k_view)
         master.merge_samples(top_k_view)
 
 

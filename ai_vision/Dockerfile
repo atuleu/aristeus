@@ -21,7 +21,15 @@ RUN apt-get update && apt-get install -y \
 	libglib2.0-0 \
 	libcurl4-openssl-dev
 
-RUN pip3 install --no-cache-dir ultralytics ultralytics-thop fiftyone kaggle umap-learn rich 'graphql-core<3.3.0'
+RUN pip3 install --no-cache-dir ultralytics \
+	ultralytics-thop \
+	fiftyone \
+	kaggle \
+	umap-learn \
+	rich \
+	'graphql-core<3.3.0' \
+	sahi
+
 
 
 
