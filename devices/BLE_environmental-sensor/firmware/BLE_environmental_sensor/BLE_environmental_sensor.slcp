@@ -80,6 +80,9 @@ component:
   vendor: silabs
   id: i2c
 - package: simplicity_sdk
+  vendor: silabs
+  id: in_place_ota_dfu
+- package: simplicity_sdk
   instance:
   - vcom
   vendor: silabs
@@ -114,6 +117,15 @@ autoselected_components:
 - package: simplicity_sdk
   vendor: silabs
   id: agents_md
+- package: simplicity_sdk
+  vendor: silabs
+  id: app_timer
+- package: simplicity_sdk
+  vendor: silabs
+  id: apploader
+- package: simplicity_sdk
+  vendor: silabs
+  id: apploader_util
 - package: simplicity_sdk
   vendor: silabs
   id: atomic
@@ -186,6 +198,30 @@ autoselected_components:
 - package: simplicity_sdk
   vendor: silabs
   id: bluetooth_version
+- package: simplicity_sdk
+  vendor: silabs
+  id: bootloader_app_properties
+- package: simplicity_sdk
+  vendor: silabs
+  id: bootloader_application_properties_header
+- package: simplicity_sdk
+  vendor: silabs
+  id: bootloader_interface
+- package: simplicity_sdk
+  vendor: silabs
+  id: bootloader_interface_common
+- package: simplicity_sdk
+  vendor: silabs
+  id: bootloader_interface_headers
+- package: simplicity_sdk
+  vendor: silabs
+  id: bootloader_interface_s2
+- package: simplicity_sdk
+  vendor: silabs
+  id: bootloader_s2_smp_record_header
+- package: simplicity_sdk
+  vendor: silabs
+  id: btl_util_header
 - package: simplicity_sdk
   vendor: silabs
   id: clock_manager_init_hal_s2
@@ -627,4 +663,6 @@ ui_hints:
   - path: config/btconf/gatt_configuration.btconf
   - path: readme.md
     focus: true
+post_build:
+- path: BLE_environmental_sensor.slpb
 

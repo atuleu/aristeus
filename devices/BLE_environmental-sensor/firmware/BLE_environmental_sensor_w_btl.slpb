@@ -1,0 +1,13 @@
+---
+parameters: []
+constants:
+- name: "workspace_name"
+  value: "BLE_environmental_sensor_w_btl"
+- path: "BLE_environmental_sensor/BLE_environmental_sensor.slpb"
+- path: "bt-bootloader-apploader/bt-bootloader-apploader.slpb"
+steps:
+- task: "convert"
+  output: "artifact/{{workspace_name}}.s37"
+  input:
+  - "{{bootloader_binary}}"
+  - "{{application_binary}}"

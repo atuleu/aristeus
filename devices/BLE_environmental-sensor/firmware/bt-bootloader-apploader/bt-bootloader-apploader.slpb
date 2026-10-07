@@ -1,0 +1,11 @@
+---
+parameters:
+- name: "build_dir"
+constants:
+- name: "project_name"
+  value: "bt-bootloader-apploader"
+steps:
+- task: "convert"
+  output: "artifact/{{project_name}}.s37"
+  export: "bootloader_binary"
+  input: "{{build_dir}}/{{project_name}}.out"

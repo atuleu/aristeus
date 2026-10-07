@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="ASCII"?>
 <model:MDescriptors xmlns:model="http://www.silabs.com/ss/Studio.ecore">
-  <descriptors name="BLE_environmental_sensor">
+  <descriptors name="bt-bootloader-apploader">
     <properties key="projectCommon.sdkId" value="com.silabs.sdk.stack.sisdk:2026.6.0._11171299862374425996"/>
     <properties key="universalConfig.relativeWorkspacePath" value="../../BLE_environmental_sensor_w_btl.slcw"/>
     <properties key="universalConfig.generationDirectory" value=""/>
@@ -9,9 +9,8 @@
     <properties key="projectCommon.boardIds" value="com.silabs.board.none:0.0.0"/>
     <properties key="projectCommon.kitId" value=""/>
     <properties key="projectCommon.partId" value="mcu.arm.efr32.bg22.bgm220pc22hna"/>
-    <properties key="projectCommon.toolchainId" value="com.silabs.ss.framework.project.core.noToolChain:0.0.0"/>
     <properties key="universalConfig.projectTypeIds" value="cmake"/>
     <properties key="projectCommon.importModeId" value="COPY"/>
-    <properties key="universalConfig.compSelProjInstanceId" value="1783608525956"/>
+    <properties key="universalConfig.compSelProjInstanceId" value="1791368489524"/>
   </descriptors>
 </model:MDescriptors>

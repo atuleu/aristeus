@@ -1,0 +1,13 @@
+---
+workspace_name: "BLE_environmental_sensor_w_btl"
+label: "BLE environmental - SoC In-Place OTA DFU"
+project:
+- id: "application"
+  path: "BLE_environmental_sensor/BLE_environmental_sensor.slcp"
+  output: "BLE_environmental_sensor"
+- id: "bootloader"
+  path: "bt-bootloader-apploader/bt-bootloader-apploader.slcp"
+  output: "bt-bootloader-apploader"
+post_build:
+  profile: ""
+  path: "BLE_environmental_sensor_w_btl.slpb"
