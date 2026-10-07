@@ -6,10 +6,12 @@ project(BLE_environmental_sensor_w_btl)
 
 include(ExternalProject)
 
+option(PRODUCTION_BUILD "turn on production build" On)
+
 ExternalProject_Add(BLE_environmental_sensor
   SOURCE_DIR ${CMAKE_CURRENT_LIST_DIR}/../BLE_environmental_sensor/cmake_gcc
   BINARY_DIR ${CMAKE_CURRENT_LIST_DIR}/../BLE_environmental_sensor/cmake_gcc/build
-  CMAKE_ARGS --preset project
+  CMAKE_ARGS --preset project -DPRODUCTION_BUILD=${PRODUCTION_BUILD}
   BUILD_COMMAND ${CMAKE_COMMAND} --build . --config $<CONFIG>
   INSTALL_COMMAND ""
   BUILD_ALWAYS true
