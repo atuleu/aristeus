@@ -788,6 +788,9 @@ void _app_on_gatt_server_user_write_request(
 	case gattdb_record_access_control_point:
 		_app_racp_user_write_request_handler(req);
 		break;
+	case gattdb_ota_control:
+		app_log_warning("[app] entering bootloader mode request" APP_LOG_NL);
+		break;
 	default:
 		app_log_error("[app] unknown characteristic write request");
 		sl_bt_gatt_server_send_user_write_response(
@@ -808,9 +811,12 @@ void _app_on_gatt_server_characteristic_status(
 	case gattdb_record_access_control_point:
 		_app_racp_indication_handler(evt);
 		break;
+	case gattdb_service_changed_char:
+		// used to connect to OTA
+		break;
 	default:
 		app_log_warning(
-		    "[app] unknwon GATT characteristic status %d." APP_LOG_NL,
+		    "[app] unknown GATT characteristic status %d." APP_LOG_NL,
 		    evt->characteristic
 		);
 	}
