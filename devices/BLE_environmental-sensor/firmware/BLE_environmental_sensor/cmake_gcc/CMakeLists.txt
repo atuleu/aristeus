@@ -4,7 +4,7 @@ cmake_minimum_required(VERSION "3.25")
 # Project definition
 project(
 	BLE_environmental_sensor
-	VERSION 0.1.0
+	VERSION 0.2.0
 	LANGUAGES C CXX ASM
 )
 

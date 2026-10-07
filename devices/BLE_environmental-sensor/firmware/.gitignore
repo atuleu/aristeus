@@ -10,3 +10,4 @@ autogen
 trashed_modified_files/
 BLE_environmental_sensor.cmake
 build-tests
+artifact/
